@@ -2,7 +2,7 @@
 import re
 
 from pyrevit import script, forms, revit, op
-from pyrevit import UI
+from pyrevit import DB, UI
 from pyrevit.revit.events import _GenericExternalEventHandler
 from pyrevit.framework import ComponentModel
 from pyrevit.compat import get_elementid_value_func
@@ -268,7 +268,7 @@ class MatchHistoryClipboard(forms.WPFPanel):
                 PropKeyValue(
                     name=tparam.Definition.Name,
                     datatype=tparam.StorageType,
-                    value=get_elementid_value(value),
+                    value=get_elementid_value(value) if isinstance(value, DB.ElementId) else value,
                     istype=False,
                     display_value=tparam.AsValueString() or str(value),
                     categories=[elem.Category],
