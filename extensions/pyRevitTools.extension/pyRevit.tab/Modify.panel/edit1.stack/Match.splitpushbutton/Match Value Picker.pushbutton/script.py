@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from pyrevit import revit, script
 from pyrevit import DB
-from pyrevit.compat import get_elementid_value_func()
+from pyrevit.compat import get_elementid_value_func
 
 from match.match_utils import paste_props, PropKeyValue, safe_get_parameter
 from match.filter_utils import (
