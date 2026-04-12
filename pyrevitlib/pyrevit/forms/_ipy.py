@@ -622,6 +622,38 @@ class WPFPanel(_WPFMixin, framework.Windows.Controls.Page):
             wpf.LoadComponent(self, framework.StringReader(xaml_source))
         self.thread_id = framework.get_current_thread_id()
 
+    @property
+    def logger(self):
+        """Logger named after the panel, created on first access."""
+        try:
+            return self._logger
+        except AttributeError:
+            self._logger = get_logger(self.panel_title)
+            try:
+                from pyrevit import script as _script
+                out = _script.get_output()
+                if out:
+                    out.set_title(self.panel_title)
+                    out.window.Closing += lambda sender, e: e.Cancel()
+                    out.hide()
+            except Exception:
+                pass
+            return self._logger
+
+    @property
+    def output(self):
+        """Output window with title corrected to panel_title on first access."""
+        try:
+            return self._output
+        except AttributeError:
+            from pyrevit import script as _script
+            out = _script.get_output()
+            if out:
+                out.set_title(self.panel_title)
+                out.window.Closing += lambda sender, e: e.Cancel()
+                out.hide()
+            self._output = out
+            return self._output
 
 class _WPFPanelProvider(UI.IDockablePaneProvider):
     """Internal panel provider for dockable panels."""
