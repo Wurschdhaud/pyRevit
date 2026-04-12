@@ -85,7 +85,7 @@
                            TextWrapping="Wrap"/>
             </GroupBox>
 
-            <!-- ouput / logger -->
+            <!-- output / logger -->
             <GroupBox Header="output logger">
                 <StackPanel>
                     <Button x:Name="output_button"
