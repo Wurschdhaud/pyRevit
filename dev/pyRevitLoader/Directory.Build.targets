@@ -111,4 +111,21 @@
                 Condition="'$(DeployToAllVersions)' == 'true'" />
     </Target>
 
+    <Target Name="DeployCodeAnalysisDlls" AfterTargets="Deploy" Condition="'$(SkipPyRevitDeploy)' != 'true' AND '$(UseRoslyn)' == 'true'">
+        <ItemGroup>
+            <CodeAnalysisDlls Include="$(PyRevitBinDir)\Microsoft.CodeAnalysis.dll" />
+            <CodeAnalysisDlls Include="$(PyRevitBinDir)\Microsoft.CodeAnalysis.CSharp.dll" />
+            <CodeAnalysisDlls Include="$(PyRevitBinDir)\Microsoft.CodeAnalysis.VisualBasic.dll" />
+        </ItemGroup>
+
+        <Copy SourceFiles="@(CodeAnalysisDlls)" 
+              DestinationFolder="$(PyRevitEnginesDir)\IPY342" 
+              Condition="'$(DeployToAllVersions)' == 'true' AND Exists('$(PyRevitBinDir)\Microsoft.CodeAnalysis.dll')" 
+              SkipUnchangedFiles="true" />
+        <Copy SourceFiles="@(CodeAnalysisDlls)" 
+              DestinationFolder="$(PyRevitEnginesDir)\IPY2712PR" 
+              Condition="'$(DeployToAllVersions)' == 'true' AND Exists('$(PyRevitBinDir)\Microsoft.CodeAnalysis.dll')" 
+              SkipUnchangedFiles="true" />
+    </Target>
+
 </Project>
