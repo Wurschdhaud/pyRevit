@@ -87,16 +87,19 @@ If the new Revit uses a new .NET version, add a mapping in the `NetFolder` secti
 
 ---
 
-## Step 3: Copy Support Libraries
+## Step 3: Verify Support Libraries
 
-Copy the `Xceed.Wpf.AvalonDock.dll` from the previous version:
+The `Xceed.Wpf.AvalonDock.dll` is shared across all Revit versions and lives in `dev/libs/Xceed/`.
+No per-version copy is required; `dev/Directory.Build.targets` already references that single location
+for all builds where `RevitVersion >= 2018`.
 
-```shell
-mkdir dev/libs/Revit/2028
-cp dev/libs/Revit/2027/Xceed.Wpf.AvalonDock.dll dev/libs/Revit/2028/
+If the DLL is missing (e.g. after a fresh clone), obtain it from a previous pyRevit release or
+the [Xceed Community Edition](https://xceed.com/en/our-products/product/xceed-extended-wpf-toolkit)
+and place it at:
+
 ```
-
-This DLL is required for the dockable console functionality in Revit 2018+.
+dev/libs/Xceed/Xceed.Wpf.AvalonDock.dll
+```
 
 ---
 
@@ -262,7 +265,7 @@ pipenv run pyrevit build products Debug
 | `dev/pyRevitLabs.PyRevit.Runtime/YYYY/*.csproj` | Runtime project per Revit version |
 | `dev/Directory.Build.targets` | Version constants and framework mappings |
 | `dev/Directory.Build.props` | Common project properties and NuGet packages |
-| `dev/libs/Revit/YYYY/` | Version-specific DLLs (Xceed.Wpf.AvalonDock) |
+| `dev/libs/Xceed/` | Shared Xceed AvalonDock DLL (used by all Revit versions ≥ 2018) |
 | `bin/pyrevit-hosts.json` | Revit build registry for version detection |
 | `.github/workflows/main.yml` | CI/CD pipeline configuration |
 | `release/CodeDependencies.iss` | .NET runtime installer procedures |
@@ -282,4 +285,5 @@ Check for reflection-based code that may behave differently on new .NET versions
 
 ### Xceed.Wpf.AvalonDock errors
 
-Ensure the DLL was copied to the correct `dev/libs/Revit/YYYY/` folder.
+Ensure `dev/libs/Xceed/Xceed.Wpf.AvalonDock.dll` exists. The file is shared across all Revit versions
+and is referenced from that single location by `dev/Directory.Build.targets`.
