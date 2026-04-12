@@ -25,6 +25,7 @@
   <ItemGroup>
     <Compile Include="TestHelpers\TempFileTestBase.cs" />
     <Compile Include="TestHelpers\TestExtensionBuilder.cs" />
+    <Compile Include="MockLogger.cs" />
     <Compile Include="DarkIconTests.cs" />
     <Compile Include="TestConfiguration.cs" />
     <Compile Include="LocalizationTests.cs" />
@@ -55,6 +56,7 @@
     <Compile Include="PythonScriptMultiLangTest.cs" />
     <Compile Include="ComboBoxTests.cs" />
     <Compile Include="SmartButtonTests.cs" />
+    <Compile Include="StackBuilderTests.cs" />
     <Compile Include="TemplateInheritanceTests.cs" />
     <Compile Include="ControlIdTests.cs" />
     <Compile Include="MultilineTitleTest.cs" />
