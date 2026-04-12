@@ -546,6 +546,9 @@ class WPFPanel(_WPFMixin, framework.Windows.Controls.Page):
         Subclass this, set the three required class attributes, then register
         and open the panel through the module-level helpers.
 
+        Use self.logger and self.output instead of using script.get_logger() and script.get_output() 
+        to ensure correct titles in the output window.
+
         Required class attributes:
             panel_id (str): stable UUID string identifying the panel in Revit.
             panel_source (str): XAML filename (resolved relative to the command).
@@ -634,8 +637,6 @@ class WPFPanel(_WPFMixin, framework.Windows.Controls.Page):
                 out = _script.get_output()
                 if out:
                     out.set_title(self.panel_title)
-                    out.window.Closing += lambda sender, e: e.Cancel()
-                    out.hide()
             except Exception:
                 pass
             return self._logger
@@ -650,8 +651,6 @@ class WPFPanel(_WPFMixin, framework.Windows.Controls.Page):
             out = _script.get_output()
             if out:
                 out.set_title(self.panel_title)
-                out.window.Closing += lambda sender, e: e.Cancel()
-                out.hide()
             self._output = out
             return self._output
 
