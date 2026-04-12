@@ -8,42 +8,6 @@ get_elementid_value = get_elementid_value_func()
 logger = script.get_logger()
 
 
-def safe_get_parameter(elem, param_id):
-    if not param_id:
-        return None
-
-    try:
-        pid_val = get_elementid_value(param_id)
-
-        # BuiltInParameter (negative ids)
-        if pid_val < 0:
-            bip = DB.BuiltInParameter(pid_val)
-            return elem.get_Parameter(bip)
-
-        # Shared / Project Parameter
-        doc = elem.Document
-        param_el = doc.GetElement(param_id)
-
-        if not param_el:
-            return None
-
-        # Prefer GUID
-        if hasattr(param_el, "GuidValue"):
-            guid = param_el.GuidValue
-            if guid:
-                return elem.get_Parameter(guid)
-
-        # Fallback - this should not be entered, as this would mean a non-filterable parameter
-        definition = (
-            param_el.GetDefinition() if hasattr(param_el, "GetDefinition") else None
-        )
-        if definition:
-            return param_el.get_Parameter(definition)
-
-    except Exception:
-        return None
-
-
 class PickByCategorySelectionFilter(UI.Selection.ISelectionFilter):
     def __init__(self, category_ids):
         self.category_ids = category_ids

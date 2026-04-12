@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from pyrevit import revit, script
 
-from match.match_utils import paste_props, PropKeyValue, safe_get_parameter
+from match.match_utils import paste_props, PropKeyValue
 from match.filter_utils import (
     get_color_source_parameter,
     get_most_common_ogs_brush,
@@ -21,7 +21,7 @@ def main():
         return
     props = []
     try:
-        tparam = safe_get_parameter(elem, param_id)
+        tparam = revit.query.get_param(elem, param_id)
         if not tparam:
             return
         value = revit.query.get_param_value(tparam)
