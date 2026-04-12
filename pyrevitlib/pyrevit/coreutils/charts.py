@@ -21,9 +21,19 @@ CHARTS_JS_PATH = \
     "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/{version}/Chart.min.js"
 
 
-SCRIPT_TEMPLATE = \
-    "var ctx = document.getElementById('{canvas_id}').getContext('2d');" \
-    "var chart = new Chart(ctx, {canvas_code});"
+SCRIPT_TEMPLATE = """
+(function() {{
+    function renderChart() {{
+        if (typeof Chart !== 'undefined') {{
+            var ctx = document.getElementById('{canvas_id}').getContext('2d');
+            var chart = new Chart(ctx, {canvas_code});
+        }} else {{
+            setTimeout(renderChart, 50);
+        }}
+    }}
+    renderChart();
+}})();
+"""
 
 
 class _ChartsDataSetEncode(JSONEncoder):
