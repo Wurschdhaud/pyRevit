@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from pyrevit import revit, script
+from pyrevit import DB
+from pyrevit.compat import get_elementid_value_func
 
 from match.match_utils import paste_props, PropKeyValue, safe_get_parameter
 from match.filter_utils import (
@@ -8,6 +10,7 @@ from match.filter_utils import (
     get_contrasting_brush,
 )
 
+get_elementid_value = get_elementid_value_func()
 logger = script.get_logger()
 
 
@@ -29,14 +32,14 @@ def main():
             PropKeyValue(
                 name=tparam.Definition.Name,
                 datatype=tparam.StorageType,
-                value=value,
+                value=get_elementid_value(value) if isinstance(value, DB.ElementId) else value,
                 istype=False,
                 display_value=tparam.AsValueString() or str(value),
                 categories=[elem.Category],
             )
         ]
     except Exception as ex:
-        logger.warning("load_from_filter_and_element: %s", ex)
+        logger.error("Cancelling match value picker: %s", ex)
         return
 
     if not props:

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import re
 
-from pyrevit import script, forms, revit, op
-from pyrevit import UI
+from pyrevit import forms, revit, op
+from pyrevit import DB, UI
 from pyrevit.revit.events import _GenericExternalEventHandler
 from pyrevit.framework import ComponentModel
 from pyrevit.compat import get_elementid_value_func
@@ -22,7 +22,6 @@ from filter_utils import (
 )
 
 get_elementid_value = get_elementid_value_func()
-logger = script.get_logger()
 
 MAX_HISTORY_ITEMS = 50
 
@@ -257,7 +256,7 @@ class MatchHistoryClipboard(forms.WPFPanel):
             return
         param_id, _ = get_color_source_parameter(revit.doc, revit.active_view, elem)
         if not param_id:
-            logger.warning("No simple equals filter found on active view.")
+            self.logger.warning("No simple equals filter found on active view.")
             return
         try:
             tparam = safe_get_parameter(elem, param_id)
@@ -268,7 +267,7 @@ class MatchHistoryClipboard(forms.WPFPanel):
                 PropKeyValue(
                     name=tparam.Definition.Name,
                     datatype=tparam.StorageType,
-                    value=get_elementid_value(value),
+                    value=get_elementid_value(value) if isinstance(value, DB.ElementId) else value,
                     istype=False,
                     display_value=tparam.AsValueString() or str(value),
                     categories=[elem.Category],
@@ -278,7 +277,7 @@ class MatchHistoryClipboard(forms.WPFPanel):
             self._items[0].IsSelected = True
             self._update_ui_state()
         except Exception as ex:
-            logger.warning("load_from_filter_and_element: %s", ex)
+            self.logger.warning("load_from_filter_and_element: %s", ex)
 
     # ── paste handlers ───────────────────────────────────────────────────────
 
