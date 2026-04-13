@@ -362,7 +362,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
                 }
                 
                 // Build search paths for the startup script
-                var searchPaths = BuildSearchPaths(extension, libraryExtensions);
+                var searchPaths = BuildSearchPaths(extension);
                 
                 // Create ScriptData
                 var scriptData = CreateScriptData(extension);
@@ -410,10 +410,8 @@ namespace pyRevitAssemblyBuilder.SessionManager
         /// Builds the search paths for a startup script, including extension lib folders and pyRevit core paths.
         /// </summary>
         /// <param name="extension">The extension for which to build search paths.</param>
-        /// <param name="libraryExtensions">List of library extensions to include (unused - kept for compatibility).
-        ///     Library lib paths are now pre-computed in _precomputedLibraryLibPaths for performance.</param>
         /// <returns>List of search paths.</returns>
-        private List<string> BuildSearchPaths(ParsedExtension extension, List<ParsedExtension> libraryExtensions)
+        private List<string> BuildSearchPaths(ParsedExtension extension)
         {
             var searchPaths = new List<string> { extension.Directory };
             
