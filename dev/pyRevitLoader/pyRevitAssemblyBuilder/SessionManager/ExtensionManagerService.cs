@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Principal;
+using Autodesk.Revit.UI;
 using pyRevitExtensionParser;
 
 namespace pyRevitAssemblyBuilder.SessionManager
@@ -13,13 +14,27 @@ namespace pyRevitAssemblyBuilder.SessionManager
     public class ExtensionManagerService : IExtensionManagerService
     {
         private readonly int _revitYear;
+        private readonly UIApplication? _uiApplication;
         private readonly ILogger? _logger;
         private List<ParsedExtension>? _cachedExtensions;
+        private readonly HashSet<string> _authLogdedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        public ExtensionManagerService(int revitYear = 0, ILogger? logger = null)
+        public ExtensionManagerService(int revitYear = 0, UIApplication? uiApplication = null, ILogger? logger = null)
         {
             _revitYear = revitYear;
+            _uiApplication = uiApplication;
             _logger = logger;
+        }
+
+        private string GetRevitUsername()
+        {
+            var revitUsername = _uiApplication?.Application?.Username;
+            var uname = revitUsername ?? Environment.UserName;
+            var atIndex = uname.IndexOf('@');
+            if (atIndex > 0)
+                uname = uname.Substring(0, atIndex);
+            uname = uname.Replace(".", "");
+            return uname;
         }
 
         /// <summary>
@@ -36,6 +51,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
         public void ClearCache()
         {
             _cachedExtensions = null;
+            _authLogdedExtensions.Clear();
         }
         
         /// <summary>
@@ -66,18 +82,31 @@ namespace pyRevitAssemblyBuilder.SessionManager
                 return false;
             }
 
+            var hasAuthRestrictions = (ext.AuthorizedUsers != null && ext.AuthorizedUsers.Count > 0)
+                || (ext.AuthorizedGroups != null && ext.AuthorizedGroups.Count > 0);
+
+            if (!hasAuthRestrictions)
+                return true;
+
+            if (_authLogdedExtensions.Contains(ext.Name))
+                return true;
+
             // Check authorized users list
             if (ext.AuthorizedUsers != null && ext.AuthorizedUsers.Count > 0)
             {
-                var currentUser = Environment.UserName;
+                var currentUser = GetRevitUsername();
                 if (!ext.AuthorizedUsers.Contains(currentUser, StringComparer.OrdinalIgnoreCase))
                 {
-                    _logger?.Debug($"Extension '{ext.Name}' restricted to specific users. Current user '{currentUser}' not in list");
+                    _logger?.Warning($"Extension '{ext.Name}' is NOT available for user '{currentUser}' (not in AuthorizedUsers)");
+                    _authLogdedExtensions.Add(ext.Name);
                     return false;
                 }
+                _logger?.Info($"User '{currentUser}' is authorized for extension '{ext.Name}'");
+                _authLogdedExtensions.Add(ext.Name);
+                return true;
             }
 
-            // Check authorized groups list (groups are stored as SID strings)
+            // Check authorized groups list (groups are stored as SID strings) - only if no AuthorizedUsers restriction
             if (ext.AuthorizedGroups != null && ext.AuthorizedGroups.Count > 0)
             {
                 bool inAnyGroup = false;
@@ -91,9 +120,12 @@ namespace pyRevitAssemblyBuilder.SessionManager
                 }
                 if (!inAnyGroup)
                 {
-                    _logger?.Debug($"Extension '{ext.Name}' restricted to specific security groups. Current user not member of any");
+                    _logger?.Warning($"Extension '{ext.Name}' is NOT available for current user (not in AuthorizedGroups)");
+                    _authLogdedExtensions.Add(ext.Name);
                     return false;
                 }
+                _logger?.Info($"User is authorized for extension '{ext.Name}' (AuthorizedGroups match)");
+                _authLogdedExtensions.Add(ext.Name);
             }
 
             return true;
