@@ -2274,10 +2274,10 @@ namespace pyRevitExtensionParser
             {
                 var files = GetFilesInDirectory(componentDirectory, "*", SearchOption.TopDirectoryOnly);
 
-                // Match files starting with "help." followed by any extension
-                // Examples: help.html, help.md, help.en_us.html, help.txt
+                // Match files containing "help." followed by any extension
+                // Examples: help.html, help.md, help.en_us.html, help.txt, readme.help.html
                 var helpPattern = new System.Text.RegularExpressions.Regex(
-                    @"^help\..+",
+                    @"help\..+",
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 foreach (var file in files)

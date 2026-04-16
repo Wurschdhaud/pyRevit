@@ -27,7 +27,7 @@ namespace pyRevitExtensionParserTest
             var panelBuilder = tabBuilder.AddPanel("HelpPanel");
 
             // Button with only help.html file (no help_url in bundle.yaml)
-            var fileBasedHelpPath = CreatePushButtonWithHelp(
+            CreatePushButtonWithHelp(
                 panelBuilder.PanelPath,
                 "FileBasedHelp",
                 "print('file based')",
@@ -41,7 +41,7 @@ help_url: https://github.com/pyrevitlabs/pyRevit
 ");
 
             // Button with both help.html AND help_url (help_url should take precedence)
-            var precedencePath = CreatePushButtonWithHelp(
+            CreatePushButtonWithHelp(
                 panelBuilder.PanelPath,
                 "PrecedenceTest",
                 "print('precedence')",
@@ -119,7 +119,7 @@ help_url:
         {
             Assert.That(_installedExtensions, Is.Not.Null, "Extensions should be parsed");
 
-            foreach (var extension in _installedExtensions)
+            foreach (var extension in _installedExtensions!)
             {
                 var fileBasedHelp = FindComponentRecursively(extension, "FileBasedHelp");
                 Assert.That(fileBasedHelp, Is.Not.Null, "FileBasedHelp component should exist");
@@ -127,7 +127,7 @@ help_url:
                 TestContext.Out.WriteLine($"FileBasedHelp.HelpFile: {fileBasedHelp?.HelpFile ?? "null"}");
 
                 Assert.That(fileBasedHelp, Is.Not.Null, "FileBasedHelp should be found");
-                Assert.That(fileBasedHelp.HelpFile, Is.Not.Null.And.Not.Empty,
+                Assert.That(fileBasedHelp!.HelpFile, Is.Not.Null.And.Not.Empty,
                     "HelpFile should be discovered for FileBasedHelp");
                 Assert.That(fileBasedHelp.HelpFile, Does.EndWith("help.html"),
                     "HelpFile should end with 'help.html'");
@@ -141,11 +141,11 @@ help_url:
         {
             Assert.That(_installedExtensions, Is.Not.Null);
 
-            foreach (var extension in _installedExtensions)
+            foreach (var extension in _installedExtensions!)
             {
                 var fileBasedHelp = FindComponentRecursively(extension, "FileBasedHelp");
                 Assert.That(fileBasedHelp, Is.Not.Null);
-                Assert.That(File.Exists(fileBasedHelp.HelpFile), Is.True);
+                Assert.That(File.Exists(fileBasedHelp!.HelpFile), Is.True);
 
                 var content = File.ReadAllText(fileBasedHelp.HelpFile);
                 Assert.That(content, Does.Contain("File Based Help"),
@@ -158,7 +158,7 @@ help_url:
         {
             Assert.That(_installedExtensions, Is.Not.Null);
 
-            foreach (var extension in _installedExtensions)
+            foreach (var extension in _installedExtensions!)
             {
                 var precedenceTest = FindComponentRecursively(extension, "PrecedenceTest");
                 Assert.That(precedenceTest, Is.Not.Null, "PrecedenceTest should be found");
@@ -166,7 +166,7 @@ help_url:
                 TestContext.Out.WriteLine($"PrecedenceTest.HelpUrl: {precedenceTest?.HelpUrl ?? "null"}");
                 TestContext.Out.WriteLine($"PrecedenceTest.HelpFile: {precedenceTest?.HelpFile ?? "null"}");
 
-                Assert.That(precedenceTest.HelpUrl, Is.EqualTo("https://explicit-url.example.com"),
+                Assert.That(precedenceTest!.HelpUrl, Is.EqualTo("https://explicit-url.example.com"),
                     "HelpUrl from bundle.yaml should be set");
                 Assert.That(precedenceTest.HelpFile, Is.Not.Null.And.Not.Empty,
                     "HelpFile should still be discovered");
@@ -178,12 +178,12 @@ help_url:
         {
             Assert.That(_installedExtensions, Is.Not.Null);
 
-            foreach (var extension in _installedExtensions)
+            foreach (var extension in _installedExtensions!)
             {
                 var urlBasedHelp = FindComponentRecursively(extension, "UrlBasedHelp");
                 Assert.That(urlBasedHelp, Is.Not.Null, "UrlBasedHelp should be found");
 
-                var helpUrl = urlBasedHelp.GetLocalizedHelpUrl();
+                var helpUrl = urlBasedHelp!.GetLocalizedHelpUrl();
                 TestContext.Out.WriteLine($"UrlBasedHelp.GetLocalizedHelpUrl(): {helpUrl}");
 
                 Assert.That(helpUrl, Is.EqualTo("https://github.com/pyrevitlabs/pyRevit"),
@@ -196,12 +196,12 @@ help_url:
         {
             Assert.That(_installedExtensions, Is.Not.Null);
 
-            foreach (var extension in _installedExtensions)
+            foreach (var extension in _installedExtensions!)
             {
                 var fileBasedHelp = FindComponentRecursively(extension, "FileBasedHelp");
                 Assert.That(fileBasedHelp, Is.Not.Null, "FileBasedHelp should be found");
 
-                Assert.That(fileBasedHelp.HelpUrl, Is.Null,
+                Assert.That(fileBasedHelp!.HelpUrl, Is.Null,
                     "HelpUrl should not be set (no help_url in bundle.yaml)");
 
                 var helpUrl = fileBasedHelp.GetLocalizedHelpUrl();
@@ -219,14 +219,14 @@ help_url:
         {
             Assert.That(_installedExtensions, Is.Not.Null);
 
-            foreach (var extension in _installedExtensions)
+            foreach (var extension in _installedExtensions!)
             {
                 var markdownHelp = FindComponentRecursively(extension, "MarkdownHelp");
                 Assert.That(markdownHelp, Is.Not.Null, "MarkdownHelp should be found");
 
                 TestContext.Out.WriteLine($"MarkdownHelp.HelpFile: {markdownHelp?.HelpFile ?? "null"}");
 
-                Assert.That(markdownHelp.HelpFile, Is.Not.Null.And.Not.Empty,
+                Assert.That(markdownHelp!.HelpFile, Is.Not.Null.And.Not.Empty,
                     "HelpFile should be discovered for MarkdownHelp");
                 Assert.That(markdownHelp.HelpFile, Does.EndWith("help.md"),
                     "HelpFile should end with 'help.md'");
@@ -238,14 +238,14 @@ help_url:
         {
             Assert.That(_installedExtensions, Is.Not.Null);
 
-            foreach (var extension in _installedExtensions)
+            foreach (var extension in _installedExtensions!)
             {
                 var localizedHelp = FindComponentRecursively(extension, "LocalizedHelp");
                 Assert.That(localizedHelp, Is.Not.Null, "LocalizedHelp should be found");
 
                 TestContext.Out.WriteLine($"LocalizedHelp.LocalizedHelpUrls count: {localizedHelp?.LocalizedHelpUrls?.Count ?? 0}");
 
-                Assert.That(localizedHelp.LocalizedHelpUrls, Is.Not.Null,
+                Assert.That(localizedHelp!.LocalizedHelpUrls, Is.Not.Null,
                     "LocalizedHelpUrls should be populated");
                 Assert.That(localizedHelp.LocalizedHelpUrls.Count, Is.EqualTo(2),
                     "Should have 2 localized help URLs");
@@ -259,7 +259,7 @@ help_url:
         {
             Assert.That(_installedExtensions, Is.Not.Null);
 
-            foreach (var extension in _installedExtensions)
+            foreach (var extension in _installedExtensions!)
             {
                 var noHelp = FindComponentRecursively(extension, "NoHelp");
                 Assert.That(noHelp, Is.Not.Null, "NoHelp should be found");
@@ -268,7 +268,7 @@ help_url:
                 TestContext.Out.WriteLine($"NoHelp.HelpFile: {noHelp?.HelpFile ?? "null"}");
                 TestContext.Out.WriteLine($"NoHelp.GetLocalizedHelpUrl(): {noHelp?.GetLocalizedHelpUrl() ?? "null"}");
 
-                Assert.That(noHelp.HelpUrl, Is.Null,
+                Assert.That(noHelp!.HelpUrl, Is.Null,
                     "HelpUrl should be null");
                 Assert.That(noHelp.HelpFile, Is.Null.Or.Empty,
                     "HelpFile should be null/empty (no help file in directory)");
@@ -282,12 +282,12 @@ help_url:
         {
             Assert.That(_installedExtensions, Is.Not.Null);
 
-            foreach (var extension in _installedExtensions)
+            foreach (var extension in _installedExtensions!)
             {
                 var precedenceTest = FindComponentRecursively(extension, "PrecedenceTest");
                 Assert.That(precedenceTest, Is.Not.Null, "PrecedenceTest should be found");
 
-                var helpUrl = precedenceTest.GetLocalizedHelpUrl();
+                var helpUrl = precedenceTest!.GetLocalizedHelpUrl();
                 TestContext.Out.WriteLine($"PrecedenceTest.GetLocalizedHelpUrl(): {helpUrl ?? "null"}");
 
                 Assert.That(helpUrl, Is.EqualTo("https://explicit-url.example.com"),
@@ -300,18 +300,18 @@ help_url:
         {
             Assert.That(_installedExtensions, Is.Not.Null);
 
-            foreach (var extension in _installedExtensions)
+            foreach (var extension in _installedExtensions!)
             {
                 var fileBasedHelp = FindComponentRecursively(extension, "FileBasedHelp");
                 Assert.That(fileBasedHelp, Is.Not.Null);
 
-                Assert.That(fileBasedHelp.HasHelpFile, Is.True,
+                Assert.That(fileBasedHelp!.HasHelpFile, Is.True,
                     "HasHelpFile should be true when HelpFile is set");
 
                 var noHelp = FindComponentRecursively(extension, "NoHelp");
                 Assert.That(noHelp, Is.Not.Null);
 
-                Assert.That(noHelp.HasHelpFile, Is.False,
+                Assert.That(noHelp!.HasHelpFile, Is.False,
                     "HasHelpFile should be false when HelpFile is not set");
             }
         }
