@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-from pyrevit import script, forms, revit
+from pyrevit import forms, revit
 from pyrevit import DB, UI
+from pyrevit.coreutils.logger import get_logger
 from pyrevit.compat import get_elementid_value_func
 
 get_elementid_value = get_elementid_value_func()
-
-logger = script.get_logger()
 
 
 def safe_get_parameter(elem, param_id):
@@ -79,16 +78,17 @@ class PropKeyValue(object):
 
 def match_prop(dest_inst, dest_type, src_props):
     """Match given properties on target instance or type"""
+    mlogger = get_logger(__name__)
     for pkv in src_props:
-        logger.debug("Applying %s", pkv.name)
+        mlogger.debug("Applying %s", pkv.name)
 
         # determine target
         target = dest_type if pkv.istype else dest_inst
         # ensure target is valid if it is type
         if pkv.istype and not target:
-            logger.warning("Element type is not accessible.")
+            mlogger.warning("Element type is not accessible.")
             continue
-        logger.debug("Target is %s", target)
+        mlogger.debug("Target is %s", target)
 
         # find parameter
         dparam = target.LookupParameter(pkv.name)
@@ -106,14 +106,15 @@ def match_prop(dest_inst, dest_type, src_props):
                 else:
                     dparam.Set(pkv.value or "")
             except Exception as setex:
-                logger.warning("Error applying value to: %s | %s", pkv.name, setex)
+                mlogger.warning("Error applying value to: %s | %s", pkv.name, setex)
                 continue
         else:
-            logger.debug('Parameter "%s"not found on target.', pkv.name)
+            mlogger.debug('Parameter "%s"not found on target.', pkv.name)
 
 
 def get_source_properties(src_element, simple=False):
     """Return info on selected properties."""
+    mlogger = get_logger(__name__)
     props = []
 
     src_type = revit.query.get_type(src_element)
@@ -129,10 +130,10 @@ def get_source_properties(src_element, simple=False):
         or []
     )
 
-    logger.debug("Selected parameters: %s", [x.name for x in selected_params])
+    mlogger.debug("Selected parameters: %s", [x.name for x in selected_params])
 
     for sparam in selected_params:
-        logger.debug("Reading %s", sparam.name)
+        mlogger.debug("Reading %s", sparam.name)
         target = src_type if sparam.istype else src_element
         tparam = target.LookupParameter(sparam.name)
         if tparam:
@@ -212,9 +213,9 @@ def paste_props(source_props, paste_mode, category_filter=False, **kwargs):
             if not dest_elements:
                 break  # user cancelled / nothing selected
 
-            for dest in dest_elements:
-                dest_type = revit.query.get_type(dest)
-                with revit.Transaction("Match Properties"):
+            with revit.Transaction("Match Properties"):
+                for dest in dest_elements:
+                    dest_type = revit.query.get_type(dest)
                     # type parameters first so instance params can reference them
                     match_prop(dest, dest_type, [p for p in source_props if p.istype])
                     match_prop(
