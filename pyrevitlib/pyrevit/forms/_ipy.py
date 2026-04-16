@@ -104,7 +104,12 @@ Attributes:
 def _make_param_def(param, istype):
     """Build a ParamDef from a Revit parameter object."""
     if param.HasValue:
-        display_value_str = param.AsValueString() or param.AsString()
+        value = param.AsValueString() or param.AsString()
+        if isinstance(value, str):
+            stripped_value = value.strip()
+            display_value_str = value if stripped_value else None
+        else:
+            display_value_str = value or None
     else:
         display_value_str = None
 
