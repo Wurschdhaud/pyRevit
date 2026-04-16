@@ -1074,6 +1074,9 @@ namespace pyRevitExtensionParser
                 // Look for tooltip media file (tooltip.mp4, tooltip.swf, tooltip.png)
                 var mediaFile = FindMediaFile(dir);
 
+                // Look for help file (help.* pattern) for file-based help
+                var helpFile = FindHelpFile(dir);
+
                 var bundleFile = Path.Combine(dir, "bundle.yaml");
 
                 // Then parse bundle and override with bundle values if they exist
@@ -1326,7 +1329,8 @@ namespace pyRevitExtensionParser
                     OnIconDarkPath = onIconDarkPath,
                     OffIconPath = offIconPath,
                     OffIconDarkPath = offIconDarkPath,
-                    MediaFile = mediaFile
+                    MediaFile = mediaFile,
+                    HelpFile = helpFile
                 });
             }
 
@@ -2244,6 +2248,44 @@ namespace pyRevitExtensionParser
                         {
                             return file;
                         }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogParseException(componentDirectory, ex);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Finds a help file in the component directory matching the pattern "help.*" (e.g., help.html, help.md).
+        /// This implements file-based help discovery similar to the Python loader.
+        /// </summary>
+        /// <param name="componentDirectory">The directory containing the component</param>
+        /// <returns>Full path to the help file if found, null otherwise</returns>
+        private static string FindHelpFile(string componentDirectory)
+        {
+            if (!Directory.Exists(componentDirectory))
+                return null;
+
+            try
+            {
+                var files = GetFilesInDirectory(componentDirectory, "*", SearchOption.TopDirectoryOnly);
+
+                // Match files starting with "help." followed by any extension
+                // Examples: help.html, help.md, help.en_us.html, help.txt
+                var helpPattern = new System.Text.RegularExpressions.Regex(
+                    @"^help\..+",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                foreach (var file in files)
+                {
+                    var fileName = Path.GetFileName(file);
+                    if (helpPattern.IsMatch(fileName))
+                    {
+                        return file;
                     }
                 }
             }
