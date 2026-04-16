@@ -106,8 +106,10 @@ def _make_param_def(param, istype):
     if param.HasValue:
         value = param.AsValueString() or param.AsString()
         if isinstance(value, str):
-            value = value.strip()
-        display_value_str = value or None
+            stripped_value = value.strip()
+            display_value_str = value if stripped_value else None
+        else:
+            display_value_str = value or None
     else:
         display_value_str = None
 
