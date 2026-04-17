@@ -2272,8 +2272,8 @@ namespace pyRevitExtensionParser
 
             try
             {
-                var files = GetFilesInDirectory(componentDirectory, "*help.??*", SearchOption.TopDirectoryOnly);
-                return files.length > 0 : files[0] : null;
+                return GetFilesInDirectory(componentDirectory, "*help.*", SearchOption.TopDirectoryOnly)
+                    .FirstOrDefault();
             }
             catch (Exception ex)
             {
