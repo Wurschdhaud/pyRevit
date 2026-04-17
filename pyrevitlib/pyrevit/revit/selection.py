@@ -287,17 +287,20 @@ def pick_face(message=''):
                      message)
 
 
-def pick_linked(message=''):
+def pick_linked(message='', pick_filter=None):
     """Returns the linked element selected by the user.
 
     Args:
         message (str, optional): message to display. Defaults to ''.
+        pick_filter (object, optional): An object specifying the filter to apply
+            when picking elements. Default is None.
 
     Returns:
         (LinkedElement): The selected linked element.
     """
     return _pick_obj(UI.Selection.ObjectType.LinkedElement,
-                     message)
+                     message,
+                     selection_filter=pick_filter)
 
 
 def pick_elements(message='', pick_filter=None):
@@ -427,18 +430,21 @@ def pick_faces(message=''):
                      multiple=True)
 
 
-def pick_linkeds(message=''):
+def pick_linkeds(message='', pick_filter=None):
     """Selects linked elements.
 
     Args:
         message (str): The message to display when selecting linked elements.
+        pick_filter (object, optional): An object specifying the filter to apply
+            when picking elements. Default is None.
 
     Returns:
         (list[LinkedElement]): selected linked elements.
     """
     return _pick_obj(UI.Selection.ObjectType.LinkedElement,
                      message,
-                     multiple=True)
+                     multiple=True,
+                     selection_filter=pick_filter)
 
 
 def pick_point(message=''):
