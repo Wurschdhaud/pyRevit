@@ -237,7 +237,7 @@ namespace pyRevitExtensionParser
 
         /// <summary>
         /// Gets the localized help URL for the specified locale, with fallback logic.
-        /// Returns the URL as-is, following the legacy loader behavior.
+        /// Returns the URL as-is.
         /// </summary>
         /// <param name="locale">The preferred locale (e.g., "en_us", "fr_fr")</param>
         /// <returns>The localized help URL or null if not available</returns>
