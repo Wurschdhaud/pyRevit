@@ -21,10 +21,10 @@ namespace pyRevitAssemblyBuilder.AssemblyMaker
 
         private struct SkippedCommandInfo
         {
-            public string SafeClassName;
-            public string ScriptPath;
-            public string UniqueId;
-            public string BundleDirectory;
+            public string? SafeClassName;
+            public string? ScriptPath;
+            public string? UniqueId;
+            public string? BundleDirectory;
         }
 
         // Cache the pyRevit root derived from DLL location
@@ -95,9 +95,10 @@ namespace pyRevitAssemblyBuilder.AssemblyMaker
                 .Where(d => !string.IsNullOrEmpty(d))
                 .ToList();
 
-            var totalCommands = extension.CollectCommandComponents().Count();
+            var commands = extension.CollectCommandComponents().ToList();
+            var totalCommands = commands.Count;
 
-            foreach (var cmd in extension.CollectCommandComponents())
+            foreach (var cmd in commands)
             {
                 string safeClassName = SanitizeClassName(cmd.UniqueId);
 
@@ -106,8 +107,8 @@ namespace pyRevitAssemblyBuilder.AssemblyMaker
                     // Duplicate — skip this command to avoid CS0101.
                     // Log an error so user sees it, and track for summary.
                     _logger.Error($"Skipped duplicate command: '{safeClassName}'. " +
-                                  $"Script: {cmd.ScriptPath ?? "(none)"}. " +
-                                  $"UniqueId: {cmd.UniqueId}. " +
+                                  $"Script: {cmd.ScriptPath }. " +
+                                  $"UniqueId: {cmd.UniqueId }. " +
                                   $"Two bundle directories produced the same UniqueId. " +
                                   $"Rename one directory to fix this.");
 
