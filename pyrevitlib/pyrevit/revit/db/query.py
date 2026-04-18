@@ -474,7 +474,7 @@ def get_elements_by_parameter(param_name, param_value, doc=None, partial=False):
     return found_els
 
 
-def get_elements_by_param_value(param_name, param_value, inverse=False, doc=None):
+def get_elements_by_param_value(param_name, param_value, inverse=False, doc=None, view_id=None):
     """
     Retrieves elements from the Revit document based on a parameter name and value.
 
@@ -483,6 +483,7 @@ def get_elements_by_param_value(param_name, param_value, inverse=False, doc=None
         param_value (str): The value of the parameter to filter by.
         inverse (bool, optional): If True, inverts the filter to exclude elements with the specified parameter value. Defaults to False.
         doc (Document, optional): The Revit document to search in. If None, uses the default document.
+        view_id (DB.ElementId, optional): The ID of the view to restrict the search to. Defaults to None.
 
     Returns:
         list: A list of elements that match the parameter name and value.
@@ -499,12 +500,15 @@ def get_elements_by_param_value(param_name, param_value, inverse=False, doc=None
         if inverse:
             vrule = DB.FilterInverseRule(vrule)
         param_filter = DB.ElementParameterFilter(vrule)
-        return DB.FilteredElementCollector(doc).WherePasses(param_filter).ToElements()
+        if view_id:
+            return DB.FilteredElementCollector(doc, view_id).WherePasses(param_filter).ToElements()
+        else:
+            return DB.FilteredElementCollector(doc).WherePasses(param_filter).ToElements()
     else:
         return []
 
 
-def get_elements_by_categories(element_bicats, elements=None, doc=None):
+def get_elements_by_categories(element_bicats, elements=None, doc=None, view_id=None):
     """
     Retrieves elements from a Revit document based on specified categories.
 
@@ -512,6 +516,7 @@ def get_elements_by_categories(element_bicats, elements=None, doc=None):
         element_bicats (list): A list of built-in categories to filter elements by.
         elements (list, optional): A list of elements to filter. If provided, the function will filter these elements.
         doc (DB.Document, optional): The Revit document to collect elements from. If not provided, the active document is used.
+        view_id (DB.ElementId, optional): The ID of the view to restrict the search to. Defaults to None.
 
     Returns:
         list: A list of elements that belong to the specified categories.
@@ -524,12 +529,20 @@ def get_elements_by_categories(element_bicats, elements=None, doc=None):
         ]
     cat_filters = [DB.ElementCategoryFilter(x) for x in element_bicats if x]
     elcats_filter = DB.LogicalOrFilter(framework.List[DB.ElementFilter](cat_filters))
-    return (
-        DB.FilteredElementCollector(doc or DOCS.doc)
-        .WherePasses(elcats_filter)
-        .WhereElementIsNotElementType()
-        .ToElements()
-    )
+    if view_id:
+        return (
+            DB.FilteredElementCollector(doc or DOCS.doc, view_id)
+            .OfClass(elcats_filter)
+            .WhereElementIsNotElementType()
+            .ToElements()
+        )
+    else:
+        return (
+            DB.FilteredElementCollector(doc or DOCS.doc)
+            .WherePasses(elcats_filter)
+            .WhereElementIsNotElementType()
+            .ToElements()
+        )
 
 
 def get_elements_by_class(element_class, elements=None, doc=None, view_id=None):
