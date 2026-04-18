@@ -2,8 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Principal;
 using Autodesk.Revit.UI;
+using pyRevitLabs.Common.Security;
 using pyRevitExtensionParser;
 
 namespace pyRevitAssemblyBuilder.SessionManager
@@ -17,7 +17,8 @@ namespace pyRevitAssemblyBuilder.SessionManager
         private readonly UIApplication? _uiApplication;
         private readonly ILogger? _logger;
         private List<ParsedExtension>? _cachedExtensions;
-        private readonly HashSet<string> _authLogdedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _authorizedExtensions = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _unauthorizedExtensions = new(StringComparer.OrdinalIgnoreCase);
 
         public ExtensionManagerService(int revitYear = 0, UIApplication? uiApplication = null, ILogger? logger = null)
         {
@@ -51,7 +52,8 @@ namespace pyRevitAssemblyBuilder.SessionManager
         public void ClearCache()
         {
             _cachedExtensions = null;
-            _authLogdedExtensions.Clear();
+            _authorizedExtensions.Clear();
+            _unauthorizedExtensions.Clear();
         }
         
         /// <summary>
@@ -61,6 +63,8 @@ namespace pyRevitAssemblyBuilder.SessionManager
         public void ClearParserCaches()
         {
             _cachedExtensions = null;
+            _authorizedExtensions.Clear();
+            _unauthorizedExtensions.Clear();
             ExtensionParser.ClearAllCaches();
         }
 
@@ -69,63 +73,74 @@ namespace pyRevitAssemblyBuilder.SessionManager
         /// 1. Whether the extension is disabled in config
         /// 2. Whether authorized users are defined and current user is in the list
         /// 3. Whether authorized groups are defined and user is member of at least one
-        /// 
-        /// This replicates the logic in Python's extpkgs.ExtensionPackage.is_enabled + user_has_access
-        /// matching pyrevitlib/pyrevit/extensions/extensionmgr.py:_is_extension_enabled()
         /// </summary>
         private bool IsExtensionAllowed(ParsedExtension ext)
         {
-            // Check if extension is disabled in config
+            var authorizedUsers = ext.AuthorizedUsers;
+            var authorizedGroups = ext.AuthorizedGroups;
+            var hasAuthorizedUsers = authorizedUsers is { Count: > 0 };
+            var hasAuthorizedGroups = authorizedGroups is { Count: > 0 };
+
             if (ext.Config?.Disabled == true)
             {
                 _logger?.Debug($"Extension '{ext.Name}' is disabled in config");
                 return false;
             }
 
-            var hasAuthRestrictions = (ext.AuthorizedUsers != null && ext.AuthorizedUsers.Count > 0)
-                || (ext.AuthorizedGroups != null && ext.AuthorizedGroups.Count > 0);
-
-            if (!hasAuthRestrictions)
+            if (!hasAuthorizedUsers && !hasAuthorizedGroups)
                 return true;
 
-            if (_authLogdedExtensions.Contains(ext.Name))
+            var cacheKey = ext.Directory;
+
+            if (_authorizedExtensions.Contains(cacheKey))
                 return true;
 
-            // Check authorized users list
-            if (ext.AuthorizedUsers != null && ext.AuthorizedUsers.Count > 0)
+            if (_unauthorizedExtensions.Contains(cacheKey))
+                return false;
+
+            var isAllowed = EvaluateAuthorization(ext, authorizedUsers, authorizedGroups, hasAuthorizedUsers, hasAuthorizedGroups);
+
+            if (isAllowed)
+                _authorizedExtensions.Add(cacheKey);
+            else
+                _unauthorizedExtensions.Add(cacheKey);
+
+            return isAllowed;
+        }
+
+        private bool EvaluateAuthorization(
+            ParsedExtension ext,
+            List<string>? authorizedUsers,
+            List<string>? authorizedGroups,
+            bool hasAuthorizedUsers,
+            bool hasAuthorizedGroups)
+        {
+            if (hasAuthorizedUsers)
             {
                 var currentUser = GetRevitUsername();
-                if (!ext.AuthorizedUsers.Contains(currentUser, StringComparer.OrdinalIgnoreCase))
+                if (!authorizedUsers!.Contains(currentUser, StringComparer.OrdinalIgnoreCase))
                 {
                     _logger?.Warning($"Extension '{ext.Name}' is NOT available for user '{currentUser}' (not in AuthorizedUsers)");
-                    _authLogdedExtensions.Add(ext.Name);
                     return false;
                 }
+
                 _logger?.Info($"User '{currentUser}' is authorized for extension '{ext.Name}'");
-                _authLogdedExtensions.Add(ext.Name);
                 return true;
             }
 
-            // Check authorized groups list (groups are stored as SID strings) - only if no AuthorizedUsers restriction
-            if (ext.AuthorizedGroups != null && ext.AuthorizedGroups.Count > 0)
+            if (hasAuthorizedGroups)
             {
-                bool inAnyGroup = false;
-                foreach (var groupSid in ext.AuthorizedGroups)
+                foreach (var groupSid in authorizedGroups!)
                 {
                     if (UserIsInSecurityGroup(groupSid))
                     {
-                        inAnyGroup = true;
-                        break;
+                        _logger?.Info($"User is authorized for extension '{ext.Name}' (AuthorizedGroups match)");
+                        return true;
                     }
                 }
-                if (!inAnyGroup)
-                {
-                    _logger?.Warning($"Extension '{ext.Name}' is NOT available for current user (not in AuthorizedGroups)");
-                    _authLogdedExtensions.Add(ext.Name);
-                    return false;
-                }
-                _logger?.Info($"User is authorized for extension '{ext.Name}' (AuthorizedGroups match)");
-                _authLogdedExtensions.Add(ext.Name);
+
+                _logger?.Warning($"Extension '{ext.Name}' is NOT available for current user (not in AuthorizedGroups)");
+                return false;
             }
 
             return true;
@@ -133,7 +148,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
 
         /// <summary>
         /// Checks if the current Windows user is a member of the specified security group.
-        /// Uses the same implementation as pyRevitLabs.Common.Security.UserAuth.UserIsInSecurityGroup.
+        /// Uses pyRevitLabs.Common.Security.UserAuth.UserIsInSecurityGroup with local guards.
         /// </summary>
         /// <param name="targetSid">The SID of the security group to check</param>
         /// <returns>True if user is member of the group</returns>
@@ -144,18 +159,13 @@ namespace pyRevitAssemblyBuilder.SessionManager
 
             try
             {
-                var wi = WindowsIdentity.GetCurrent();
-                foreach (var sid in wi.Groups)
-                {
-                    // Null check and safe string comparison for group SID matching
-                    if (sid != null && string.Equals(sid.Value, targetSid, StringComparison.Ordinal))
-                        return true;
-                }
+                return UserAuth.UserIsInSecurityGroup(targetSid);
             }
             catch
             {
                 // Ignore errors in security group enumeration
             }
+
             return false;
         }
 
