@@ -62,6 +62,7 @@
     <Compile Include="MultilineTitleTest.cs" />
     <Compile Include="UrlButtonTests.cs" />
     <Compile Include="HelpUrlTests.cs" />
+    <Compile Include="HelpFileTests.cs" />
     <Compile Include="ScriptMetadataParsingTest.cs" />
     <Compile Include="VersionFilteringTests.cs" />
     <Compile Include="EnvDictionarySeederTests.cs" />
