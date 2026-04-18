@@ -81,7 +81,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
             var hasAuthorizedUsers = authorizedUsers is { Count: > 0 };
             var hasAuthorizedGroups = authorizedGroups is { Count: > 0 };
 
-            if (ext.Config?.Disabled == true)
+            if (ext.Config?.Disabled)
             {
                 _logger?.Debug($"Extension '{ext.Name}' is disabled in config");
                 return false;
