@@ -76,19 +76,11 @@ namespace pyRevitAssemblyBuilder.SessionManager
         /// </summary>
         private bool IsExtensionAllowed(ParsedExtension ext)
         {
-            var authorizedUsers = ext.AuthorizedUsers;
-            var authorizedGroups = ext.AuthorizedGroups;
-            var hasAuthorizedUsers = authorizedUsers is { Count: > 0 };
-            var hasAuthorizedGroups = authorizedGroups is { Count: > 0 };
-
-            if (ext.Config?.Disabled)
+            if (ext.Config?.Disabled == true)
             {
                 _logger?.Debug($"Extension '{ext.Name}' is disabled in config");
                 return false;
             }
-
-            if (!hasAuthorizedUsers && !hasAuthorizedGroups)
-                return true;
 
             var cacheKey = ext.Directory;
 
@@ -98,7 +90,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
             if (_unauthorizedExtensions.Contains(cacheKey))
                 return false;
 
-            var isAllowed = EvaluateAuthorization(ext, authorizedUsers, authorizedGroups, hasAuthorizedUsers, hasAuthorizedGroups);
+            var isAllowed = EvaluateAuthorization(ext, ext.AuthorizedUsers, ext.AuthorizedGroups);
 
             if (isAllowed)
                 _authorizedExtensions.Add(cacheKey);
@@ -111,14 +103,12 @@ namespace pyRevitAssemblyBuilder.SessionManager
         private bool EvaluateAuthorization(
             ParsedExtension ext,
             List<string>? authorizedUsers,
-            List<string>? authorizedGroups,
-            bool hasAuthorizedUsers,
-            bool hasAuthorizedGroups)
+            List<string>? authorizedGroups)
         {
-            if (hasAuthorizedUsers)
+            if (authorizedUsers is { Count: > 0 })
             {
                 var currentUser = GetRevitUsername();
-                if (!authorizedUsers!.Contains(currentUser, StringComparer.OrdinalIgnoreCase))
+                if (!authorizedUsers.Contains(currentUser, StringComparer.OrdinalIgnoreCase))
                 {
                     _logger?.Warning($"Extension '{ext.Name}' is NOT available for user '{currentUser}' (not in AuthorizedUsers)");
                     return false;
@@ -128,9 +118,9 @@ namespace pyRevitAssemblyBuilder.SessionManager
                 return true;
             }
 
-            if (hasAuthorizedGroups)
+            if (authorizedGroups is { Count: > 0 })
             {
-                foreach (var groupSid in authorizedGroups!)
+                foreach (var groupSid in authorizedGroups)
                 {
                     if (UserIsInSecurityGroup(groupSid))
                     {
@@ -148,7 +138,6 @@ namespace pyRevitAssemblyBuilder.SessionManager
 
         /// <summary>
         /// Checks if the current Windows user is a member of the specified security group.
-        /// Uses pyRevitLabs.Common.Security.UserAuth.UserIsInSecurityGroup with local guards.
         /// </summary>
         /// <param name="targetSid">The SID of the security group to check</param>
         /// <returns>True if user is member of the group</returns>

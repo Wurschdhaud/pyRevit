@@ -21,10 +21,10 @@ namespace pyRevitAssemblyBuilder.AssemblyMaker
 
         private struct SkippedCommandInfo
         {
-            public string? SafeClassName;
-            public string? ScriptPath;
-            public string? UniqueId;
-            public string? BundleDirectory;
+            public string SafeClassName;
+            public string ScriptPath;
+            public string UniqueId;
+            public string BundleDirectory;
         }
 
         // Cache the pyRevit root derived from DLL location
@@ -107,8 +107,8 @@ namespace pyRevitAssemblyBuilder.AssemblyMaker
                     // Duplicate — skip this command to avoid CS0101.
                     // Log an error so user sees it, and track for summary.
                     _logger.Error($"Skipped duplicate command: '{safeClassName}'. " +
-                                  $"Script: {cmd.ScriptPath }. " +
-                                  $"UniqueId: {cmd.UniqueId }. " +
+                                  $"Script: {cmd.ScriptPath ?? "<none>"}. " +
+                                  $"UniqueId: {cmd.UniqueId}. " +
                                   $"Two bundle directories produced the same UniqueId. " +
                                   $"Rename one directory to fix this.");
 
@@ -222,8 +222,14 @@ namespace pyRevitAssemblyBuilder.AssemblyMaker
             // Report summary of skipped commands
             if (skippedCommands.Count > 0)
             {
+                var skippedList = string.Join(
+                    "; ",
+                    skippedCommands.Select(s =>
+                        $"{s.SafeClassName} ({(string.IsNullOrEmpty(s.BundleDirectory) ? "<unknown dir>" : s.BundleDirectory)})"));
+
                 _logger.Warning($"{skippedCommands.Count} duplicate command(s) skipped " +
-                                $"out of {totalCommands} total commands in extension '{extension.Name}'. " +
+                                $"out of {totalCommands} total commands in extension '{extension.Name}': " +
+                                $"{skippedList}. " +
                                 $"Review error logs above for details on which commands were dropped.");
             }
 
