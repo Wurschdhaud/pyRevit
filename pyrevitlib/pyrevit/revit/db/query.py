@@ -242,7 +242,7 @@ def get_param(element, param_identifier, default=None):
         return default
 
     try:
-        if isinstance(param_identifier, str):
+        if isinstance(param_identifier, (str, unicode)):
             return _param_or_default(
                 element.LookupParameter(param_identifier), default
             )
