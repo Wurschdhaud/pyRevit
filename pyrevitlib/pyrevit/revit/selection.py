@@ -434,7 +434,8 @@ def pick_linkeds(message='', pick_filter=None):
     """Selects linked elements.
 
     Args:
-        message (str): The message to display when selecting linked elements.
+        message (str, optional): The message to display when selecting
+            linked elements. Default is an empty string.
         pick_filter (object, optional): An object specifying the filter to apply
             when picking elements. Default is None.
 
