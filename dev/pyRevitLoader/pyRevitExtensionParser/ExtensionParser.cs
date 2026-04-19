@@ -428,6 +428,8 @@ namespace pyRevitExtensionParser
             }
             // Read extension.json for additional templates and rocket_mode_compatible
             bool rocketModeCompatible = false;
+            List<string> authUsers = null;
+            List<string> authGroups = null;
             var extensionJsonPath = Path.Combine(extDir, "extension.json");
             if (FileExists(extensionJsonPath))
             {
@@ -462,6 +464,36 @@ namespace pyRevitExtensionParser
                     if (!string.IsNullOrEmpty(rocketModeValue))
                     {
                         rocketModeCompatible = rocketModeValue.Equals("true", StringComparison.OrdinalIgnoreCase);
+                    }
+
+                    // Read authusers if present (list of authorized usernames)
+                    var authUsersArray = json["authusers"] as JArray;
+                    if (authUsersArray != null && authUsersArray.Count > 0)
+                    {
+                        authUsers = new List<string>();
+                        foreach (var item in authUsersArray)
+                        {
+                            var user = item?.ToString();
+                            if (!string.IsNullOrEmpty(user))
+                            {
+                                authUsers.Add(user);
+                            }
+                        }
+                    }
+
+                    // Read authgroups if present (list of authorized Windows security groups)
+                    var authGroupsArray = json["authgroups"] as JArray;
+                    if (authGroupsArray != null && authGroupsArray.Count > 0)
+                    {
+                        authGroups = new List<string>();
+                        foreach (var item in authGroupsArray)
+                        {
+                            var group = item?.ToString();
+                            if (!string.IsNullOrEmpty(group))
+                            {
+                                authGroups.Add(group);
+                            }
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -501,7 +533,9 @@ namespace pyRevitExtensionParser
                 Context = parsedBundle?.GetFormattedContext(),
                 Engine = parsedBundle?.Engine,
                 Config = extConfig,
-                RocketModeCompatible = rocketModeCompatible
+                RocketModeCompatible = rocketModeCompatible,
+                AuthorizedUsers = authUsers,
+                AuthorizedGroups = authGroups
             };
 
             ReorderByLayout(parsedExtension, parsedExtension, null);
