@@ -172,23 +172,100 @@ def get_guid(element):
     return uid[:28] + "{0:x}".format(xor)
 
 
-def get_param(element, param_name, default=None):
+def _param_or_default(param, default):
+    """Return param if it is a live Parameter object, otherwise default."""
+    return param if param is not None else default
+
+
+def _get_param_by_element_id(element, param_id):
     """
-    Retrieves a parameter from a Revit element by its name.
+    Resolve a parameter from a DB.ElementId.
+
+    - Negative id  -> BuiltInParameter
+    - Non-negative -> shared/project parameter, preferred via GUID,
+                     fallback via Definition (non-filterable params only)
+
+    Returns DB.Parameter or None.
+    """
+    try:
+        get_elementid_value = get_elementid_value_func()
+        pid_val = get_elementid_value(param_id)
+
+        if pid_val < 0:
+            bip = DB.BuiltInParameter(pid_val)
+            return element.get_Parameter(bip)
+
+        doc = element.Document
+        param_el = doc.GetElement(param_id)
+        if param_el is None:
+            return None
+
+        if hasattr(param_el, "GuidValue") and param_el.GuidValue:
+            return element.get_Parameter(param_el.GuidValue)
+
+        if hasattr(param_el, "GetDefinition"):
+            definition = param_el.GetDefinition()
+            if definition:
+                return element.get_Parameter(definition)
+
+    except Exception:
+        pass
+
+    return None
+
+
+def get_param(element, param_identifier, default=None):
+    """
+    Retrieve a single parameter from a Revit element.
+
+    Dispatch table
+    --------------
+    str                  : LookupParameter(name)
+    DB.BuiltInParameter  : get_Parameter(bip)
+    System.Guid          : get_Parameter(guid)
+    DB.ElementId         : smart lookup via _get_param_by_element_id()
 
     Args:
-        element (DB.Element): The Revit element from which to retrieve the parameter.
-        param_name (str): The name of the parameter to retrieve.
-        default: The value to return if the parameter is not found or an error occurs. Defaults to None.
+        element (DB.Element)      : The Revit element.
+        param_identifier          : str | DB.BuiltInParameter | System.Guid | DB.ElementId
+        default                   : Returned when nothing is found or on error. Default: None.
 
     Returns:
-        The parameter if found, otherwise the default value.
+        DB.Parameter or default.
+
+    Notes:
+        - String lookup is fast but ambiguous when names collide.
+        - Built-in parameter names are translated in non-English Revit builds;
+          prefer DB.BuiltInParameter over a name string for portability.
     """
-    if isinstance(element, DB.Element):
-        try:
-            return element.LookupParameter(param_name)
-        except Exception:
-            return default
+    if not isinstance(element, DB.Element):
+        return default
+
+    try:
+        if isinstance(param_identifier, (str, unicode)):
+            return _param_or_default(
+                element.LookupParameter(param_identifier), default
+            )
+
+        if isinstance(param_identifier, DB.BuiltInParameter):
+            return _param_or_default(
+                element.get_Parameter(param_identifier), default
+            )
+
+        if isinstance(param_identifier, framework.System.Guid):
+            return _param_or_default(
+                element.get_Parameter(param_identifier), default
+            )
+
+        if isinstance(param_identifier, DB.ElementId):
+            return _param_or_default(
+                _get_param_by_element_id(element, param_identifier), default
+            )
+
+    except Exception:
+        pass
+
+    return default
 
 
 def get_mark(element):
