@@ -532,7 +532,7 @@ def get_elements_by_categories(element_bicats, elements=None, doc=None, view_id=
     if view_id:
         return (
             DB.FilteredElementCollector(doc or DOCS.doc, view_id)
-            .OfClass(elcats_filter)
+            .WherePasses(elcats_filter)
             .WhereElementIsNotElementType()
             .ToElements()
         )
