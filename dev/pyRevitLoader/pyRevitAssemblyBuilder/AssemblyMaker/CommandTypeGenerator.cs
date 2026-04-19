@@ -22,8 +22,6 @@ namespace pyRevitAssemblyBuilder.AssemblyMaker
         private struct SkippedCommandInfo
         {
             public string SafeClassName;
-            public string ScriptPath;
-            public string UniqueId;
             public string BundleDirectory;
         }
 
@@ -115,8 +113,6 @@ namespace pyRevitAssemblyBuilder.AssemblyMaker
                     skippedCommands.Add(new SkippedCommandInfo
                     {
                         SafeClassName = safeClassName,
-                        ScriptPath = cmd.ScriptPath,
-                        UniqueId = cmd.UniqueId,
                         BundleDirectory = cmd.Directory
                     });
 
