@@ -1,13 +1,11 @@
 from pyrevit import revit, script, forms
 from pyrevit.framework import List, Math
+from pyrevit.coreutils.logger import get_logger
 from pyrevit.compat import get_elementid_value_func
 from pyrevit import DB, UI
 
+mlogger = get_logger(__name__)
 get_elementid_value = get_elementid_value_func()
-
-logger = script.get_logger()
-
-PADDING = 1.0  # feet
 
 
 def toggle(doc, datafilename):
@@ -32,7 +30,7 @@ def toggle(doc, datafilename):
                     script.store_data(datafilename, view_boxes)
                 current_view.IsSectionBoxActive = False
             except Exception as ex:
-                logger.error("Error saving section box: {}".format(ex))
+                mlogger.error("Error saving section box: {}".format(ex))
         else:
             try:
                 if current_view_id_value in view_boxes:
@@ -40,7 +38,7 @@ def toggle(doc, datafilename):
                     restored_bbox = revit.deserialize(bbox_data)
                     current_view.SetSectionBox(restored_bbox)
             except Exception as ex:
-                logger.error(
+                mlogger.error(
                     "No saved section box found or failed to load: {}".format(ex)
                 )
 
@@ -50,7 +48,7 @@ def hide(doc):
     current_view = doc.ActiveView
     if not isinstance(current_view, DB.View3D):
         return
-    with revit.Transaction("Toggle SB visbility"):
+    with revit.Transaction("Toggle SB visibility"):
         current_view.EnableRevealHiddenMode()
         view_elements = (
             DB.FilteredElementCollector(doc, current_view.Id)
@@ -157,10 +155,10 @@ def align_to_face(doc, uidoc):
             uidoc.RefreshActiveView()
 
     except Exception as ex:
-        logger.error("Error: {}".format(str(ex)))
+        mlogger.error("Error: {}".format(str(ex)))
 
 
-def temp_switch(doc, temp_datafilename):
+def temp_switch(doc, temp_datafilename, padding=1.0):
     current_view = doc.ActiveView
     if not isinstance(current_view, DB.View3D):
         return
@@ -193,7 +191,7 @@ def temp_switch(doc, temp_datafilename):
             return "restored"
 
         except Exception as e:
-            logger.error("Failed to restore previous state: {}".format(e))
+            mlogger.error("Failed to restore previous state: {}".format(e))
     else:
         selection = revit.get_selection()
         if not selection:
@@ -211,7 +209,7 @@ def temp_switch(doc, temp_datafilename):
                 if current_bbox:
                     current_state["bbox_data"] = revit.serialize(current_bbox)
 
-            new_bbox = revit.query.get_elements_bounding_box(selection, padding=PADDING)
+            new_bbox = revit.query.get_elements_bounding_box(selection, padding=padding)
 
             if new_bbox:
                 with revit.Transaction("Setting new sectionbox"):
@@ -225,7 +223,7 @@ def temp_switch(doc, temp_datafilename):
                 return "set"
 
             else:
-                logger.error("Could not create bounding box from selected elements")
+                mlogger.error("Could not create bounding box from selected elements")
 
         except Exception as e:
-            logger.error("Error creating section box: {}".format(e))
+            mlogger.error("Error creating section box: {}".format(e))
