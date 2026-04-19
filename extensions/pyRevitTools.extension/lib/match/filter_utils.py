@@ -12,7 +12,7 @@ get_elementid_value = get_elementid_value_func()
 def dissect_parameter_filter(doc, filter_element, lightweight=False):
     """
     Extract information from a simple equals ParameterFilterElement.
-    Lightweight argument skips categories and display_value creation.
+    Lightweight argument skips filling categories and display_value keys.
 
     Returns a dict, or None if the filter is not a single equals rule.
 
@@ -99,7 +99,8 @@ def dissect_parameter_filter(doc, filter_element, lightweight=False):
         val = rule.RuleString
         result["storage_type"] = DB.StorageType.String
         result["value"] = val
-        result["display_value"] = val
+        if not lightweight:
+            result["display_value"] = val
 
     elif isinstance(rule, DB.FilterDoubleRule):
         val = rule.RuleValue
