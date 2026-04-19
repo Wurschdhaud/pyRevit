@@ -75,7 +75,7 @@ class ParameterItem(_INotifyBase):
 
     @property
     def Category(self):
-        """Single category name, 'multiple', or em-dash when unknown."""
+        """Single category name, 'multiple', or 'unknown'."""
         cats = self._pkv.categories or []
         if not cats:
             return "unknown"
