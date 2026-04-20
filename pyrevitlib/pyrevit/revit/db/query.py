@@ -500,49 +500,71 @@ def get_elements_by_param_value(param_name, param_value, inverse=False, doc=None
         if inverse:
             vrule = DB.FilterInverseRule(vrule)
         param_filter = DB.ElementParameterFilter(vrule)
-        if view_id:
-            return DB.FilteredElementCollector(doc, view_id).WherePasses(param_filter).ToElements()
-        else:
-            return DB.FilteredElementCollector(doc).WherePasses(param_filter).ToElements()
+        fec = (
+            DB.FilteredElementCollector(doc, view_id)
+            if view_id
+            else DB.FilteredElementCollector(doc)
+        )
+        return fec.WherePasses(param_filter).ToElements()
     else:
         return []
 
 
-def get_elements_by_categories(element_bicats, elements=None, doc=None, view_id=None):
+def get_elements_by_categories(categories, elements=None, doc=None, view_id=None):
     """
     Retrieves elements from a Revit document based on specified categories.
 
     Args:
-        element_bicats (list): A list of built-in categories to filter elements by.
-        elements (list, optional): A list of elements to filter. If provided, the function will filter these elements.
-        doc (DB.Document, optional): The Revit document to collect elements from. If not provided, the active document is used.
-        view_id (DB.ElementId, optional): The ID of the view to restrict the search to. Defaults to None.
+        categories (list):
+            A list of category identifiers. Supported types:
+                - DB.BuiltInCategory
+                - DB.ElementId
+                - DB.Category
+
+            The function will normalize all inputs internally.
+
+        elements (list, optional):
+            A list of elements to filter. If provided, filtering is done
+            in-memory instead of using a FilteredElementCollector.
+
+        doc (DB.Document, optional):
+            The Revit document to collect elements from.
+            Defaults to the active document.
+
+        view_id (DB.ElementId, optional):
+            The ID of the view to restrict the search to.
 
     Returns:
-        list: A list of elements that belong to the specified categories.
+        list:
+            A list of elements that belong to the specified categories.
     """
+
+    doc = doc or DOCS.doc
+
+    def _category_to_id(cat_input, doc=None):
+        cat = get_category(cat_input, doc=doc)
+        return cat.Id if cat else None
+
+    category_ids = {_category_to_id(c, doc) for c in categories if c}
+    category_ids.discard(None)
+
     if elements:
-        return [
-            x
-            for x in elements
-            if get_builtincategory(x.Category.Name) in element_bicats
-        ]
-    cat_filters = [DB.ElementCategoryFilter(x) for x in element_bicats if x]
+        return [x for x in elements if x.Category and x.Category.Id in category_ids]
+
+    cat_filters = [DB.ElementCategoryFilter(cid) for cid in category_ids]
+
+    if not cat_filters:
+        return []
+
     elcats_filter = DB.LogicalOrFilter(framework.List[DB.ElementFilter](cat_filters))
-    if view_id:
-        return (
-            DB.FilteredElementCollector(doc or DOCS.doc, view_id)
-            .WherePasses(elcats_filter)
-            .WhereElementIsNotElementType()
-            .ToElements()
-        )
-    else:
-        return (
-            DB.FilteredElementCollector(doc or DOCS.doc)
-            .WherePasses(elcats_filter)
-            .WhereElementIsNotElementType()
-            .ToElements()
-        )
+
+    fec = (
+        DB.FilteredElementCollector(doc, view_id)
+        if view_id
+        else DB.FilteredElementCollector(doc)
+    )
+
+    return fec.WherePasses(elcats_filter).WhereElementIsNotElementType().ToElements()
 
 
 def get_elements_by_class(element_class, elements=None, doc=None, view_id=None):
@@ -560,20 +582,15 @@ def get_elements_by_class(element_class, elements=None, doc=None, view_id=None):
     """
     if elements:
         return [x for x in elements if isinstance(x, element_class)]
-    if view_id:
-        return (
-            DB.FilteredElementCollector(doc or DOCS.doc, view_id)
-            .OfClass(element_class)
-            .WhereElementIsNotElementType()
-            .ToElements()
-        )
-    else:
-        return (
-            DB.FilteredElementCollector(doc or DOCS.doc)
-            .OfClass(element_class)
-            .WhereElementIsNotElementType()
-            .ToElements()
-        )
+    
+    doc = doc or DOCS.doc
+    fec = (
+        DB.FilteredElementCollector(doc, view_id)
+        if view_id
+        else DB.FilteredElementCollector(doc)
+    )
+
+    return fec.OfClass(element_class).WhereElementIsNotElementType().ToElements()
 
 
 def get_types_by_class(type_class, types=None, doc=None):
@@ -1731,57 +1748,59 @@ def get_takeoff_categories(doc=None):
     return cats
 
 
-def get_category(cat_name_or_builtin, doc=None):
+def get_category(cat_input, doc=None):
     """
-    Retrieves a Revit category based on the provided category name, built-in category, or category object.
+    Retrieves a Revit category based on the provided category name, built-in category, category object or element id.
 
     Args:
-        cat_name_or_builtin (Union[str, DB.BuiltInCategory, DB.Category]): The category name as a string,
-            a built-in category enum, or a category object.
+        cat_input (Union[str, DB.BuiltInCategory, DB.Category, DB.ElementId]): The category name as a string,
+            a built-in category enum, a category object or ElementId.
         doc (Optional[Document]): The Revit document to search within. If not provided, defaults to DOCS.doc.
 
     Returns:
         DB.Category: The matching Revit category object, or None if no match is found.
     """
     doc = doc or DOCS.doc
-    all_cats = get_doc_categories(doc)
-    if isinstance(cat_name_or_builtin, str):
-        for cat in all_cats:
-            if cat.Name == cat_name_or_builtin:
-                return cat
-    elif isinstance(cat_name_or_builtin, DB.BuiltInCategory):
+    if isinstance(cat_input, DB.Category):
+        return cat_input
+
+    if isinstance(cat_input, DB.ElementId):
         get_elementid_value = get_elementid_value_func()
-        for cat in all_cats:
-            if get_elementid_value(cat.Id) == int(cat_name_or_builtin):
+        return doc.Settings.Categories.get_Item(DB.BuiltInCategory(get_elementid_value(cat_input)))
+
+    if isinstance(cat_input, DB.BuiltInCategory):
+        return doc.Settings.Categories.get_Item(cat_input)
+
+    if isinstance(cat_input, (str, unicode)):
+        for cat in get_doc_categories(doc):
+            if cat.Name == cat_input:
                 return cat
-    elif isinstance(cat_name_or_builtin, DB.Category):
-        return cat_name_or_builtin
+
+    return None
 
 
-def get_builtincategory(cat_name_or_id, doc=None):
+def get_builtincategory(cat_input, doc=None):
     """
-    Retrieves the BuiltInCategory for a given category name or ElementId.
+    Retrieves the BuiltInCategory for a given category name, built-in category, category object or element id.
 
     Args:
-        cat_name_or_id (str or DB.ElementId): The name of the category as a string or the ElementId of the category.
-        doc (optional): The Revit document. If not provided, defaults to DOCS.doc.
+        cat_input (Union[str, DB.BuiltInCategory, DB.Category, DB.ElementId]): The category name as a string,
+            a built-in category enum, a category object or ElementId.
+        doc (Optional[Document]): The Revit document to search within. If not provided, defaults to DOCS.doc.
 
     Returns:
         DB.BuiltInCategory: The corresponding BuiltInCategory if found, otherwise None.
     """
-    doc = doc or DOCS.doc
-    cat_id = None
-    if isinstance(cat_name_or_id, str):
-        cat = get_category(cat_name_or_id)
-        if cat:
-            cat_id = cat.Id
-    elif isinstance(cat_name_or_id, DB.ElementId):
-        cat_id = cat_name_or_id
-    if cat_id:
-        get_elementid_value = get_elementid_value_func()
-        for bicat in DB.BuiltInCategory.GetValues(DB.BuiltInCategory):
-            if int(bicat) == get_elementid_value(cat_id):
-                return bicat
+    cat = get_category(cat_input, doc=doc)
+    if not cat:
+        return None
+
+    get_elementid_value = get_elementid_value_func()
+    cat_val = get_elementid_value(cat.Id)
+
+    for bicat in DB.BuiltInCategory.GetValues(DB.BuiltInCategory):
+        if int(bicat) == cat_val:
+            return bicat
 
 
 def get_subcategories(doc=None, purgable=False, filterfunc=None):
