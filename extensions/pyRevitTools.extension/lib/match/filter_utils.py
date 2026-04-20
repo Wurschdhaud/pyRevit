@@ -40,7 +40,7 @@ def dissect_parameter_filter(doc, filter_element, lightweight=False):
     if not lightweight:
         try:
             for cid in filter_element.GetCategories():
-                cat = query.get_category(cid)
+                cat = query.get_category(cid, doc=doc)
                 if cat:
                     result["categories"].append(cat)
         except Exception:
@@ -112,7 +112,7 @@ def dissect_parameter_filter(doc, filter_element, lightweight=False):
                     spec = param_elem.GetDataType()
                 else:
                     try:
-                        collector = query.get_elements_by_categories(result["categories"])
+                        collector = query.get_elements_by_categories(result["categories"], doc=doc)
                         elem = next(iter(collector), None)
                         param = query.get_param(elem, param_id) if elem else None
                         if param:

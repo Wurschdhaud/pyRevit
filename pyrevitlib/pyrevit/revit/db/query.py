@@ -582,7 +582,7 @@ def get_elements_by_class(element_class, elements=None, doc=None, view_id=None):
     """
     if elements:
         return [x for x in elements if isinstance(x, element_class)]
-    
+
     doc = doc or DOCS.doc
     fec = (
         DB.FilteredElementCollector(doc, view_id)
@@ -1766,7 +1766,15 @@ def get_category(cat_input, doc=None):
 
     if isinstance(cat_input, DB.ElementId):
         get_elementid_value = get_elementid_value_func()
-        return doc.Settings.Categories.get_Item(DB.BuiltInCategory(get_elementid_value(cat_input)))
+        try:
+            return doc.Settings.Categories.get_Item(
+                DB.BuiltInCategory(get_elementid_value(cat_input))
+            )
+        except Exception:
+            for cat in get_doc_categories(doc):
+                if cat.Id == cat_input:
+                    return cat
+            return None
 
     if isinstance(cat_input, DB.BuiltInCategory):
         return doc.Settings.Categories.get_Item(cat_input)
