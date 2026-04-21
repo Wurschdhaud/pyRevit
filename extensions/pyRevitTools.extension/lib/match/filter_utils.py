@@ -36,6 +36,9 @@ def dissect_parameter_filter(doc, filter_element, lightweight=False):
         "rule": None,
     }
 
+    if not isinstance(filter_element, DB.ParameterFilterElement):
+        return None
+
     # ── categories ────────────────────────────────────────────────────
     if not lightweight:
         try:
