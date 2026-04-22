@@ -10,7 +10,6 @@ from pyrevit.compat import get_elementid_value_func
 from match_utils import (
     PropKeyValue,
     get_source_properties,
-    safe_get_parameter,
     paste_props,
 )
 from filter_utils import (
@@ -76,7 +75,7 @@ class ParameterItem(_INotifyBase):
 
     @property
     def Category(self):
-        """Single category name, 'multiple', or em-dash when unknown."""
+        """Single category name, 'multiple', or 'unknown'."""
         cats = self._pkv.categories or []
         if not cats:
             return "unknown"
@@ -259,7 +258,7 @@ class MatchHistoryClipboard(forms.WPFPanel):
             self.logger.warning("No simple equals filter found on active view.")
             return
         try:
-            tparam = safe_get_parameter(elem, param_id)
+            tparam = revit.query.get_param(elem, param_id)
             if not tparam:
                 return
             value = revit.query.get_param_value(tparam)

@@ -126,15 +126,22 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
 
             if (itemDataList.Count >= 2)
             {
-                IList<RibbonItem>? stackedItems = null;
-                if (itemDataList.Count == 2)
-                    stackedItems = parentPanel.AddStackedItems(itemDataList[0], itemDataList[1]);
-                else
-                    stackedItems = parentPanel.AddStackedItems(itemDataList[0], itemDataList[1], itemDataList[2]);
-
-                if (stackedItems != null)
+                try
                 {
-                    ProcessStackedItems(stackedItems, originalItems, assemblyInfo);
+                    IList<RibbonItem>? stackedItems = null;
+                    if (itemDataList.Count == 2)
+                        stackedItems = parentPanel.AddStackedItems(itemDataList[0], itemDataList[1]);
+                    else
+                        stackedItems = parentPanel.AddStackedItems(itemDataList[0], itemDataList[1], itemDataList[2]);
+
+                    if (stackedItems != null)
+                    {
+                        ProcessStackedItems(stackedItems, originalItems, assemblyInfo);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warning($"Stack '{component.DisplayName}' skipped: {ex.Message}");
                 }
             }
             else

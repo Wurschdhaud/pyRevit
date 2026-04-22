@@ -111,4 +111,10 @@
                 Condition="'$(DeployToAllVersions)' == 'true'" />
     </Target>
 
+    <!-- DeployCodeAnalysisDlls disabled: CodeAnalysis DLLs are deployed by pyRevitLabs.Common
+         to bin/netcore/ and bin/netfx/. The loader's LoadAssembliesInFolder(commonFolder) already
+         loads these DLLs from bin/netcore/ (or bin/netfx/ for netfx builds) at startup. -->
+    <Target Name="DeployCodeAnalysisDlls" AfterTargets="Deploy" Condition="'false'">
+    </Target>
+
 </Project>
