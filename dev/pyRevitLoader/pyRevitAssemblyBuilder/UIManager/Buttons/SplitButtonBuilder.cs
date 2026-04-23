@@ -494,18 +494,21 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 }
             }
 
-            RebindCurrentButtonIfStale(splitBtn, component, existingByName, touchedNames);
+            RebindCurrentButtonIfStale(splitBtn, component, visibleChildren, existingByName, touchedNames);
         }
 
         /// <summary>
         /// If <see cref="SplitButton.CurrentButton"/> points at a child that was just deactivated
-        /// (or is otherwise invisible), reassign it to the first still-visible child. Without this,
-        /// the split button's primary action would render as nothing after a beta/version toggle
-        /// hides the previously-active child.
+        /// (or is otherwise invisible), reassign it to the first still-visible child in the
+        /// declared <paramref name="visibleChildren"/> order. Without this, the split button's
+        /// primary action would render as nothing after a beta/version toggle hides the
+        /// previously-active child. Walks <paramref name="visibleChildren"/> rather than the
+        /// dictionary so the replacement choice is stable across .NET runtimes.
         /// </summary>
         private void RebindCurrentButtonIfStale(
             SplitButton splitBtn,
             ParsedComponent component,
+            IReadOnlyList<ParsedComponent> visibleChildren,
             System.Collections.Generic.Dictionary<string, PushButton> existingByName,
             System.Collections.Generic.HashSet<string> touchedNames)
         {
@@ -526,18 +529,19 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                     return;
 
                 PushButton? replacement = null;
-                foreach (var pair in existingByName)
+                foreach (var sub in visibleChildren)
                 {
-                    if (!touchedNames.Contains(pair.Key))
+                    if (sub.Type == CommandComponentType.Separator)
                         continue;
-                    var candidate = pair.Value;
+                    if (!existingByName.TryGetValue(sub.DisplayName, out var candidate))
+                        continue;
                     try { if (!candidate.Visible) continue; }
                     catch { continue; }
                     replacement = candidate;
                     break;
                 }
 
-                if (replacement == null)
+                if (replacement == null || ReferenceEquals(replacement, current))
                     return;
 
                 splitBtn.CurrentButton = replacement;

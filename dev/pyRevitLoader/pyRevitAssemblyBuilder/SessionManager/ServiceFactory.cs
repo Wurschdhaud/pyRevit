@@ -142,7 +142,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
             var pushButtonBuilder = new PushButtonBuilder(logger, buttonPostProcessor, smartButtonScriptInitializer);
             var panelButtonBuilder = new PanelButtonBuilder(logger, buttonPostProcessor);
             var pulldownButtonBuilder = new PulldownButtonBuilder(buildContext, logger, buttonPostProcessor, linkButtonBuilder, smartButtonScriptInitializer);
-            var splitButtonBuilder = new SplitButtonBuilder(buildContext, logger, buttonPostProcessor, linkButtonBuilder);
+            var splitButtonBuilder = new SplitButtonBuilder(buildContext, logger, buttonPostProcessor, linkButtonBuilder, smartButtonScriptInitializer);
 
             // Create factory with all builders
             var builders = new List<IButtonBuilder>
@@ -170,7 +170,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
             var smartButtonScriptInitializer = new SmartButtonScriptInitializer(uiApplication, logger);
             var linkButtonBuilder = new LinkButtonBuilder(logger, buttonPostProcessor);
             var pulldownButtonBuilder = new PulldownButtonBuilder(buildContext, logger, buttonPostProcessor, linkButtonBuilder, smartButtonScriptInitializer);
-            var splitButtonBuilder = new SplitButtonBuilder(buildContext, logger, buttonPostProcessor, linkButtonBuilder);
+            var splitButtonBuilder = new SplitButtonBuilder(buildContext, logger, buttonPostProcessor, linkButtonBuilder, smartButtonScriptInitializer);
 
             return new StackBuilder(buildContext, logger, buttonPostProcessor, linkButtonBuilder, pulldownButtonBuilder, splitButtonBuilder, smartButtonScriptInitializer);
         }
