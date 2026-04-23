@@ -34,6 +34,7 @@
     <Compile Include="IconParsingTests.cs" />
     <Compile Include="IconFunctionalityTests.cs" />
     <Compile Include="BundleTooltipFixTest.cs" />
+    <Compile Include="ComponentSupportUtilsTests.cs" />
     <Compile Include="ComponentValidationTests.cs" />
     <Compile Include="PanelButtonBundleTests.cs" />
     <Compile Include="ParsedBundleTests.cs" />

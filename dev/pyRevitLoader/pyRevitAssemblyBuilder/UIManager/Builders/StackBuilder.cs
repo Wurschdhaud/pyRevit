@@ -5,6 +5,7 @@ using System.Linq;
 using Autodesk.Revit.UI;
 using pyRevitAssemblyBuilder.AssemblyMaker;
 using pyRevitAssemblyBuilder.SessionManager;
+using pyRevitAssemblyBuilder.UIManager;
 using pyRevitAssemblyBuilder.UIManager.Buttons;
 using pyRevitAssemblyBuilder.UIManager.Icons;
 using pyRevitExtensionParser;
@@ -34,6 +35,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
         /// <param name="splitButtonBuilder">The split button builder.</param>
         /// <param name="smartButtonScriptInitializer">Optional SmartButton script initializer.</param>
         public StackBuilder(
+            UIApplication uiApplication,
             ILogger logger,
             IButtonPostProcessor buttonPostProcessor,
             Buttons.LinkButtonBuilder linkButtonBuilder,
@@ -41,6 +43,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
             Buttons.SplitButtonBuilder splitButtonBuilder,
             SmartButtonScriptInitializer? smartButtonScriptInitializer = null)
         {
+            _uiApplication = uiApplication ?? throw new ArgumentNullException(nameof(uiApplication));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _buttonPostProcessor = buttonPostProcessor ?? throw new ArgumentNullException(nameof(buttonPostProcessor));
             _linkButtonBuilder = linkButtonBuilder ?? throw new ArgumentNullException(nameof(linkButtonBuilder));
@@ -48,6 +51,8 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
             _splitButtonBuilder = splitButtonBuilder ?? throw new ArgumentNullException(nameof(splitButtonBuilder));
             _smartButtonScriptInitializer = smartButtonScriptInitializer;
         }
+
+        private readonly UIApplication _uiApplication;
 
         /// <inheritdoc/>
         public void BuildStack(ParsedComponent component, RibbonPanel parentPanel, ExtensionAssemblyInfo assemblyInfo)
@@ -58,10 +63,14 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
                 return;
             }
 
-            var children = (component.Children ?? Enumerable.Empty<ParsedComponent>()).ToList();
+            var buildSettings = ComponentSupportUtils.ReadBuildSettings(_uiApplication, _logger);
+            var children = GetVisibleStackChildren(
+                component.Children,
+                buildSettings.CurrentVersion,
+                buildSettings.LoadBeta);
             if (children.Count < 2)
             {
-                _logger.Debug($"Stack '{component.DisplayName}' has fewer than 2 items, skipping.");
+                _logger.Debug($"Stack '{component.DisplayName}' has fewer than 2 visible items, skipping.");
                 return;
             }
 
@@ -146,8 +155,38 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
             }
             else
             {
-                _logger.Debug($"Stack '{component.DisplayName}' has fewer than 2 items after filtering, skipping.");
+                _logger.Debug($"Stack '{component.DisplayName}' has fewer than 2 visible items after filtering, skipping.");
             }
+        }
+
+        private List<ParsedComponent> GetVisibleStackChildren(
+            IEnumerable<ParsedComponent>? children,
+            string currentVersion,
+            bool loadBeta)
+        {
+            var visibleChildren = new List<ParsedComponent>();
+
+            foreach (var child in children ?? Enumerable.Empty<ParsedComponent>())
+            {
+                if (!ComponentSupportUtils.IsSupported(child, currentVersion, loadBeta, _logger))
+                    continue;
+
+                if ((child.Type == CommandComponentType.PullDown
+                     || child.Type == CommandComponentType.SplitButton
+                     || child.Type == CommandComponentType.SplitPushButton)
+                    && !ComponentSupportUtils.HasVisibleButtonGroupChildren(
+                        child,
+                        currentVersion,
+                        loadBeta,
+                        _logger))
+                {
+                    continue;
+                }
+
+                visibleChildren.Add(child);
+            }
+
+            return visibleChildren;
         }
 
         /// <summary>

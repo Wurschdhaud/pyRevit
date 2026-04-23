@@ -140,8 +140,8 @@ namespace pyRevitAssemblyBuilder.SessionManager
             var linkButtonBuilder = new LinkButtonBuilder(logger, buttonPostProcessor);
             var pushButtonBuilder = new PushButtonBuilder(logger, buttonPostProcessor, smartButtonScriptInitializer);
             var panelButtonBuilder = new PanelButtonBuilder(logger, buttonPostProcessor);
-            var pulldownButtonBuilder = new PulldownButtonBuilder(logger, buttonPostProcessor, linkButtonBuilder, smartButtonScriptInitializer);
-            var splitButtonBuilder = new SplitButtonBuilder(logger, buttonPostProcessor, linkButtonBuilder);
+            var pulldownButtonBuilder = new PulldownButtonBuilder(uiApplication, logger, buttonPostProcessor, linkButtonBuilder, smartButtonScriptInitializer);
+            var splitButtonBuilder = new SplitButtonBuilder(uiApplication, logger, buttonPostProcessor, linkButtonBuilder);
 
             // Create factory with all builders
             var builders = new List<IButtonBuilder>
@@ -167,10 +167,10 @@ namespace pyRevitAssemblyBuilder.SessionManager
         {
             var smartButtonScriptInitializer = new SmartButtonScriptInitializer(uiApplication, logger);
             var linkButtonBuilder = new LinkButtonBuilder(logger, buttonPostProcessor);
-            var pulldownButtonBuilder = new PulldownButtonBuilder(logger, buttonPostProcessor, linkButtonBuilder, smartButtonScriptInitializer);
-            var splitButtonBuilder = new SplitButtonBuilder(logger, buttonPostProcessor, linkButtonBuilder);
+            var pulldownButtonBuilder = new PulldownButtonBuilder(uiApplication, logger, buttonPostProcessor, linkButtonBuilder, smartButtonScriptInitializer);
+            var splitButtonBuilder = new SplitButtonBuilder(uiApplication, logger, buttonPostProcessor, linkButtonBuilder);
             
-            return new StackBuilder(logger, buttonPostProcessor, linkButtonBuilder, pulldownButtonBuilder, splitButtonBuilder, smartButtonScriptInitializer);
+            return new StackBuilder(uiApplication, logger, buttonPostProcessor, linkButtonBuilder, pulldownButtonBuilder, splitButtonBuilder, smartButtonScriptInitializer);
         }
 
         /// <summary>

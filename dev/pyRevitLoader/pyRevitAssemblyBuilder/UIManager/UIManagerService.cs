@@ -160,84 +160,11 @@ namespace pyRevitAssemblyBuilder.UIManager
         /// <returns>True if the component should be loaded, false otherwise.</returns>
         private bool IsComponentSupported(ParsedComponent component)
         {
-            // Check if component is marked as beta
-            if (component.IsBeta)
-            {
-                if (!_loadBeta)
-                {
-                    _logger.Debug($"Skipping beta component '{component.DisplayName}' - beta tools not enabled.");
-                    return false;
-                }
-                _logger.Debug($"Component '{component.DisplayName}' is beta and will be shown.");
-            }
-
-            // Get current Revit version
-            string currentVersion = _uiApp?.Application?.VersionNumber ?? string.Empty;
-            if (string.IsNullOrEmpty(currentVersion))
-            {
-                _logger.Warning("Could not determine Revit version. Allowing all components.");
-                return true;
-            }
-
-            // Normalize version numbers for comparison
-            // Revit versions before 2021 use 2-digit format (e.g., "20" for Revit 2020)
-            // Revit versions 2021+ use 4-digit format (e.g., "2021" for Revit 2021)
-            int currentVersionNum = NormalizeVersionNumber(currentVersion);
-
-            // Check minimum version requirement
-            if (!string.IsNullOrEmpty(component.MinRevitVersion))
-            {
-                int minVersionNum = NormalizeVersionNumber(component.MinRevitVersion);
-                if (currentVersionNum < minVersionNum)
-                {
-                    _logger.Debug($"Component '{component.DisplayName}' requires Revit {component.MinRevitVersion} or later. Current version: {currentVersion}. Skipping.");
-                    return false;
-                }
-            }
-
-            // Check maximum version requirement
-            if (!string.IsNullOrEmpty(component.MaxRevitVersion))
-            {
-                int maxVersionNum = NormalizeVersionNumber(component.MaxRevitVersion);
-                if (currentVersionNum > maxVersionNum)
-                {
-                    _logger.Debug($"Component '{component.DisplayName}' supports up to Revit {component.MaxRevitVersion}. Current version: {currentVersion}. Skipping.");
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Normalizes a version number string to an integer for comparison.
-        /// Handles both 2-digit (e.g., "20") and 4-digit (e.g., "2020") formats.
-        /// </summary>
-        /// <param name="version">The version string to normalize.</param>
-        /// <returns>An integer representation of the version.</returns>
-        private int NormalizeVersionNumber(string version)
-        {
-            if (string.IsNullOrEmpty(version))
-                return 0;
-
-            // Remove any non-digit characters
-            var digits = new string(version.Where(char.IsDigit).ToArray());
-
-            if (string.IsNullOrEmpty(digits))
-                return 0;
-
-            if (int.TryParse(digits, out int versionNum))
-            {
-                // If it's a 2-digit version (e.g., "20" for 2020), convert to 4-digit
-                if (versionNum < 100)
-                {
-                    // Assume 20xx format
-                    versionNum = 2000 + versionNum;
-                }
-                return versionNum;
-            }
-
-            return 0;
+            return ComponentSupportUtils.IsSupported(
+                component,
+                _uiApp?.Application?.VersionNumber ?? string.Empty,
+                _loadBeta,
+                _logger);
         }
 
         private void RecursivelyBuildUI(
@@ -389,6 +316,9 @@ namespace pyRevitAssemblyBuilder.UIManager
                     // Mark all children in the stack as touched
                     foreach (var child in component.Children ?? Enumerable.Empty<ParsedComponent>())
                     {
+                        if (!IsStackChildVisible(child))
+                            continue;
+
                         _ribbonScanner?.MarkElementTouched("button", child.DisplayName, panelName);
                     }
                     break;
@@ -461,6 +391,25 @@ namespace pyRevitAssemblyBuilder.UIManager
                 _logger.Debug($"Error checking if item '{itemName}' exists in panel. Exception: {ex.Message}");
                 return false;
             }
+        }
+
+        private bool IsStackChildVisible(ParsedComponent child)
+        {
+            if (!IsComponentSupported(child))
+                return false;
+
+            if (child.Type == CommandComponentType.PullDown
+                || child.Type == CommandComponentType.SplitButton
+                || child.Type == CommandComponentType.SplitPushButton)
+            {
+                return ComponentSupportUtils.HasVisibleButtonGroupChildren(
+                    child,
+                    _uiApp?.Application?.VersionNumber ?? string.Empty,
+                    _loadBeta,
+                    _logger);
+            }
+
+            return true;
         }
     }
 }
