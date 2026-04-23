@@ -135,7 +135,7 @@ namespace pyRevitAssemblyBuilder.UIManager
                         Name = "---",
                         DisplayName = "---",
                         Type = ExtensionParser.CommandComponentType.Separator,
-                        Directory = child.Directory
+                        Directory = string.Empty
                     });
                     pendingSeparator = false;
                 }
@@ -148,6 +148,7 @@ namespace pyRevitAssemblyBuilder.UIManager
 
         /// <summary>
         /// Checks if a button group has at least one visible command child.
+        /// Short-circuits on the first supported non-separator child.
         /// </summary>
         public static bool HasVisibleButtonGroupChildren(
             ParsedComponent? component,
@@ -158,12 +159,47 @@ namespace pyRevitAssemblyBuilder.UIManager
             if (component?.Children == null)
                 return false;
 
-            return GetVisibleButtonGroupChildren(component.Children, currentVersion, loadBeta, logger)
-                .Exists(child => child.Type != ExtensionParser.CommandComponentType.Separator);
+            foreach (var child in component.Children)
+            {
+                if (child == null)
+                    continue;
+
+                if (child.Type == ExtensionParser.CommandComponentType.Separator)
+                    continue;
+
+                if (IsSupported(child, currentVersion, loadBeta, logger))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks whether a stack child should be visible. A pulldown or split button
+        /// whose own children are all filtered out is considered not visible.
+        /// </summary>
+        public static bool IsStackChildVisible(
+            ParsedComponent? component,
+            string currentVersion,
+            bool loadBeta,
+            ILogger? logger = null)
+        {
+            if (!IsSupported(component, currentVersion, loadBeta, logger))
+                return false;
+
+            if (component!.Type == ExtensionParser.CommandComponentType.PullDown
+                || component.Type == ExtensionParser.CommandComponentType.SplitButton
+                || component.Type == ExtensionParser.CommandComponentType.SplitPushButton)
+            {
+                return HasVisibleButtonGroupChildren(component, currentVersion, loadBeta, logger);
+            }
+
+            return true;
         }
 
         /// <summary>
         /// Normalizes a Revit version string for numeric comparison.
+        /// Any 2-digit value is treated as a legacy 20xx year (e.g. "20" -> 2020).
         /// </summary>
         public static int NormalizeVersionNumber(string? version)
         {
@@ -178,6 +214,8 @@ namespace pyRevitAssemblyBuilder.UIManager
             if (!int.TryParse(digits, out var versionNum))
                 return 0;
 
+            // Legacy 2-digit format: Revit 2017-2020 manifests used "17"-"20". Anything
+            // under 100 is assumed to be that shorthand and widened to 20xx.
             if (versionNum < 100)
                 versionNum = 2000 + versionNum;
 

@@ -395,21 +395,11 @@ namespace pyRevitAssemblyBuilder.UIManager
 
         private bool IsStackChildVisible(ParsedComponent child)
         {
-            if (!IsComponentSupported(child))
-                return false;
-
-            if (child.Type == CommandComponentType.PullDown
-                || child.Type == CommandComponentType.SplitButton
-                || child.Type == CommandComponentType.SplitPushButton)
-            {
-                return ComponentSupportUtils.HasVisibleButtonGroupChildren(
-                    child,
-                    _uiApp?.Application?.VersionNumber ?? string.Empty,
-                    _loadBeta,
-                    _logger);
-            }
-
-            return true;
+            return ComponentSupportUtils.IsStackChildVisible(
+                child,
+                _uiApp?.Application?.VersionNumber ?? string.Empty,
+                _loadBeta,
+                _logger);
         }
     }
 }

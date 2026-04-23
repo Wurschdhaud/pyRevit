@@ -17,6 +17,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
     /// </summary>
     public class PulldownButtonBuilder : ButtonBuilderBase
     {
+        private readonly UIApplication _uiApplication;
         private readonly SmartButtonScriptInitializer? _smartButtonScriptInitializer;
         private readonly LinkButtonBuilder _linkButtonBuilder;
 
@@ -29,6 +30,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
         /// <summary>
         /// Initializes a new instance of the <see cref="PulldownButtonBuilder"/> class.
         /// </summary>
+        /// <param name="uiApplication">The Revit UIApplication instance.</param>
         /// <param name="logger">The logger instance.</param>
         /// <param name="buttonPostProcessor">The button post-processor.</param>
         /// <param name="linkButtonBuilder">The link button builder for child link buttons.</param>
@@ -45,8 +47,6 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
             _linkButtonBuilder = linkButtonBuilder ?? throw new ArgumentNullException(nameof(linkButtonBuilder));
             _smartButtonScriptInitializer = smartButtonScriptInitializer;
         }
-
-        private readonly UIApplication _uiApplication;
 
         /// <inheritdoc/>
         public override void Build(ParsedComponent component, RibbonPanel parentPanel, string tabName, ExtensionAssemblyInfo assemblyInfo)

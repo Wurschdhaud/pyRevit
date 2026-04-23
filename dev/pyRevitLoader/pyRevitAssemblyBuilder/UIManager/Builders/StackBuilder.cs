@@ -18,6 +18,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
     /// </summary>
     public class StackBuilder : IStackBuilder
     {
+        private readonly UIApplication _uiApplication;
         private readonly ILogger _logger;
         private readonly IButtonPostProcessor _buttonPostProcessor;
         private readonly Buttons.LinkButtonBuilder _linkButtonBuilder;
@@ -28,6 +29,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
         /// <summary>
         /// Initializes a new instance of the <see cref="StackBuilder"/> class.
         /// </summary>
+        /// <param name="uiApplication">The Revit UIApplication instance.</param>
         /// <param name="logger">The logger instance.</param>
         /// <param name="buttonPostProcessor">The button post-processor.</param>
         /// <param name="linkButtonBuilder">The link button builder.</param>
@@ -52,8 +54,6 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
             _smartButtonScriptInitializer = smartButtonScriptInitializer;
         }
 
-        private readonly UIApplication _uiApplication;
-
         /// <inheritdoc/>
         public void BuildStack(ParsedComponent component, RibbonPanel parentPanel, ExtensionAssemblyInfo assemblyInfo)
         {
@@ -64,13 +64,22 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
             }
 
             var buildSettings = ComponentSupportUtils.ReadBuildSettings(_uiApplication, _logger);
-            var children = GetVisibleStackChildren(
-                component.Children,
-                buildSettings.CurrentVersion,
-                buildSettings.LoadBeta);
+            var children = new List<ParsedComponent>();
+            foreach (var child in component.Children ?? Enumerable.Empty<ParsedComponent>())
+            {
+                if (ComponentSupportUtils.IsStackChildVisible(
+                        child,
+                        buildSettings.CurrentVersion,
+                        buildSettings.LoadBeta,
+                        _logger))
+                {
+                    children.Add(child);
+                }
+            }
+
             if (children.Count < 2)
             {
-                _logger.Debug($"Stack '{component.DisplayName}' has fewer than 2 visible items, skipping.");
+                _logger.Info($"Stack '{component.DisplayName}' has fewer than 2 visible items after filtering, skipping.");
                 return;
             }
 
@@ -157,36 +166,6 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
             {
                 _logger.Debug($"Stack '{component.DisplayName}' has fewer than 2 visible items after filtering, skipping.");
             }
-        }
-
-        private List<ParsedComponent> GetVisibleStackChildren(
-            IEnumerable<ParsedComponent>? children,
-            string currentVersion,
-            bool loadBeta)
-        {
-            var visibleChildren = new List<ParsedComponent>();
-
-            foreach (var child in children ?? Enumerable.Empty<ParsedComponent>())
-            {
-                if (!ComponentSupportUtils.IsSupported(child, currentVersion, loadBeta, _logger))
-                    continue;
-
-                if ((child.Type == CommandComponentType.PullDown
-                     || child.Type == CommandComponentType.SplitButton
-                     || child.Type == CommandComponentType.SplitPushButton)
-                    && !ComponentSupportUtils.HasVisibleButtonGroupChildren(
-                        child,
-                        currentVersion,
-                        loadBeta,
-                        _logger))
-                {
-                    continue;
-                }
-
-                visibleChildren.Add(child);
-            }
-
-            return visibleChildren;
         }
 
         /// <summary>
