@@ -220,115 +220,14 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
 
             foreach (var sub in visibleChildren)
             {
-                if (sub.Type == CommandComponentType.Separator)
+                var added = AddSingleChildToSplitButton(splitBtn, sub, component, assemblyInfo);
+                if (added != null)
                 {
-                    // Skip adding separators during reload - they persist in the UI
-                    if (assemblyInfo?.IsReloading == true)
-                    {
-                        Logger.Debug($"Skipping separator during reload for split button '{component.DisplayName}'.");
-                        continue;
-                    }
-                    try
-                    {
-                        splitBtn.AddSeparator();
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Debug($"Failed to add separator to split button. Exception: {ex.Message}");
-                    }
-                }
-                else if (sub.Type == CommandComponentType.SmartButton)
-                {
-                    try
-                    {
-                        var pushButtonData = CreatePushButtonData(sub, assemblyInfo!);
-                        var subBtn = splitBtn.AddPushButton(pushButtonData);
-                        if (subBtn != null)
-                        {
-                            ButtonPostProcessor.Process(subBtn, sub, component);
-
-                            // Execute __selfinit__ for SmartButton in split button
-                            if (_smartButtonScriptInitializer != null)
-                            {
-                                var shouldActivate = _smartButtonScriptInitializer.ExecuteSelfInit(sub, subBtn);
-                                if (!shouldActivate)
-                                {
-                                    subBtn.Enabled = false;
-                                    Logger.Debug($"SmartButton '{sub.DisplayName}' in split button deactivated by __selfinit__.");
-                                }
-                            }
-
-                            // Track first button to set as current
-                            firstButton ??= subBtn;
-                            childCount++;
-                            Logger.Debug($"Added SmartButton '{sub.DisplayName}' to split button '{component.DisplayName}' (child #{childCount}).");
-                        }
-                        else
-                        {
-                            Logger.Warning($"AddPushButton returned null for SmartButton '{sub.DisplayName}' in split button '{component.DisplayName}'.");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error($"Failed to add SmartButton '{sub.DisplayName}' to split button '{component.DisplayName}'. Exception: {ex.Message}");
-                    }
-                }
-                else if (sub.Type == CommandComponentType.PushButton ||
-                         sub.Type == CommandComponentType.UrlButton ||
-                         sub.Type == CommandComponentType.InvokeButton ||
-                         sub.Type == CommandComponentType.ContentButton)
-                {
-                    try
-                    {
-                        var pushButtonData = CreatePushButtonData(sub, assemblyInfo!);
-                        var subBtn = splitBtn.AddPushButton(pushButtonData);
-                        if (subBtn != null)
-                        {
-                            ButtonPostProcessor.Process(subBtn, sub, component);
-                            // Track first button to set as current
-                            firstButton ??= subBtn;
-                            childCount++;
-                            Logger.Debug($"Added child button '{sub.DisplayName}' to split button '{component.DisplayName}' (child #{childCount}).");
-                        }
-                        else
-                        {
-                            Logger.Warning($"AddPushButton returned null for child '{sub.DisplayName}' in split button '{component.DisplayName}'.");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error($"Failed to add child button '{sub.DisplayName}' to split button '{component.DisplayName}'. Exception: {ex.Message}");
-                    }
-                }
-                else if (sub.Type == CommandComponentType.LinkButton)
-                {
-                    try
-                    {
-                        var subLinkData = _linkButtonBuilder.CreateLinkButtonData(sub);
-                        if (subLinkData != null)
-                        {
-                            var linkSubBtn = splitBtn.AddPushButton(subLinkData);
-                            if (linkSubBtn != null)
-                            {
-                                ButtonPostProcessor.Process(linkSubBtn, sub, component);
-                                // Track first button to set as current
-                                firstButton ??= linkSubBtn;
-                                childCount++;
-                                Logger.Debug($"Added link button '{sub.DisplayName}' to split button '{component.DisplayName}' (child #{childCount}).");
-                            }
-                            else
-                            {
-                                Logger.Warning($"AddPushButton returned null for link button '{sub.DisplayName}' in split button '{component.DisplayName}'.");
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error($"Failed to add link button '{sub.DisplayName}' to split button '{component.DisplayName}'. Exception: {ex.Message}");
-                    }
+                    firstButton ??= added;
+                    childCount++;
                 }
             }
-            
+
             Logger.Debug($"Split button '{component.DisplayName}' has {childCount} children added.");
             
             // Set the first child button as the current button to activate the split button
@@ -345,6 +244,117 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                     Logger.Debug($"Failed to set current button for split button '{component.DisplayName}'. Exception: {ex.Message}");
                 }
             }
+        }
+
+        private PushButton? AddSingleChildToSplitButton(
+            SplitButton splitBtn,
+            ParsedComponent sub,
+            ParsedComponent component,
+            ExtensionAssemblyInfo assemblyInfo)
+        {
+            if (sub.Type == CommandComponentType.Separator)
+            {
+                // Skip adding separators during reload - they persist in the UI
+                if (assemblyInfo?.IsReloading == true)
+                {
+                    Logger.Debug($"Skipping separator during reload for split button '{component.DisplayName}'.");
+                    return null;
+                }
+                try
+                {
+                    splitBtn.AddSeparator();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Debug($"Failed to add separator to split button. Exception: {ex.Message}");
+                }
+                return null;
+            }
+
+            if (sub.Type == CommandComponentType.SmartButton)
+            {
+                try
+                {
+                    var pushButtonData = CreatePushButtonData(sub, assemblyInfo!);
+                    var subBtn = splitBtn.AddPushButton(pushButtonData);
+                    if (subBtn != null)
+                    {
+                        ButtonPostProcessor.Process(subBtn, sub, component);
+
+                        // Execute __selfinit__ for SmartButton in split button
+                        if (_smartButtonScriptInitializer != null)
+                        {
+                            var shouldActivate = _smartButtonScriptInitializer.ExecuteSelfInit(sub, subBtn);
+                            if (!shouldActivate)
+                            {
+                                subBtn.Enabled = false;
+                                Logger.Debug($"SmartButton '{sub.DisplayName}' in split button deactivated by __selfinit__.");
+                            }
+                        }
+
+                        Logger.Debug($"Added SmartButton '{sub.DisplayName}' to split button '{component.DisplayName}'.");
+                        return subBtn;
+                    }
+
+                    Logger.Warning($"AddPushButton returned null for SmartButton '{sub.DisplayName}' in split button '{component.DisplayName}'.");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to add SmartButton '{sub.DisplayName}' to split button '{component.DisplayName}'. Exception: {ex.Message}");
+                }
+                return null;
+            }
+
+            if (sub.Type == CommandComponentType.PushButton ||
+                sub.Type == CommandComponentType.UrlButton ||
+                sub.Type == CommandComponentType.InvokeButton ||
+                sub.Type == CommandComponentType.ContentButton)
+            {
+                try
+                {
+                    var pushButtonData = CreatePushButtonData(sub, assemblyInfo!);
+                    var subBtn = splitBtn.AddPushButton(pushButtonData);
+                    if (subBtn != null)
+                    {
+                        ButtonPostProcessor.Process(subBtn, sub, component);
+                        Logger.Debug($"Added child button '{sub.DisplayName}' to split button '{component.DisplayName}'.");
+                        return subBtn;
+                    }
+
+                    Logger.Warning($"AddPushButton returned null for child '{sub.DisplayName}' in split button '{component.DisplayName}'.");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to add child button '{sub.DisplayName}' to split button '{component.DisplayName}'. Exception: {ex.Message}");
+                }
+                return null;
+            }
+
+            if (sub.Type == CommandComponentType.LinkButton)
+            {
+                try
+                {
+                    var subLinkData = _linkButtonBuilder.CreateLinkButtonData(sub);
+                    if (subLinkData != null)
+                    {
+                        var linkSubBtn = splitBtn.AddPushButton(subLinkData);
+                        if (linkSubBtn != null)
+                        {
+                            ButtonPostProcessor.Process(linkSubBtn, sub, component);
+                            Logger.Debug($"Added link button '{sub.DisplayName}' to split button '{component.DisplayName}'.");
+                            return linkSubBtn;
+                        }
+
+                        Logger.Warning($"AddPushButton returned null for link button '{sub.DisplayName}' in split button '{component.DisplayName}'.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to add link button '{sub.DisplayName}' to split button '{component.DisplayName}'. Exception: {ex.Message}");
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -445,7 +455,27 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 }
                 else
                 {
-                    Logger.Debug($"Child '{sub.DisplayName}' not found in existing buttons. Available: [{string.Join(", ", existingByName.Keys)}]");
+                    Logger.Debug($"Creating previously-hidden child '{sub.DisplayName}' in split button '{component.DisplayName}'.");
+                    try
+                    {
+                        var added = AddSingleChildToSplitButton(splitBtn, sub, component, assemblyInfo);
+                        if (added != null && splitBtn.CurrentButton == null)
+                        {
+                            try
+                            {
+                                splitBtn.CurrentButton = added;
+                                Logger.Debug($"Set CurrentButton to newly-added '{sub.DisplayName}' for split button '{component.DisplayName}'.");
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.Debug($"Failed to set CurrentButton on split button '{component.DisplayName}'. Exception: {ex.Message}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error($"Failed to create child '{sub.DisplayName}' in split button '{component.DisplayName}': {ex.Message}");
+                    }
                 }
             }
 
