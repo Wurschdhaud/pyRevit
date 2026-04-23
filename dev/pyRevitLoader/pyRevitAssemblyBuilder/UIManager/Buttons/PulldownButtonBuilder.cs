@@ -17,7 +17,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
     /// </summary>
     public class PulldownButtonBuilder : ButtonBuilderBase
     {
-        private readonly UIApplication _uiApplication;
+        private readonly BuildContext _buildContext;
         private readonly SmartButtonScriptInitializer? _smartButtonScriptInitializer;
         private readonly LinkButtonBuilder _linkButtonBuilder;
 
@@ -30,20 +30,20 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
         /// <summary>
         /// Initializes a new instance of the <see cref="PulldownButtonBuilder"/> class.
         /// </summary>
-        /// <param name="uiApplication">The Revit UIApplication instance.</param>
+        /// <param name="buildContext">Shared build context that carries the current per-build settings.</param>
         /// <param name="logger">The logger instance.</param>
         /// <param name="buttonPostProcessor">The button post-processor.</param>
         /// <param name="linkButtonBuilder">The link button builder for child link buttons.</param>
         /// <param name="smartButtonScriptInitializer">Optional SmartButton script initializer.</param>
         public PulldownButtonBuilder(
-            UIApplication uiApplication,
+            BuildContext buildContext,
             ILogger logger,
             IButtonPostProcessor buttonPostProcessor,
             LinkButtonBuilder linkButtonBuilder,
             SmartButtonScriptInitializer? smartButtonScriptInitializer = null)
             : base(logger, buttonPostProcessor)
         {
-            _uiApplication = uiApplication ?? throw new ArgumentNullException(nameof(uiApplication));
+            _buildContext = buildContext ?? throw new ArgumentNullException(nameof(buildContext));
             _linkButtonBuilder = linkButtonBuilder ?? throw new ArgumentNullException(nameof(linkButtonBuilder));
             _smartButtonScriptInitializer = smartButtonScriptInitializer;
         }
@@ -57,21 +57,9 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 return;
             }
 
-            var buildSettings = ComponentSupportUtils.ReadBuildSettings(_uiApplication, Logger);
-            var visibleChildren = ComponentSupportUtils.GetVisibleButtonGroupChildren(
-                component.Children,
-                buildSettings.CurrentVersion,
-                buildSettings.LoadBeta,
-                Logger);
-
-            // Check if pulldown button already exists - if so, update it instead of creating new
             var existingPdBtn = GetExistingPulldownButton(parentPanel, component.DisplayName);
-            if (visibleChildren.Count == 0)
-            {
-                Logger.Debug($"Pulldown button '{component.DisplayName}' has no visible children after filtering. Hiding it.");
-                DeactivateRibbonItem(existingPdBtn, component.DisplayName);
+            if (!TryGetVisibleChildren(component, existingPdBtn, out var visibleChildren))
                 return;
-            }
 
             if (existingPdBtn != null)
             {
@@ -81,6 +69,33 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
             }
 
             CreatePulldown(component, parentPanel, tabName, assemblyInfo, visibleChildren, addToPanel: true);
+        }
+
+        /// <summary>
+        /// Filters <paramref name="component"/>'s children using the current <see cref="BuildContext"/>.
+        /// When the result is empty, deactivates <paramref name="existingRibbonItem"/> (if any) and
+        /// returns false so the caller can short-circuit.
+        /// </summary>
+        private bool TryGetVisibleChildren(
+            ParsedComponent component,
+            RibbonItem? existingRibbonItem,
+            out IReadOnlyList<ParsedComponent> visibleChildren)
+        {
+            var settings = _buildContext.CurrentSettings;
+            visibleChildren = ComponentSupportUtils.GetVisibleButtonGroupChildren(
+                component.Children,
+                settings.CurrentVersion,
+                settings.LoadBeta,
+                Logger);
+
+            if (visibleChildren.Count == 0)
+            {
+                Logger.Debug($"Pulldown button '{component.DisplayName}' has no visible children after filtering. Hiding it.");
+                DeactivateRibbonItem(existingRibbonItem, component.DisplayName);
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -174,23 +189,14 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
         }
 
         /// <summary>
-        /// Adds child buttons to an existing pulldown button.
+        /// Adds child buttons to an existing pulldown button. Filters the component's
+        /// children against the current <see cref="BuildContext"/> and deactivates the
+        /// pulldown if nothing remains visible.
         /// </summary>
         public void AddChildrenToPulldown(PulldownButton pdBtn, ParsedComponent component, ExtensionAssemblyInfo assemblyInfo)
         {
-            var buildSettings = ComponentSupportUtils.ReadBuildSettings(_uiApplication, Logger);
-            var visibleChildren = ComponentSupportUtils.GetVisibleButtonGroupChildren(
-                component.Children,
-                buildSettings.CurrentVersion,
-                buildSettings.LoadBeta,
-                Logger);
-
-            if (visibleChildren.Count == 0)
-            {
-                Logger.Debug($"Pulldown button '{component.DisplayName}' has no visible children after filtering. Hiding it.");
-                DeactivateRibbonItem(pdBtn, component.DisplayName);
+            if (!TryGetVisibleChildren(component, pdBtn, out var visibleChildren))
                 return;
-            }
 
             AddChildrenToPulldown(pdBtn, component, assemblyInfo, visibleChildren);
         }

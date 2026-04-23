@@ -26,11 +26,8 @@ namespace pyRevitAssemblyBuilder.UIManager
         private readonly IComboBoxBuilder _comboBoxBuilder;
         private readonly IUIRibbonScanner? _ribbonScanner;
         private readonly UIApplication _uiApp;
+        private readonly BuildContext _buildContext;
         private ParsedExtension? _currentExtension;
-        /// <summary>
-        /// Cached Load Beta setting. Re-read at start of each BuildUI so reload picks up settings changes.
-        /// </summary>
-        private bool _loadBeta;
 
         /// <summary>
         /// Cached Rocket Mode setting. Re-read at start of each BuildUI so reload picks up settings changes.
@@ -60,6 +57,7 @@ namespace pyRevitAssemblyBuilder.UIManager
         /// <param name="buttonBuilderFactory">The button builder factory instance.</param>
         /// <param name="stackBuilder">The stack builder instance.</param>
         /// <param name="comboBoxBuilder">The combo box builder instance.</param>
+        /// <param name="buildContext">Shared build context that holds the current per-build settings; updated at the start of each <see cref="BuildUI"/> call so all builders observe the same snapshot.</param>
         /// <param name="ribbonScanner">Optional ribbon scanner for tracking UI elements.</param>
         public UIManagerService(
             UIApplication uiApp,
@@ -70,6 +68,7 @@ namespace pyRevitAssemblyBuilder.UIManager
             IButtonBuilderFactory buttonBuilderFactory,
             IStackBuilder stackBuilder,
             IComboBoxBuilder comboBoxBuilder,
+            BuildContext buildContext,
             IUIRibbonScanner? ribbonScanner = null)
         {
             _uiApp = uiApp ?? throw new ArgumentNullException(nameof(uiApp));
@@ -80,23 +79,36 @@ namespace pyRevitAssemblyBuilder.UIManager
             _buttonBuilderFactory = buttonBuilderFactory ?? throw new ArgumentNullException(nameof(buttonBuilderFactory));
             _stackBuilder = stackBuilder ?? throw new ArgumentNullException(nameof(stackBuilder));
             _comboBoxBuilder = comboBoxBuilder ?? throw new ArgumentNullException(nameof(comboBoxBuilder));
+            _buildContext = buildContext ?? throw new ArgumentNullException(nameof(buildContext));
             _ribbonScanner = ribbonScanner;
-            
-            // Load beta and rocket mode settings from config
+
+            RefreshBuildSettings(initial: true);
+        }
+
+        /// <summary>
+        /// Re-reads <see cref="PyRevitConfig"/> and pushes the new <see cref="BuildSettings"/> into the
+        /// shared <see cref="BuildContext"/>. Called at construction and at the start of every
+        /// <see cref="BuildUI"/> so toggling beta / rocket mode takes effect on the next reload (#3109)
+        /// and all builders observe the same snapshot.
+        /// </summary>
+        private void RefreshBuildSettings(bool initial)
+        {
+            var settings = ComponentSupportUtils.ReadBuildSettings(_uiApp, _logger);
+            _buildContext.Update(settings);
+
             try
             {
-                var config = PyRevitConfig.Load();
-                _loadBeta = config.LoadBeta;
-                _rocketMode = config.RocketMode;
-                _logger.Debug($"Beta tools loading: {_loadBeta}");
-                _logger.Debug($"Rocket mode: {_rocketMode}");
+                _rocketMode = PyRevitConfig.Load().RocketMode;
             }
             catch (Exception ex)
             {
-                _logger.Debug($"Failed to load config, defaulting to false: {ex.Message}");
-                _loadBeta = false;
-                _rocketMode = false;
+                _logger.Debug($"Failed to read RocketMode config: {ex.Message}");
+                if (initial)
+                    _rocketMode = false;
             }
+
+            var prefix = initial ? string.Empty : "Re-read config - ";
+            _logger.Debug($"{prefix}Beta tools loading: {settings.LoadBeta}, Rocket mode: {_rocketMode}");
         }
 
         /// <summary>
@@ -112,18 +124,7 @@ namespace pyRevitAssemblyBuilder.UIManager
                 return;
             }
 
-            // Re-read Load Beta and Rocket Mode so toggling in settings is applied on next reload (#3109).
-            try
-            {
-                var config = PyRevitConfig.Load();
-                _loadBeta = config.LoadBeta;
-                _rocketMode = config.RocketMode;
-                _logger.Debug($"Re-read config - Beta tools loading: {_loadBeta}, Rocket mode: {_rocketMode}");
-            }
-            catch (Exception ex)
-            {
-                _logger.Debug($"Failed to re-read config: {ex.Message}");
-            }
+            RefreshBuildSettings(initial: false);
 
             if (assemblyInfo == null)
             {
@@ -160,10 +161,11 @@ namespace pyRevitAssemblyBuilder.UIManager
         /// <returns>True if the component should be loaded, false otherwise.</returns>
         private bool IsComponentSupported(ParsedComponent component)
         {
+            var settings = _buildContext.CurrentSettings;
             return ComponentSupportUtils.IsSupported(
                 component,
-                _uiApp?.Application?.VersionNumber ?? string.Empty,
-                _loadBeta,
+                settings.CurrentVersion,
+                settings.LoadBeta,
                 _logger);
         }
 
@@ -395,10 +397,11 @@ namespace pyRevitAssemblyBuilder.UIManager
 
         private bool IsStackChildVisible(ParsedComponent child)
         {
+            var settings = _buildContext.CurrentSettings;
             return ComponentSupportUtils.IsStackChildVisible(
                 child,
-                _uiApp?.Application?.VersionNumber ?? string.Empty,
-                _loadBeta,
+                settings.CurrentVersion,
+                settings.LoadBeta,
                 _logger);
         }
     }

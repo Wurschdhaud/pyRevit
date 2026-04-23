@@ -10,6 +10,39 @@ using pyRevitExtensionParser;
 namespace pyRevitAssemblyBuilder.UIManager
 {
     /// <summary>
+    /// Immutable snapshot of the per-build settings that affect component visibility.
+    /// </summary>
+    public sealed class BuildSettings
+    {
+        public string CurrentVersion { get; }
+        public bool LoadBeta { get; }
+
+        public BuildSettings(string? currentVersion, bool loadBeta)
+        {
+            CurrentVersion = currentVersion ?? string.Empty;
+            LoadBeta = loadBeta;
+        }
+
+        public static BuildSettings Empty { get; } = new BuildSettings(string.Empty, false);
+    }
+
+    /// <summary>
+    /// Mutable holder for the <see cref="BuildSettings"/> shared between
+    /// <see cref="UIManagerService"/> (writer) and the button/stack builders (readers).
+    /// Refreshed once per <c>BuildUI</c> call so beta / version toggles take effect on reload
+    /// and every builder observes the same snapshot.
+    /// </summary>
+    public sealed class BuildContext
+    {
+        public BuildSettings CurrentSettings { get; private set; } = BuildSettings.Empty;
+
+        public void Update(BuildSettings settings)
+        {
+            CurrentSettings = settings ?? BuildSettings.Empty;
+        }
+    }
+
+    /// <summary>
     /// Shared helpers for evaluating whether a parsed component should be visible
     /// in the current Revit session.
     /// </summary>
@@ -18,9 +51,9 @@ namespace pyRevitAssemblyBuilder.UIManager
         /// <summary>
         /// Reads the current build settings that affect component visibility.
         /// </summary>
-        public static (string CurrentVersion, bool LoadBeta) ReadBuildSettings(
-            UIApplication uiApplication,
-            ILogger logger)
+        public static BuildSettings ReadBuildSettings(
+            UIApplication? uiApplication,
+            ILogger? logger)
         {
             var currentVersion = uiApplication?.Application?.VersionNumber ?? string.Empty;
             var loadBeta = false;
@@ -34,7 +67,7 @@ namespace pyRevitAssemblyBuilder.UIManager
                 logger?.Debug($"Failed to read LoadBeta config. Defaulting to false: {ex.Message}");
             }
 
-            return (currentVersion, loadBeta);
+            return new BuildSettings(currentVersion, loadBeta);
         }
 
         /// <summary>

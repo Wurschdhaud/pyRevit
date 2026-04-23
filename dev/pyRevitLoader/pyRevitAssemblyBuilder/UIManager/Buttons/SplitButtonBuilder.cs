@@ -17,7 +17,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
     /// </summary>
     public class SplitButtonBuilder : ButtonBuilderBase
     {
-        private readonly UIApplication _uiApplication;
+        private readonly BuildContext _buildContext;
         private readonly LinkButtonBuilder _linkButtonBuilder;
         private readonly SmartButtonScriptInitializer? _smartButtonScriptInitializer;
 
@@ -31,20 +31,20 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
         /// <summary>
         /// Initializes a new instance of the <see cref="SplitButtonBuilder"/> class.
         /// </summary>
-        /// <param name="uiApplication">The Revit UIApplication instance.</param>
+        /// <param name="buildContext">Shared build context that carries the current per-build settings.</param>
         /// <param name="logger">The logger instance.</param>
         /// <param name="buttonPostProcessor">The button post-processor.</param>
         /// <param name="linkButtonBuilder">The link button builder for child link buttons.</param>
         /// <param name="smartButtonScriptInitializer">Optional SmartButton script initializer.</param>
         public SplitButtonBuilder(
-            UIApplication uiApplication,
+            BuildContext buildContext,
             ILogger logger,
             IButtonPostProcessor buttonPostProcessor,
             LinkButtonBuilder linkButtonBuilder,
             SmartButtonScriptInitializer? smartButtonScriptInitializer = null)
             : base(logger, buttonPostProcessor)
         {
-            _uiApplication = uiApplication ?? throw new ArgumentNullException(nameof(uiApplication));
+            _buildContext = buildContext ?? throw new ArgumentNullException(nameof(buildContext));
             _linkButtonBuilder = linkButtonBuilder ?? throw new ArgumentNullException(nameof(linkButtonBuilder));
             _smartButtonScriptInitializer = smartButtonScriptInitializer;
         }
@@ -58,21 +58,9 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 return;
             }
 
-            var buildSettings = ComponentSupportUtils.ReadBuildSettings(_uiApplication, Logger);
-            var visibleChildren = ComponentSupportUtils.GetVisibleButtonGroupChildren(
-                component.Children,
-                buildSettings.CurrentVersion,
-                buildSettings.LoadBeta,
-                Logger);
-
-            // Check if split button already exists - if so, update it instead of creating new
             var existingSplitBtn = GetExistingSplitButton(parentPanel, component.DisplayName);
-            if (visibleChildren.Count == 0)
-            {
-                Logger.Debug($"Split button '{component.DisplayName}' has no visible children after filtering. Hiding it.");
-                DeactivateRibbonItem(existingSplitBtn, component.DisplayName);
+            if (!TryGetVisibleChildren(component, existingSplitBtn, out var visibleChildren))
                 return;
-            }
 
             if (existingSplitBtn != null)
             {
@@ -159,25 +147,43 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
         }
 
         /// <summary>
-        /// Adds child buttons to an existing split button.
+        /// Adds child buttons to an existing split button. Filters the component's
+        /// children against the current <see cref="BuildContext"/> and deactivates the
+        /// split button if nothing remains visible.
         /// </summary>
         public void AddChildrenToSplitButton(SplitButton splitBtn, ParsedComponent component, ExtensionAssemblyInfo assemblyInfo)
         {
-            var buildSettings = ComponentSupportUtils.ReadBuildSettings(_uiApplication, Logger);
-            var visibleChildren = ComponentSupportUtils.GetVisibleButtonGroupChildren(
+            if (!TryGetVisibleChildren(component, splitBtn, out var visibleChildren))
+                return;
+
+            AddChildrenToSplitButton(splitBtn, component, assemblyInfo, visibleChildren);
+        }
+
+        /// <summary>
+        /// Filters <paramref name="component"/>'s children using the current <see cref="BuildContext"/>.
+        /// When the result is empty, deactivates <paramref name="existingRibbonItem"/> (if any) and
+        /// returns false so the caller can short-circuit.
+        /// </summary>
+        private bool TryGetVisibleChildren(
+            ParsedComponent component,
+            RibbonItem? existingRibbonItem,
+            out IReadOnlyList<ParsedComponent> visibleChildren)
+        {
+            var settings = _buildContext.CurrentSettings;
+            visibleChildren = ComponentSupportUtils.GetVisibleButtonGroupChildren(
                 component.Children,
-                buildSettings.CurrentVersion,
-                buildSettings.LoadBeta,
+                settings.CurrentVersion,
+                settings.LoadBeta,
                 Logger);
 
             if (visibleChildren.Count == 0)
             {
                 Logger.Debug($"Split button '{component.DisplayName}' has no visible children after filtering. Hiding it.");
-                DeactivateRibbonItem(splitBtn, component.DisplayName);
-                return;
+                DeactivateRibbonItem(existingRibbonItem, component.DisplayName);
+                return false;
             }
 
-            AddChildrenToSplitButton(splitBtn, component, assemblyInfo, visibleChildren);
+            return true;
         }
 
         private void AddChildrenToSplitButton(
@@ -486,6 +492,60 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                     Logger.Debug($"Hiding stale split child '{existingByNamePair.Key}' in '{component.DisplayName}'.");
                     DeactivateRibbonItem(existingByNamePair.Value, existingByNamePair.Key);
                 }
+            }
+
+            RebindCurrentButtonIfStale(splitBtn, component, existingByName, touchedNames);
+        }
+
+        /// <summary>
+        /// If <see cref="SplitButton.CurrentButton"/> points at a child that was just deactivated
+        /// (or is otherwise invisible), reassign it to the first still-visible child. Without this,
+        /// the split button's primary action would render as nothing after a beta/version toggle
+        /// hides the previously-active child.
+        /// </summary>
+        private void RebindCurrentButtonIfStale(
+            SplitButton splitBtn,
+            ParsedComponent component,
+            System.Collections.Generic.Dictionary<string, PushButton> existingByName,
+            System.Collections.Generic.HashSet<string> touchedNames)
+        {
+            try
+            {
+                var current = splitBtn.CurrentButton;
+                if (current == null)
+                    return;
+
+                var currentName = current.Name ?? string.Empty;
+                var currentIsStale = !string.IsNullOrEmpty(currentName) && !touchedNames.Contains(currentName);
+
+                bool currentIsVisible;
+                try { currentIsVisible = current.Visible; }
+                catch { currentIsVisible = true; }
+
+                if (!currentIsStale && currentIsVisible)
+                    return;
+
+                PushButton? replacement = null;
+                foreach (var pair in existingByName)
+                {
+                    if (!touchedNames.Contains(pair.Key))
+                        continue;
+                    var candidate = pair.Value;
+                    try { if (!candidate.Visible) continue; }
+                    catch { continue; }
+                    replacement = candidate;
+                    break;
+                }
+
+                if (replacement == null)
+                    return;
+
+                splitBtn.CurrentButton = replacement;
+                Logger.Debug($"Rebound CurrentButton to '{replacement.Name}' for split button '{component.DisplayName}' (previous was stale or hidden).");
+            }
+            catch (Exception ex)
+            {
+                Logger.Debug($"Failed to rebind CurrentButton on split button '{component.DisplayName}'. Exception: {ex.Message}");
             }
         }
     }

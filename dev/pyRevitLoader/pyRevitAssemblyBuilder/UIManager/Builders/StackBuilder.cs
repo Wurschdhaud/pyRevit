@@ -18,7 +18,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
     /// </summary>
     public class StackBuilder : IStackBuilder
     {
-        private readonly UIApplication _uiApplication;
+        private readonly BuildContext _buildContext;
         private readonly ILogger _logger;
         private readonly IButtonPostProcessor _buttonPostProcessor;
         private readonly Buttons.LinkButtonBuilder _linkButtonBuilder;
@@ -29,7 +29,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
         /// <summary>
         /// Initializes a new instance of the <see cref="StackBuilder"/> class.
         /// </summary>
-        /// <param name="uiApplication">The Revit UIApplication instance.</param>
+        /// <param name="buildContext">Shared build context that carries the current per-build settings.</param>
         /// <param name="logger">The logger instance.</param>
         /// <param name="buttonPostProcessor">The button post-processor.</param>
         /// <param name="linkButtonBuilder">The link button builder.</param>
@@ -37,7 +37,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
         /// <param name="splitButtonBuilder">The split button builder.</param>
         /// <param name="smartButtonScriptInitializer">Optional SmartButton script initializer.</param>
         public StackBuilder(
-            UIApplication uiApplication,
+            BuildContext buildContext,
             ILogger logger,
             IButtonPostProcessor buttonPostProcessor,
             Buttons.LinkButtonBuilder linkButtonBuilder,
@@ -45,7 +45,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
             Buttons.SplitButtonBuilder splitButtonBuilder,
             SmartButtonScriptInitializer? smartButtonScriptInitializer = null)
         {
-            _uiApplication = uiApplication ?? throw new ArgumentNullException(nameof(uiApplication));
+            _buildContext = buildContext ?? throw new ArgumentNullException(nameof(buildContext));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _buttonPostProcessor = buttonPostProcessor ?? throw new ArgumentNullException(nameof(buttonPostProcessor));
             _linkButtonBuilder = linkButtonBuilder ?? throw new ArgumentNullException(nameof(linkButtonBuilder));
@@ -63,14 +63,14 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
                 return;
             }
 
-            var buildSettings = ComponentSupportUtils.ReadBuildSettings(_uiApplication, _logger);
+            var settings = _buildContext.CurrentSettings;
             var children = new List<ParsedComponent>();
             foreach (var child in component.Children ?? Enumerable.Empty<ParsedComponent>())
             {
                 if (ComponentSupportUtils.IsStackChildVisible(
                         child,
-                        buildSettings.CurrentVersion,
-                        buildSettings.LoadBeta,
+                        settings.CurrentVersion,
+                        settings.LoadBeta,
                         _logger))
                 {
                     children.Add(child);
@@ -79,7 +79,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
 
             if (children.Count < 2)
             {
-                _logger.Info($"Stack '{component.DisplayName}' has fewer than 2 visible items after filtering, skipping.");
+                _logger.Debug($"Stack '{component.DisplayName}' has fewer than 2 visible items after filtering, skipping.");
                 return;
             }
 
