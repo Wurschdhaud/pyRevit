@@ -470,6 +470,7 @@ def pick_point(message=''):
     NO_SKETCHPLANE_VIEWTYPES = (
         DB.ViewType.DraftingView,
         DB.ViewType.Legend,
+        DB.ViewType.DrawingSheet,
     )  # type: tuple[DB.ViewType]
     needs_plane = (
         active_view.SketchPlane is None
