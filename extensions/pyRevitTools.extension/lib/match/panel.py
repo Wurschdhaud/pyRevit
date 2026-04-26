@@ -138,7 +138,12 @@ class MatchHistoryClipboard(forms.WPFPanel):
         if not props:
             return
         new_items = [ParameterItem(p) for p in props]
-        self._items = (new_items + self._items)[:MAX_HISTORY_ITEMS]
+        new_props = [ni.source_prop for ni in new_items]
+        filtered_old = [
+            item for item in self._items
+            if item.source_prop not in new_props
+        ]
+        self._items = (new_items + filtered_old)[:MAX_HISTORY_ITEMS]
         for item in self._items:
             item.IsSelected = False
         self._refresh_list()
