@@ -36,6 +36,33 @@ class PropKeyValue(object):
         self.display_value = display_value or name
         self.categories = categories if categories is not None else []
 
+    @staticmethod
+    def _cat_key(cat):
+        """Return a stable comparison key for a category."""
+        try:
+            return get_elementid_value(cat.Id)
+        except AttributeError:
+            return cat
+
+    def __eq__(self, other):
+        if not isinstance(other, PropKeyValue):
+            return False
+
+        self_cats = sorted(self._cat_key(c) for c in self.categories)
+        other_cats = sorted(self._cat_key(c) for c in other.categories)
+
+        return (
+            self.name == other.name and
+            self.datatype == other.datatype and
+            self.value == other.value and
+            self.istype == other.istype and
+            self_cats == other_cats
+        )
+
+    def __hash__(self):
+        cat_keys = tuple(sorted(self._cat_key(c) for c in self.categories))
+        return hash((self.name, self.datatype, self.value, self.istype, cat_keys))
+
     def __repr__(self):
         return str(self.__dict__)
 
