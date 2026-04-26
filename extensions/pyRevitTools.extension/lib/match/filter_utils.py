@@ -40,8 +40,7 @@ def dissect_parameter_filter(doc, filter_element, lightweight=False):
     if not lightweight:
         try:
             for cid in filter_element.GetCategories():
-                bic = DB.BuiltInCategory(get_elementid_value(cid))
-                cat = doc.Settings.Categories.get_Item(bic)
+                cat = query.get_category(cid, doc=doc)
                 if cat:
                     result["categories"].append(cat)
         except Exception:
@@ -113,11 +112,9 @@ def dissect_parameter_filter(doc, filter_element, lightweight=False):
                     spec = param_elem.GetDataType()
                 else:
                     try:
-                        bip = DB.BuiltInParameter(get_elementid_value(param_id))
-                        bics = [query.get_builtincategory(bic_name) for bic_name in result["categories"]]
-                        collector = query.get_elements_by_categories(bics)
+                        collector = query.get_elements_by_categories(result["categories"], doc=doc)
                         elem = next(iter(collector), None)
-                        param = elem.get_Parameter(bip) if elem else None
+                        param = query.get_param(elem, param_id) if elem else None
                         if param:
                             spec = param.Definition.GetDataType()
                     except Exception:
@@ -390,7 +387,7 @@ def get_ogs_from_prop_in_view(doc, view, prop):
             if info["value"] != prop.value:
                 continue
 
-            # 4. Optional: category match (safer)
+            # 4. Category match
             if prop.categories:
                 prop_cat_ids = set(
                     get_elementid_value(c.Id)
