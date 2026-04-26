@@ -112,6 +112,11 @@ class MatchHistoryClipboard(forms.WPFPanel):
     panel_title = "pyRevit MatchHistory Clipboard"
     panel_id = "0f3a0866-0123-4178-9f2c-121961bd292c"
     panel_source = op.join(op.dirname(__file__), "clipboard_pane_ui.xaml")
+    icons_source = op.join(op.dirname(__file__), "clipboard.Icons.xaml")
+
+    def load_xaml(self, xaml_source, literal_string=False):
+        self.merge_resource_dict(self._icons_source)
+        super(MatchHistoryClipboard, self).load_xaml(xaml_source, literal_string)
 
     def __init__(self):
         forms.WPFPanel.__init__(self)
