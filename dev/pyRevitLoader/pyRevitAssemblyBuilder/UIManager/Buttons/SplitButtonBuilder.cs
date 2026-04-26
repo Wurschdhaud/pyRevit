@@ -388,6 +388,12 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
             return result;
         }
 
+        private static bool IsRibbonItemVisible(RibbonItem item, bool fallbackVisible)
+        {
+            try { return item.Visible; }
+            catch { return fallbackVisible; }
+        }
+
         /// <summary>
         /// Updates existing child buttons in a split button during reload.
         /// Matches Python's behavior where existing buttons are updated with new properties.
@@ -413,6 +419,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
             Logger.Debug($"Updating {visibleChildren.Count} visible children in split button '{component.DisplayName}'. Found {existingByName.Count} existing buttons.");
 
             var touchedNames = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var newlyVisibleNames = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var sub in visibleChildren)
             {
@@ -429,9 +436,14 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                     // Update existing button properties
                     try
                     {
+                        var wasVisible = IsRibbonItemVisible(existingBtn, fallbackVisible: true);
+
                         if (sub.Type == CommandComponentType.LinkButton)
                         {
                             _linkButtonBuilder.UpdateExistingLinkButton(existingBtn, sub);
+                            if (!wasVisible && IsRibbonItemVisible(existingBtn, fallbackVisible: false))
+                                newlyVisibleNames.Add(sub.DisplayName);
+
                             Logger.Debug($"Updated existing link button '{sub.DisplayName}' in split button '{component.DisplayName}'.");
                             continue;
                         }
@@ -451,6 +463,8 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                         // Ensure button is active
                         existingBtn.Enabled = true;
                         existingBtn.Visible = true;
+                        if (!wasVisible && IsRibbonItemVisible(existingBtn, fallbackVisible: false))
+                            newlyVisibleNames.Add(sub.DisplayName);
 
                         Logger.Debug($"Updated existing child button '{sub.DisplayName}' in split button '{component.DisplayName}'. New text: '{buttonText}'");
                     }
@@ -465,16 +479,22 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                     try
                     {
                         var added = AddSingleChildToSplitButton(splitBtn, sub, component, assemblyInfo);
-                        if (added != null && splitBtn.CurrentButton == null)
+                        if (added != null)
                         {
-                            try
+                            existingByName[sub.DisplayName] = added;
+                            newlyVisibleNames.Add(sub.DisplayName);
+
+                            if (splitBtn.CurrentButton == null)
                             {
-                                splitBtn.CurrentButton = added;
-                                Logger.Debug($"Set CurrentButton to newly-added '{sub.DisplayName}' for split button '{component.DisplayName}'.");
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.Debug($"Failed to set CurrentButton on split button '{component.DisplayName}'. Exception: {ex.Message}");
+                                try
+                                {
+                                    splitBtn.CurrentButton = added;
+                                    Logger.Debug($"Set CurrentButton to newly-added '{sub.DisplayName}' for split button '{component.DisplayName}'.");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Logger.Debug($"Failed to set CurrentButton on split button '{component.DisplayName}'. Exception: {ex.Message}");
+                                }
                             }
                         }
                     }
@@ -494,7 +514,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 }
             }
 
-            RebindCurrentButtonIfStale(splitBtn, component, visibleChildren, existingByName, touchedNames);
+            RebindCurrentButtonIfNeeded(splitBtn, component, visibleChildren, existingByName, touchedNames, newlyVisibleNames);
         }
 
         /// <summary>
@@ -502,15 +522,17 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
         /// (or is otherwise invisible), reassign it to the first still-visible child in the
         /// declared <paramref name="visibleChildren"/> order. Without this, the split button's
         /// primary action would render as nothing after a beta/version toggle hides the
-        /// previously-active child. Walks <paramref name="visibleChildren"/> rather than the
-        /// dictionary so the replacement choice is stable across .NET runtimes.
+        /// previously-active child. Also restores declaration-order precedence when reload makes
+        /// an earlier child visible again. Walks <paramref name="visibleChildren"/> rather than
+        /// the dictionary so the replacement choice is stable across .NET runtimes.
         /// </summary>
-        private void RebindCurrentButtonIfStale(
+        private void RebindCurrentButtonIfNeeded(
             SplitButton splitBtn,
             ParsedComponent component,
             IReadOnlyList<ParsedComponent> visibleChildren,
             System.Collections.Generic.Dictionary<string, PushButton> existingByName,
-            System.Collections.Generic.HashSet<string> touchedNames)
+            System.Collections.Generic.HashSet<string> touchedNames,
+            System.Collections.Generic.HashSet<string> newlyVisibleNames)
         {
             try
             {
@@ -526,7 +548,30 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 catch { currentIsVisible = true; }
 
                 if (!currentIsStale && currentIsVisible)
+                {
+                    if (string.IsNullOrEmpty(currentName))
+                        return;
+
+                    foreach (var sub in visibleChildren)
+                    {
+                        if (sub.Type == CommandComponentType.Separator)
+                            continue;
+                        if (string.Equals(sub.DisplayName, currentName, StringComparison.OrdinalIgnoreCase))
+                            break;
+                        if (!newlyVisibleNames.Contains(sub.DisplayName))
+                            continue;
+                        if (!existingByName.TryGetValue(sub.DisplayName, out var candidate))
+                            continue;
+                        if (!IsRibbonItemVisible(candidate, fallbackVisible: false))
+                            continue;
+
+                        splitBtn.CurrentButton = candidate;
+                        Logger.Debug($"Rebound CurrentButton to newly-visible preceding child '{candidate.Name}' for split button '{component.DisplayName}'.");
+                        return;
+                    }
+
                     return;
+                }
 
                 PushButton? replacement = null;
                 foreach (var sub in visibleChildren)
@@ -535,8 +580,8 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                         continue;
                     if (!existingByName.TryGetValue(sub.DisplayName, out var candidate))
                         continue;
-                    try { if (!candidate.Visible) continue; }
-                    catch { continue; }
+                    if (!IsRibbonItemVisible(candidate, fallbackVisible: false))
+                        continue;
                     replacement = candidate;
                     break;
                 }
