@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 import re
+import pickle
 
 from pyrevit import forms, revit, op
 from pyrevit import DB, UI
 from pyrevit.revit.events import _GenericExternalEventHandler
-from pyrevit.framework import ComponentModel
+from pyrevit.framework import ComponentModel, wpf, Controls, Uri, UriKind, ResourceDictionary, System
 from pyrevit.compat import get_elementid_value_func
 
 from match_utils import (
@@ -23,6 +24,35 @@ from filter_utils import (
 get_elementid_value = get_elementid_value_func()
 
 MAX_HISTORY_ITEMS = 50
+
+_DIR = op.dirname(op.abspath(__file__))
+_ICONS_XAML = op.join(_DIR, "clipboard.Icons.xaml")
+_CONTENT_XAML = op.join(_DIR, "clipboard_content.xaml")
+_WINDOW_XAML = op.join(_DIR, "clipboard_window.xaml")
+_PAGE_XAML = op.join(_DIR, "clipboard_page.xaml")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _merge_resource_dict(control, xaml_path):
+    """Merge a ResourceDictionary XAML file into a WPF element's Resources."""
+    rd = ResourceDictionary()
+    rd.Source = Uri(xaml_path, UriKind.Absolute)
+    control.Resources.MergedDictionaries.Add(rd)
+
+
+def _merge_locale(control):
+    """Merge the clipboard locale ResourceDictionary into a WPF element."""
+    from pyrevit.userconfig import user_config
+    base = op.join(_DIR, "clipboard_ui")
+    locale_path = "{}.ResourceDictionary.{}.xaml".format(base, user_config.user_locale)
+    if not op.exists(locale_path):
+        locale_path = "{}.ResourceDictionary.en_us.xaml".format(base)
+    if op.exists(locale_path):
+        _merge_resource_dict(control, locale_path)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -60,8 +90,6 @@ class ParameterItem(_INotifyBase):
         self._pkv = pkv
         self._selected = False
 
-    # -- display properties (read by WPF bindings) --
-
     @property
     def Name(self):
         return self._pkv.name or ""
@@ -75,7 +103,6 @@ class ParameterItem(_INotifyBase):
 
     @property
     def Category(self):
-        """Single category name, 'multiple', or 'unknown'."""
         cats = self._pkv.categories or []
         if not cats:
             return "unknown"
@@ -96,33 +123,57 @@ class ParameterItem(_INotifyBase):
             self._selected = value
             self._notify("IsSelected")
 
-    # -- access to the underlying PropKeyValue for paste operations --
-
     @property
     def source_prop(self):
         return self._pkv
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Dockable pane
+# Shared clipboard UI — UserControl hosting both the panel and recall window
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class MatchHistoryClipboard(forms.WPFPanel):
-    panel_title = "pyRevit MatchHistory Clipboard"
-    panel_id = "0f3a0866-0123-4178-9f2c-121961bd292c"
-    panel_source = op.join(op.dirname(__file__), "clipboard_pane_ui.xaml")
-    icons_source = op.join(op.dirname(__file__), "clipboard.Icons.xaml")
+class ClipboardContent(Controls.UserControl):
+    """Self-contained clipboard parameter UI.
 
-    def load_xaml(self, xaml_source, literal_string=False):
-        self.merge_resource_dict(self._icons_source)
-        super(MatchHistoryClipboard, self).load_xaml(xaml_source, literal_string)
+    Args:
+        is_recall (bool): False = full panel mode; True = recall mode.
+            In recall mode the view-filter and filter-element load buttons are
+            hidden, load_from_element opens select_parameters with preselect,
+            and paste closes the parent window after saving to memfile.
+        target_type (str): "Elements" or "Views" — only used in recall mode
+            for re-saving to the memory file on paste.
+        memfile (str): absolute path to the pickle memory file — only used in
+            recall mode.
+    """
 
-    def __init__(self):
-        forms.WPFPanel.__init__(self)
+    def __init__(self, is_recall=False, target_type=None, memfile=None):
+        Controls.UserControl.__init__(self)
+        self._is_recall = is_recall
+        self._recall_target_type = target_type
+        self._memfile = memfile
+        self._items = []
         self._handler = _GenericExternalEventHandler()
         self._ext_event = UI.ExternalEvent.Create(self._handler)
-        self._items = []  # ordered list of ParameterItem (full history)
+
+        _merge_resource_dict(self, _ICONS_XAML)
+        _merge_locale(self)
+        wpf.LoadComponent(self, _CONTENT_XAML)
+
+        if is_recall:
+            self.loadViewFiltersBtn.Visibility = forms.WPF_COLLAPSED
+            self.loadFilterElemBtn.Visibility = forms.WPF_COLLAPSED
+            self.categoryFilterCheck.Visibility = forms.WPF_COLLAPSED
+
+    # ── public API ───────────────────────────────────────────────────────────
+
+    def populate(self, props, all_selected=True):
+        """Fill the list with PropKeyValue items, optionally all selected."""
+        self._items = [ParameterItem(p) for p in props]
+        for item in self._items:
+            item.IsSelected = all_selected
+        self._refresh_list()
+        self._update_ui_state()
 
     # ── external-event plumbing ──────────────────────────────────────────────
 
@@ -133,7 +184,27 @@ class MatchHistoryClipboard(forms.WPFPanel):
         self._handler.kwargs = kwargs
         self._ext_event.Raise()
 
-    # ── history management ───────────────────────────────────────────────────
+    # ── recall helpers ───────────────────────────────────────────────────────
+
+    def _save_recall(self):
+        """Persist selected props to the memory file (recall mode only)."""
+        if not self._is_recall or not self._memfile:
+            return
+        selected = [i.source_prop for i in self._items if i.IsSelected]
+        if not selected:
+            return
+        try:
+            with open(self._memfile, "wb") as f:
+                pickle.dump((self._recall_target_type, selected), f)
+        except Exception:
+            pass
+
+    def _close_recall_window(self):
+        win = System.Windows.Window.GetWindow(self)
+        if win:
+            win.Close()
+
+    # ── history management (panel mode) ─────────────────────────────────────
 
     def _add_to_history(self, props):
         """
@@ -215,24 +286,36 @@ class MatchHistoryClipboard(forms.WPFPanel):
         self.pasteRectBtn.IsEnabled = has_checked
         self.pasteSelBtn.IsEnabled = has_checked
 
-    # ── load-source handlers (Button Click events from XAML) ─────────────────
+    # ── load-source handlers ─────────────────────────────────────────────────
     # NOTE: pick_element / get_source_properties are called directly here
     # (not via _run_in_revit) because pyrevit's WPFPanel allows Revit picks
     # from WPF event handlers.  Only write-operations (Transactions) require
     # the ExternalEvent mechanism.
 
     def load_from_element(self, sender, args):
-        """Pick an element, choose parameters interactively, add to history."""
         sel = revit.get_selection()
         elem = sel[0] if len(sel) == 1 else revit.pick_element()
         if not elem:
             return
-        props = get_source_properties(elem)  # opens pyrevit parameter-picker dialog
-        count = len(props)
-        self._add_to_history(props)
-        for i in range(min(count, len(self._items))):
-            self._items[i].IsSelected = True
-        self._update_ui_state()
+
+        if self._is_recall:
+            # Open parameter picker with current recall params pre-checked.
+            # The returned selection replaces the current list.
+            preselect = [i.source_prop.name for i in self._items]
+            props = get_source_properties(elem, preselect=preselect)
+            if props:
+                self._items = [ParameterItem(p) for p in props]
+                for item in self._items:
+                    item.IsSelected = True
+                self._refresh_list()
+                self._update_ui_state()
+        else:
+            props = get_source_properties(elem)
+            count = len(props)
+            self._add_to_history(props)
+            for i in range(min(count, len(self._items))):
+                self._items[i].IsSelected = True
+            self._update_ui_state()
 
     def load_from_view_filters(self, sender, args):
         """Read all equals-filter parameter values from the active view."""
@@ -265,7 +348,6 @@ class MatchHistoryClipboard(forms.WPFPanel):
             return
         param_id, _ = get_color_source_parameter(revit.doc, revit.active_view, elem)
         if not param_id:
-            self.logger.warning("No simple equals filter found on active view.")
             return
         try:
             tparam = revit.query.get_param(elem, param_id)
@@ -285,8 +367,8 @@ class MatchHistoryClipboard(forms.WPFPanel):
             self._add_to_history(props)
             self._items[0].IsSelected = True
             self._update_ui_state()
-        except Exception as ex:
-            self.logger.warning("load_from_filter_and_element: %s", ex)
+        except Exception:
+            pass
 
     # ── paste handlers ───────────────────────────────────────────────────────
 
@@ -300,17 +382,17 @@ class MatchHistoryClipboard(forms.WPFPanel):
                 bg = get_most_common_ogs_brush(ogs)
                 fg = get_contrasting_brush(bg)
         if props:
+            if self._is_recall:
+                self._save_recall()
             self._run_in_revit(
-                paste_props,
-                props,
-                "single",
+                paste_props, props, "single",
                 bool(self.categoryFilterCheck.IsChecked),
-                background=bg,
-                foreground=fg,
+                background=bg, foreground=fg,
             )
+            if self._is_recall:
+                self._close_recall_window()
 
     def paste_rectangle(self, sender, args):
-        """Paste checked parameters to elements inside a drawn rectangle (loops)."""
         props = self._selected_props()
         bg, fg = None, None
         if len(props) == 1:
@@ -319,25 +401,27 @@ class MatchHistoryClipboard(forms.WPFPanel):
                 bg = get_most_common_ogs_brush(ogs)
                 fg = get_contrasting_brush(bg)
         if props:
+            if self._is_recall:
+                self._save_recall()
             self._run_in_revit(
-                paste_props,
-                props,
-                "rectangle",
+                paste_props, props, "rectangle",
                 bool(self.categoryFilterCheck.IsChecked),
-                background=bg,
-                foreground=fg,
+                background=bg, foreground=fg,
             )
+            if self._is_recall:
+                self._close_recall_window()
 
     def paste_selection(self, sender, args):
-        """Paste checked parameters to the current Revit selection (one-shot)."""
         props = self._selected_props()
         if props:
+            if self._is_recall:
+                self._save_recall()
             self._run_in_revit(
-                paste_props,
-                props,
-                "selection",
+                paste_props, props, "selection",
                 bool(self.categoryFilterCheck.IsChecked),
             )
+            if self._is_recall:
+                self._close_recall_window()
 
     # ── check / search UI handlers ───────────────────────────────────────────
 
@@ -368,9 +452,9 @@ class MatchHistoryClipboard(forms.WPFPanel):
         """TextChanged handler — show/hide the clear button, refresh list."""
         text = self.search_tb.Text
         if text:
-            self.show_element(self.clrsearch_b)
+            self.clrsearch_b.Visibility = forms.WPF_VISIBLE
         else:
-            self.hide_element(self.clrsearch_b)
+            self.clrsearch_b.Visibility = forms.WPF_COLLAPSED
         stripped = text.strip()
         self._refresh_list(search_text=stripped if stripped else None)
 
@@ -387,3 +471,35 @@ class MatchHistoryClipboard(forms.WPFPanel):
                 if item is not clicked and item.Name == clicked.Name:
                     item.IsSelected = False
         self._update_ui_state()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dockable panel — thin wrapper around ClipboardContent
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class MatchHistoryClipboard(forms.WPFPanel):
+    panel_title = "pyRevit MatchHistory Clipboard"
+    panel_id = "0f3a0866-0123-4178-9f2c-121961bd292c"
+    panel_source = _PAGE_XAML
+
+    def __init__(self):
+        forms.WPFPanel.__init__(self)
+        self.Content = ClipboardContent(is_recall=False)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Modeless recall window — thin wrapper around ClipboardContent
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class RecallWindow(forms.WPFWindow):
+    def __init__(self, target_type, initial_props, memfile):
+        forms.WPFWindow.__init__(self, _WINDOW_XAML)
+        self._content = ClipboardContent(
+            is_recall=True,
+            target_type=target_type,
+            memfile=memfile,
+        )
+        self.Content = self._content
+        self._content.populate(initial_props, all_selected=True)
