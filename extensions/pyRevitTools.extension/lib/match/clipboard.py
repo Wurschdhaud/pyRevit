@@ -2,10 +2,10 @@
 import re
 import pickle
 
-from pyrevit import forms, revit, op
+from pyrevit import forms, revit, op, script
 from pyrevit import DB, UI
 from pyrevit.revit.events import _GenericExternalEventHandler
-from pyrevit.framework import ComponentModel, wpf, Controls, Uri, UriKind, ResourceDictionary, System
+from pyrevit.framework import ComponentModel, wpf, Controls, Uri, UriKind, ResourceDictionary
 from pyrevit.compat import get_elementid_value_func
 
 from match_utils import (
@@ -164,6 +164,7 @@ class ClipboardContent(Controls.UserControl):
             self.loadViewFiltersBtn.Visibility = forms.WPF_COLLAPSED
             self.loadFilterElemBtn.Visibility = forms.WPF_COLLAPSED
             self.categoryFilterCheck.Visibility = forms.WPF_COLLAPSED
+            self.categoryColumn.Width = 0
 
     # ── public API ───────────────────────────────────────────────────────────
 
@@ -183,26 +184,6 @@ class ClipboardContent(Controls.UserControl):
         self._handler.args = args
         self._handler.kwargs = kwargs
         self._ext_event.Raise()
-
-    # ── recall helpers ───────────────────────────────────────────────────────
-
-    def _save_recall(self):
-        """Persist selected props to the memory file (recall mode only)."""
-        if not self._is_recall or not self._memfile:
-            return
-        selected = [i.source_prop for i in self._items if i.IsSelected]
-        if not selected:
-            return
-        try:
-            with open(self._memfile, "wb") as f:
-                pickle.dump((self._recall_target_type, selected), f)
-        except Exception:
-            pass
-
-    def _close_recall_window(self):
-        win = System.Windows.Window.GetWindow(self)
-        if win:
-            win.Close()
 
     # ── history management (panel mode) ─────────────────────────────────────
 
@@ -382,15 +363,11 @@ class ClipboardContent(Controls.UserControl):
                 bg = get_most_common_ogs_brush(ogs)
                 fg = get_contrasting_brush(bg)
         if props:
-            if self._is_recall:
-                self._save_recall()
             self._run_in_revit(
                 paste_props, props, "single",
                 bool(self.categoryFilterCheck.IsChecked),
                 background=bg, foreground=fg,
             )
-            if self._is_recall:
-                self._close_recall_window()
 
     def paste_rectangle(self, sender, args):
         props = self._selected_props()
@@ -401,27 +378,19 @@ class ClipboardContent(Controls.UserControl):
                 bg = get_most_common_ogs_brush(ogs)
                 fg = get_contrasting_brush(bg)
         if props:
-            if self._is_recall:
-                self._save_recall()
             self._run_in_revit(
                 paste_props, props, "rectangle",
                 bool(self.categoryFilterCheck.IsChecked),
                 background=bg, foreground=fg,
             )
-            if self._is_recall:
-                self._close_recall_window()
 
     def paste_selection(self, sender, args):
         props = self._selected_props()
         if props:
-            if self._is_recall:
-                self._save_recall()
             self._run_in_revit(
                 paste_props, props, "selection",
                 bool(self.categoryFilterCheck.IsChecked),
             )
-            if self._is_recall:
-                self._close_recall_window()
 
     # ── check / search UI handlers ───────────────────────────────────────────
 
@@ -503,3 +472,23 @@ class RecallWindow(forms.WPFWindow):
         )
         self.Content = self._content
         self._content.populate(initial_props, all_selected=True)
+        script.restore_window_position(self, "MatchPropertiesRecall")
+        self.Closing += self._on_closing
+
+    def _on_closing(self, sender, args):
+        script.save_window_position(self, "MatchPropertiesRecall")
+        self._save_recall()
+
+    def _save_recall(self):
+        """Persist selected props to the memory file."""
+        c = self._content
+        if not c._memfile:
+            return
+        selected = [i.source_prop for i in c._items if i.IsSelected]
+        if not selected:
+            return
+        try:
+            with open(c._memfile, "wb") as f:
+                pickle.dump((c._recall_target_type, selected), f)
+        except Exception:
+            pass
