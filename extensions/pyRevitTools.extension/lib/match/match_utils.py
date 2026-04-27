@@ -33,7 +33,7 @@ class PropKeyValue(object):
         self.datatype = datatype
         self.value = value
         self.istype = istype
-        self.display_value = display_value or name
+        self.display_value = display_value or value
         self.categories = categories if categories is not None else []
 
     @staticmethod
@@ -144,7 +144,7 @@ def get_source_properties(src_element, simple=False, preselect=None):
                     datatype=tparam.StorageType,
                     value=value,
                     istype=sparam.istype,
-                    display_value=tparam.AsValueString() if not simple else None,
+                    display_value=tparam.AsValueString(),
                     categories=[src_element.Category] if not simple else [],
                 )
             )
