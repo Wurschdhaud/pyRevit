@@ -3109,7 +3109,7 @@ def select_parameters(
         item_template=itemplate,
     )
 
-    if selected_params:
+    if selected_params and isinstance(selected_params, list):
         seen = set()
         deduped = []
         for p in selected_params:
@@ -3226,7 +3226,7 @@ def select_family_parameters(
         item_template=itemplate,
     )
 
-    if selected_params:
+    if selected_params and isinstance(selected_params, list):
         seen = set()
         deduped = []
         for p in selected_params:
