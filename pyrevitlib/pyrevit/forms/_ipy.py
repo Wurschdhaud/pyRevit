@@ -3109,6 +3109,15 @@ def select_parameters(
         item_template=itemplate,
     )
 
+    if selected_params:
+        seen = set()
+        deduped = []
+        for p in selected_params:
+            if id(p) not in seen:
+                seen.add(id(p))
+                deduped.append(p)
+        selected_params = deduped
+
     return selected_params
 
 
@@ -3216,6 +3225,15 @@ def select_family_parameters(
         multiselect=multiple,
         item_template=itemplate,
     )
+
+    if selected_params:
+        seen = set()
+        deduped = []
+        for p in selected_params:
+            if id(p) not in seen:
+                seen.add(id(p))
+                deduped.append(p)
+        selected_params = deduped
 
     return selected_params
 
