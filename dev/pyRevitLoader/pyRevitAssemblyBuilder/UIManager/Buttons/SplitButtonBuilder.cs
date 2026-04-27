@@ -71,7 +71,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 if (splitBtn != null)
                 {
                     // Apply post-processing to split button
-                    ButtonPostProcessor.Process(splitBtn, component);
+                    ButtonPostProcessor.Process(splitBtn, component, null, GetCompactIconMode(component));
 
                     // Add children
                     AddChildrenToSplitButton(splitBtn, component, assemblyInfo);
@@ -118,7 +118,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 splitBtn.ItemText = splitButtonText;
 
                 // Re-apply post-processing (icon, tooltip, etc.)
-                ButtonPostProcessor.Process(splitBtn, component);
+                ButtonPostProcessor.Process(splitBtn, component, null, GetCompactIconMode(component));
 
                 splitBtn.Enabled = true;
                 splitBtn.Visible = true;
@@ -198,7 +198,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                         var subBtn = splitBtn.AddPushButton(pushButtonData);
                         if (subBtn != null)
                         {
-                            ButtonPostProcessor.Process(subBtn, sub, component);
+                            ButtonPostProcessor.Process(subBtn, sub, component, GetCompactIconMode(sub));
 
                             // Execute __selfinit__ for SmartButton in split button
                             if (_smartButtonScriptInitializer != null)
@@ -237,7 +237,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                         var subBtn = splitBtn.AddPushButton(pushButtonData);
                         if (subBtn != null)
                         {
-                            ButtonPostProcessor.Process(subBtn, sub, component);
+                            ButtonPostProcessor.Process(subBtn, sub, component, GetCompactIconMode(sub));
                             // Track first button to set as current
                             firstButton ??= subBtn;
                             childCount++;
@@ -263,7 +263,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                             var linkSubBtn = splitBtn.AddPushButton(subLinkData);
                             if (linkSubBtn != null)
                             {
-                                ButtonPostProcessor.Process(linkSubBtn, sub, component);
+                                ButtonPostProcessor.Process(linkSubBtn, sub, component, GetCompactIconMode(sub));
                                 // Track first button to set as current
                                 firstButton ??= linkSubBtn;
                                 childCount++;
@@ -359,7 +359,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                     {
                         if (sub.Type == CommandComponentType.LinkButton)
                         {
-                            _linkButtonBuilder.UpdateExistingLinkButton(existingBtn, sub, component);
+                            _linkButtonBuilder.UpdateExistingLinkButton(existingBtn, sub, component, GetCompactIconMode(sub));
                             Logger.Debug($"Updated existing link button '{sub.DisplayName}' in split button '{component.DisplayName}'.");
                             continue;
                         }
@@ -374,7 +374,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
 
                         // Re-apply all post-processing (icon, tooltip, highlight)
                         // This ensures changes to bundle.yaml are reflected
-                        ButtonPostProcessor.Process(existingBtn, sub, component);
+                        ButtonPostProcessor.Process(existingBtn, sub, component, GetCompactIconMode(sub));
 
                         // Ensure button is active
                         existingBtn.Enabled = true;

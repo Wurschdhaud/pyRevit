@@ -479,6 +479,29 @@ is_beta: true
         }
 
         [Test]
+        public void TestLargeIconKeyDefaultsFalseAndSupportsTrue()
+        {
+            var defaultFile = Path.GetTempFileName();
+            var trueFile = Path.GetTempFileName();
+            File.WriteAllText(defaultFile, "title: Test\n");
+            File.WriteAllText(trueFile, "title: Test\nlarge_icon: true\n");
+
+            try
+            {
+                var defaultBundle = BundleParser.BundleYamlParser.Parse(defaultFile);
+                var trueBundle = BundleParser.BundleYamlParser.Parse(trueFile);
+
+                Assert.That(defaultBundle.LargeIcon, Is.False);
+                Assert.That(trueBundle.LargeIcon, Is.True);
+            }
+            finally
+            {
+                File.Delete(defaultFile);
+                File.Delete(trueFile);
+            }
+        }
+
+        [Test]
         public void TestParsedComponentInheritIconDefaultsAndOverrides()
         {
             var extensionDir = Path.Combine(Path.GetTempPath(), $"InheritIcon_{System.Guid.NewGuid():N}.extension");
@@ -521,9 +544,9 @@ is_beta: true
 
             try
             {
-                File.WriteAllText(Path.Combine(stackDir, "bundle.yaml"), "title: Icon Stack\ninherit_icon: false\n");
-                File.WriteAllText(Path.Combine(disabledPulldownDir, "bundle.yaml"), "title: Stack Pulldown\ninherit_icon: false\n");
-                File.WriteAllText(Path.Combine(disabledSplitDir, "bundle.yaml"), "title: Stack Split\ninherit_icon: false\n");
+                File.WriteAllText(Path.Combine(stackDir, "bundle.yaml"), "title: Icon Stack\ninherit_icon: false\nlarge_icon: true\n");
+                File.WriteAllText(Path.Combine(disabledPulldownDir, "bundle.yaml"), "title: Stack Pulldown\ninherit_icon: false\nlarge_icon: true\n");
+                File.WriteAllText(Path.Combine(disabledSplitDir, "bundle.yaml"), "title: Stack Split\ninherit_icon: false\nlarge_icon: true\n");
                 File.WriteAllText(Path.Combine(defaultSplitDir, "bundle.yaml"), "title: Default Split\n");
 
                 var parsedExtension = ParseInstalledExtensions(new[] { extensionDir }).First();
@@ -534,9 +557,13 @@ is_beta: true
                 var defaultSplit = components.First(c => c.DisplayName == "Default Split");
 
                 Assert.That(stack.InheritIcon, Is.False);
+                Assert.That(stack.LargeIcon, Is.True);
                 Assert.That(disabledPulldown.InheritIcon, Is.False);
+                Assert.That(disabledPulldown.LargeIcon, Is.True);
                 Assert.That(disabledSplit.InheritIcon, Is.False);
+                Assert.That(disabledSplit.LargeIcon, Is.True);
                 Assert.That(defaultSplit.InheritIcon, Is.True);
+                Assert.That(defaultSplit.LargeIcon, Is.False);
             }
             finally
             {

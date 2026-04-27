@@ -439,6 +439,11 @@ namespace pyRevitExtensionParser
         public bool InheritIcon { get; set; } = true;
 
         /// <summary>
+        /// Gets or sets whether this bundle should use large icon presentation in compact UI contexts.
+        /// </summary>
+        public bool LargeIcon { get; set; }
+
+        /// <summary>
         /// Gets or sets the background color for the panel containing this bundle.
         /// </summary>
         /// <remarks>

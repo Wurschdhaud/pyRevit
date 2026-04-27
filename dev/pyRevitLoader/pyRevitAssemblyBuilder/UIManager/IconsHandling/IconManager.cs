@@ -66,12 +66,12 @@ namespace pyRevitAssemblyBuilder.UIManager.Icons
             try
             {
                 var isDarkTheme = _themeDetector.IsDarkTheme();
-                var largeIcon = GetBestIconForSizeWithTheme(sourceComponent, UIManagerConstants.ICON_LARGE, isDarkTheme);
                 var smallIcon = GetBestIconForSizeWithTheme(sourceComponent, UIManagerConstants.ICON_SMALL, isDarkTheme);
 
                 switch (iconMode)
                 {
                     case IconMode.LargeAndSmall:
+                        var largeIcon = GetBestIconForSizeWithTheme(sourceComponent, UIManagerConstants.ICON_LARGE, isDarkTheme);
                         ApplyLargeAndSmallIcons(item, largeIcon, smallIcon, sourceComponent.DisplayName);
                         break;
 
@@ -79,8 +79,9 @@ namespace pyRevitAssemblyBuilder.UIManager.Icons
                         ApplySmallIconOnly(item, smallIcon, sourceComponent.DisplayName);
                         break;
 
-                    case IconMode.SmallToBoth:
-                        ApplySmallIconToBoth(item, smallIcon, sourceComponent.DisplayName);
+                    case IconMode.MediumAndSmall:
+                        var mediumIcon = GetBestIconForSizeWithTheme(sourceComponent, UIManagerConstants.ICON_MEDIUM, isDarkTheme);
+                        ApplyMediumAndSmallIcons(item, mediumIcon, smallIcon, sourceComponent.DisplayName);
                         break;
                 }
             }
@@ -124,19 +125,27 @@ namespace pyRevitAssemblyBuilder.UIManager.Icons
         }
 
         /// <summary>
-        /// Applies the small icon to both Image and LargeImage properties.
-        /// Used for pulldown sub-buttons where both properties need the same small icon.
+        /// Applies medium and small icons for compact ribbon contexts.
         /// </summary>
-        private void ApplySmallIconToBoth(object item, ComponentIcon smallIcon, string displayName)
+        private void ApplyMediumAndSmallIcons(object item, ComponentIcon mediumIcon, ComponentIcon smallIcon, string displayName)
         {
-            if (smallIcon == null)
+            if (mediumIcon == null && smallIcon == null)
                 return;
 
-            var smallBitmap = LoadBitmapSource(smallIcon.FilePath, UIManagerConstants.ICON_SMALL);
-            if (smallBitmap != null)
+            BitmapSource mediumBitmap = null;
+            BitmapSource smallBitmap = null;
+
+            if (mediumIcon != null)
             {
-                SetIconsOnItem(item, smallBitmap, smallBitmap);
+                mediumBitmap = LoadBitmapSource(mediumIcon.FilePath, UIManagerConstants.ICON_MEDIUM);
             }
+
+            if (smallIcon != null)
+            {
+                smallBitmap = LoadBitmapSource(smallIcon.FilePath, UIManagerConstants.ICON_SMALL);
+            }
+
+            SetIconsOnItem(item, mediumBitmap, smallBitmap);
         }
 
         /// <summary>
