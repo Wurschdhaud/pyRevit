@@ -198,6 +198,9 @@ namespace pyRevitExtensionParser
                 case "collapsed":
                     parsed.Collapsed = ParseBool(valueNode);
                     return;
+                case "inherit_icon":
+                    parsed.InheritIcon = ParseBool(valueNode);
+                    return;
                 default:
                     // Keep existing behavior where unknown top-level scalar key-value pairs
                     // are treated as template values.

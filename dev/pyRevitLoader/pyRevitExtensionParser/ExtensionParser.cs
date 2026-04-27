@@ -1345,6 +1345,7 @@ namespace pyRevitExtensionParser
                     MaxRevitVersion = finalMaxRevitVersion,
                     IsBeta = finalIsBeta,
                     Collapsed = bundleInComponent?.Collapsed ?? false,
+                    InheritIcon = bundleInComponent?.InheritIcon ?? true,
                     PanelBackground = bundleInComponent?.PanelBackground,
                     TitleBackground = bundleInComponent?.TitleBackground,
                     SlideoutBackground = bundleInComponent?.SlideoutBackground,

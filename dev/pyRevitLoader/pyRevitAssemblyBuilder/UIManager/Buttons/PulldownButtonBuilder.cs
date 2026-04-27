@@ -285,7 +285,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                     {
                         if (sub.Type == CommandComponentType.LinkButton)
                         {
-                            _linkButtonBuilder.UpdateExistingLinkButton(existingBtn, sub);
+                            _linkButtonBuilder.UpdateExistingLinkButton(existingBtn, sub, component, IconMode.SmallToBoth);
                             Logger.Debug($"Updated existing link button '{sub.DisplayName}' in pulldown '{component.DisplayName}'.");
                             continue;
                         }

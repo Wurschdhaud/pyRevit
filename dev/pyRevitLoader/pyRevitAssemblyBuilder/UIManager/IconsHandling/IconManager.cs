@@ -52,12 +52,13 @@ namespace pyRevitAssemblyBuilder.UIManager.Icons
             var sourceComponent = component;
             if (!component.HasValidIcons)
             {
-                if (parentComponent != null && parentComponent.HasValidIcons)
+                if (parentComponent != null && parentComponent.InheritIcon && parentComponent.HasValidIcons)
                 {
                     sourceComponent = parentComponent;
                 }
                 else
                 {
+                    ClearIconsOnItem(item);
                     return;
                 }
             }
@@ -173,6 +174,40 @@ namespace pyRevitAssemblyBuilder.UIManager.Icons
 
                 default:
                     _logger.Debug($"Unknown ribbon item type: {item?.GetType().Name ?? "null"}");
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Clears existing icons when the resolved component icon source is intentionally empty.
+        /// This keeps reloads in sync when parent icon inheritance is disabled or an icon is removed.
+        /// </summary>
+        private void ClearIconsOnItem(object item)
+        {
+            switch (item)
+            {
+                // SplitButton must come before PulldownButton because SplitButton derives from PulldownButton
+                case SplitButton splitButton:
+                    splitButton.LargeImage = null;
+                    splitButton.Image = null;
+                    break;
+
+                case PulldownButton pulldownButton:
+                    pulldownButton.LargeImage = null;
+                    pulldownButton.Image = null;
+                    break;
+
+                case PushButton pushButton:
+                    pushButton.LargeImage = null;
+                    pushButton.Image = null;
+                    break;
+
+                case ComboBox comboBox:
+                    comboBox.Image = null;
+                    break;
+
+                case Autodesk.Revit.UI.ComboBoxMember comboBoxMember:
+                    comboBoxMember.Image = null;
                     break;
             }
         }

@@ -359,7 +359,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                     {
                         if (sub.Type == CommandComponentType.LinkButton)
                         {
-                            _linkButtonBuilder.UpdateExistingLinkButton(existingBtn, sub);
+                            _linkButtonBuilder.UpdateExistingLinkButton(existingBtn, sub, component);
                             Logger.Debug($"Updated existing link button '{sub.DisplayName}' in split button '{component.DisplayName}'.");
                             continue;
                         }

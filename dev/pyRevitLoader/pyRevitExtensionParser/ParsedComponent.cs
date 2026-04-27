@@ -47,6 +47,7 @@ namespace pyRevitExtensionParser
         public string MaxRevitVersion { get; set; }
         public bool IsBeta { get; set; }
         public bool Collapsed { get; set; }
+        public bool InheritIcon { get; set; } = true;
         public string TargetAssembly { get; set; }
         public string CommandClass { get; set; }
         public string AvailabilityClass { get; set; }
