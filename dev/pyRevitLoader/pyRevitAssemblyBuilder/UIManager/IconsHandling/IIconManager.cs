@@ -61,4 +61,18 @@ namespace pyRevitAssemblyBuilder.UIManager.Icons
         /// </summary>
         MediumAndSmall
     }
+
+    /// <summary>
+    /// Resolves icon modes for common ribbon contexts.
+    /// </summary>
+    public static class IconModeHelper
+    {
+        /// <summary>
+        /// Resolves icon mode for compact contexts such as pulldowns, split children, and stacks.
+        /// </summary>
+        public static IconMode GetCompactIconMode(ParsedComponent component)
+        {
+            return component?.LargeIcon == true ? IconMode.LargeAndSmall : IconMode.MediumAndSmall;
+        }
+    }
 }

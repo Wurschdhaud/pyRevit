@@ -135,7 +135,11 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 pdBtn.ItemText = pulldownText;
 
                 // Re-apply post-processing (icon, tooltip, etc.)
-                ButtonPostProcessor.Process(pdBtn, component, null, GetCompactIconMode(component));
+                ButtonPostProcessor.Process(
+                    pdBtn,
+                    component,
+                    null,
+                    IconMode.LargeAndSmall);
 
                 pdBtn.Enabled = true;
                 pdBtn.Visible = true;
@@ -179,7 +183,11 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
             }
 
             // Apply post-processing to the pulldown button itself
-            ButtonPostProcessor.Process(pdBtn, component, null, GetCompactIconMode(component));
+            ButtonPostProcessor.Process(
+                pdBtn,
+                component,
+                null,
+                IconMode.LargeAndSmall);
 
             // Add children
             AddChildrenToPulldown(pdBtn, component, assemblyInfo, visibleChildren);

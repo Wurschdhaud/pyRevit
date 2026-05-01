@@ -48,12 +48,12 @@ namespace pyRevitAssemblyBuilder.UIManager.Icons
         /// <inheritdoc/>
         public void ApplyIcon(object item, ParsedComponent component, ParsedComponent parentComponent = null, IconMode iconMode = IconMode.LargeAndSmall)
         {
-            // If the component doesn't have icons, try to use parent's icons when both
-            // sides allow inheritance.
+            // If the component doesn't have icons, try to use the parent's icons when
+            // this component allows inheritance.
             var sourceComponent = component;
             if (!component.HasValidIcons)
             {
-                if (component.InheritIcon && parentComponent != null && parentComponent.InheritIcon && parentComponent.HasValidIcons)
+                if (component.InheritIcon && parentComponent != null && parentComponent.HasValidIcons)
                 {
                     sourceComponent = parentComponent;
                 }

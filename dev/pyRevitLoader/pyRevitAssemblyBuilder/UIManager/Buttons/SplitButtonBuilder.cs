@@ -79,7 +79,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 if (splitBtn != null)
                 {
                     // Apply post-processing to split button
-                    ButtonPostProcessor.Process(splitBtn, component, null, GetCompactIconMode(component));
+                    ButtonPostProcessor.Process(splitBtn, component, null, IconMode.LargeAndSmall);
 
                     // Add children
                     AddChildrenToSplitButton(splitBtn, component, assemblyInfo, visibleChildren);
@@ -130,7 +130,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 splitBtn.ItemText = splitButtonText;
 
                 // Re-apply post-processing (icon, tooltip, etc.)
-                ButtonPostProcessor.Process(splitBtn, component, null, GetCompactIconMode(component));
+                ButtonPostProcessor.Process(splitBtn, component, null, IconMode.LargeAndSmall);
 
                 splitBtn.Enabled = true;
                 splitBtn.Visible = true;

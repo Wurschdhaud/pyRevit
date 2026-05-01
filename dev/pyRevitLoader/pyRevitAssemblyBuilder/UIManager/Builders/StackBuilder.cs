@@ -233,14 +233,22 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
                     {
                         if (childComponent.Type == CommandComponentType.LinkButton)
                         {
-                            _linkButtonBuilder.UpdateExistingLinkButton(pushBtn, childComponent, stackComponent, GetCompactIconMode(childComponent));
+                            _linkButtonBuilder.UpdateExistingLinkButton(
+                                pushBtn,
+                                childComponent,
+                                stackComponent,
+                                IconModeHelper.GetCompactIconMode(childComponent));
                         }
                         else
                         {
                             UpdatePushButtonCommandBinding(pushBtn, childComponent, assemblyInfo);
                         }
 
-                        _buttonPostProcessor.Process(pushBtn, childComponent, stackComponent, GetCompactIconMode(childComponent));
+                        _buttonPostProcessor.Process(
+                            pushBtn,
+                            childComponent,
+                            stackComponent,
+                            IconModeHelper.GetCompactIconMode(childComponent));
 
                         // Execute __selfinit__ for SmartButtons
                         if (childComponent.Type == CommandComponentType.SmartButton && _smartButtonScriptInitializer != null)
@@ -255,12 +263,20 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
                     }
                     else if (ribbonItem is SplitButton splitBtn)
                     {
-                        _buttonPostProcessor.Process(splitBtn, childComponent, stackComponent, GetCompactIconMode(childComponent));
+                        _buttonPostProcessor.Process(
+                            splitBtn,
+                            childComponent,
+                            stackComponent,
+                            IconModeHelper.GetCompactIconMode(childComponent));
                         _splitButtonBuilder.AddChildrenToSplitButton(splitBtn, childComponent, assemblyInfo);
                     }
                     else if (ribbonItem is PulldownButton pdBtn)
                     {
-                        _buttonPostProcessor.Process(pdBtn, childComponent, stackComponent, GetCompactIconMode(childComponent));
+                        _buttonPostProcessor.Process(
+                            pdBtn,
+                            childComponent,
+                            stackComponent,
+                            IconModeHelper.GetCompactIconMode(childComponent));
                         _pulldownButtonBuilder.AddChildrenToPulldown(pdBtn, childComponent, assemblyInfo);
                     }
 
@@ -286,7 +302,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
                 // Apply post-processing to push buttons in stack
                 if (ribbonItem is PushButton pushBtn)
                 {
-                    _buttonPostProcessor.Process(pushBtn, origComponent, stackComponent, GetCompactIconMode(origComponent));
+                    _buttonPostProcessor.Process(pushBtn, origComponent, stackComponent, IconModeHelper.GetCompactIconMode(origComponent));
 
                     // Execute __selfinit__ for SmartButtons in stack
                     if (origComponent.Type == CommandComponentType.SmartButton && _smartButtonScriptInitializer != null)
@@ -305,7 +321,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
                     try
                     {
                         // Apply post-processing to the split button itself in stack
-                        _buttonPostProcessor.Process(splitBtn, origComponent, stackComponent, GetCompactIconMode(origComponent));
+                        _buttonPostProcessor.Process(splitBtn, origComponent, stackComponent, IconModeHelper.GetCompactIconMode(origComponent));
 
                         // Add children to split button
                         _splitButtonBuilder.AddChildrenToSplitButton(splitBtn, origComponent, assemblyInfo);
@@ -320,10 +336,17 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
                 else if (ribbonItem is PulldownButton pdBtn)
                 {
                     // Apply post-processing to the pulldown button itself in stack
-                    _buttonPostProcessor.Process(pdBtn, origComponent, stackComponent, GetCompactIconMode(origComponent));
+                    _buttonPostProcessor.Process(
+                        pdBtn,
+                        origComponent,
+                        stackComponent,
+                        IconModeHelper.GetCompactIconMode(origComponent));
 
                     // Add children to pulldown
-                    _pulldownButtonBuilder.AddChildrenToPulldown(pdBtn, origComponent, assemblyInfo);
+                    _pulldownButtonBuilder.AddChildrenToPulldown(
+                        pdBtn,
+                        origComponent,
+                        assemblyInfo);
                 }
             }
         }
@@ -394,11 +417,6 @@ namespace pyRevitAssemblyBuilder.UIManager.Builders
                 sb.Insert(0, '_');
 
             return sb.ToString();
-        }
-
-private static IconMode GetCompactIconMode(ParsedComponent component)
-        {
-            return component.LargeIcon == true ? IconMode.LargeAndSmall : IconMode.MediumAndSmall;
         }
 
         /// <summary>

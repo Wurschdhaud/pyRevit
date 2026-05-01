@@ -91,7 +91,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
         /// </summary>
         protected static IconMode GetCompactIconMode(ParsedComponent component)
         {
-            return component?.LargeIcon == true ? IconMode.LargeAndSmall : IconMode.MediumAndSmall;
+            return IconModeHelper.GetCompactIconMode(component);
         }
 
         /// <summary>
