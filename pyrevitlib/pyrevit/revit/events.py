@@ -199,7 +199,28 @@ def execute_in_revit_context(func, *args, **kwargs):
     """
     if not compat.IRONPY:
         PyRevitCPythonNotSupported("pyrevit.revit.events.execute_in_revit_context")
-    _HANDLER.func = func
+
+    # Snapshot module-level imports from the function's globals at scheduling
+    # time. When the ExternalEvent fires asynchronously, the IronPython engine
+    # may have cleared the script scope (non-persistent engines) or module
+    # references may be stale after extension changes / session reload.
+    # This affects any module whose __init__.py uses conditional imports at
+    # load time (e.g. forms, revit submodules). Only module-type objects are
+    # restored to avoid contaminating mutable script state (doc, uidoc, etc.).
+    _module_type = type(compat)
+    _saved_modules = {
+        k: v for k, v in func.__globals__.items()
+        if type(v) is _module_type
+    }
+
+    def _func_with_modules(*a, **kw):
+        g = func.__globals__
+        for k, v in _saved_modules.items():
+            if k not in g:
+                g[k] = v
+        return func(*a, **kw)
+
+    _HANDLER.func = _func_with_modules
     _HANDLER.args = args
     _HANDLER.kwargs = kwargs
     _EXTERNAL_EVENT.Raise()
