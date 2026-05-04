@@ -31,7 +31,6 @@ from sectionbox_geometry import (
     make_xy_transform_only,
 )
 
-
 # --------------------
 # Initialize Variables
 # --------------------
@@ -170,16 +169,40 @@ def format_length_value(value):
 @events.handle("view-activated")
 def on_view_or_doc_changed(sender, args):
     try:
-        if revit.doc != doc:
-            initialize_globals()
+        try:
+            doc_changed = revit.doc != doc
+        except Exception:
+            # old doc was invalidated (all docs closed then a new one opened)
+            doc_changed = True
+        if doc_changed:
+            try:
+                initialize_globals()
+            except Exception:
+                if sb_form:
+                    sb_form.Dispatcher.Invoke(System.Action(sb_form._on_no_document))
+                return
             if sb_form:
-                sb_form.Dispatcher.Invoke(System.Action(sb_form.update_grids_and_levels))
+                sb_form.Dispatcher.Invoke(System.Action(sb_form._on_document_available))
+                sb_form.Dispatcher.Invoke(
+                    System.Action(sb_form.update_grids_and_levels)
+                )
         if not sb_form or not sb_form.chkAutoupdate.IsChecked:
             return
         sb_form.Dispatcher.Invoke(System.Action(sb_form.update_info))
         logger.info("Form updated due to view or document change.")
     except Exception as ex:
-        logger.warning("Failed to update form: {}".format(ex))
+        logger.exception("Failed to update form: {}".format(ex))
+
+
+@events.handle("doc-closed")
+def on_doc_closed(sender, args):
+    try:
+        if any(True for _ in (revit.docs or [])):
+            return  # at least one document still open
+        if sb_form:
+            sb_form.Dispatcher.Invoke(System.Action(sb_form._on_no_document))
+    except Exception as ex:
+        logger.exception("Failed to handle doc close: {}".format(ex))
 
 
 # --------------------
@@ -211,7 +234,6 @@ class SectionBoxNavigatorForm(forms.WPFWindow):
         # Initialize DC3D Server
         try:
             self.preview_server = revit.dc3dserver.Server(
-                uidoc=uidoc,
                 name="Section Box Navigator Preview",
                 description="Preview for section box adjustments",
             )
@@ -373,7 +395,14 @@ class SectionBoxNavigatorForm(forms.WPFWindow):
             # therefore safeguard with:
             if not hasattr(self, "current_view"):
                 return
-            last_view = self.current_view.Id
+            try:
+                last_view = self.current_view.Id
+            except Exception:
+                # current_view was invalidated (doc closed/reopened); reset it
+                self.current_view = revit.active_view
+                if not self.current_view:
+                    return
+                last_view = None  # treat as view changed so status clears
             self.current_view = revit.active_view
 
             if self.current_length_unit != length_unit:
@@ -542,6 +571,24 @@ class SectionBoxNavigatorForm(forms.WPFWindow):
         except Exception as ex:
             logger.error("Error clearing status message: {}".format(ex))
 
+    def _on_no_document(self):
+        """Disable all controls and clear status when no documents are open."""
+        self.Content.IsEnabled = False
+        self.project_unit_text.Visibility = forms.WPF_COLLAPSED
+        self.txtVerticalStatus.Text = ""
+        self.txtGridStatus.Text = ""
+        self.txtExpandActionsStatus.Text = ""
+        self.txtTopLevelAbove.Text = ""
+        self.txtTopPosition.Text = ""
+        self.txtTopLevelBelow.Text = ""
+        self.txtBottomLevelAbove.Text = ""
+        self.txtBottomPosition.Text = ""
+        self.txtBottomLevelBelow.Text = ""
+
+    def _on_document_available(self):
+        """Re-enable all controls when a document becomes available."""
+        self.Content.IsEnabled = True
+
     def update_grid_status(self):
         """Update the grid navigation status display."""
         try:
@@ -668,13 +715,18 @@ class SectionBoxNavigatorForm(forms.WPFWindow):
                         )
                     return None
 
-                top_distance = next_top_level.ProjectElevation - info["transformed_max"].Z
+                top_distance = (
+                    next_top_level.ProjectElevation - info["transformed_max"].Z
+                )
                 bottom_distance = (
                     next_bottom_level.ProjectElevation - info["transformed_min"].Z
                 )
 
                 # Validate box dimensions
-                if next_top_level.ProjectElevation <= next_bottom_level.ProjectElevation:
+                if (
+                    next_top_level.ProjectElevation
+                    <= next_bottom_level.ProjectElevation
+                ):
                     if not do_not_apply:
                         self.show_status_message(
                             1, self.get_locale_string("WouldCreateInvalidBox"), "error"
@@ -729,7 +781,9 @@ class SectionBoxNavigatorForm(forms.WPFWindow):
                         )
                     return None
 
-                bottom_distance = next_level.ProjectElevation - info["transformed_min"].Z
+                bottom_distance = (
+                    next_level.ProjectElevation - info["transformed_min"].Z
+                )
 
                 # Validate won't go above top
                 if next_level.ProjectElevation >= info["transformed_max"].Z:
@@ -1914,8 +1968,13 @@ class SectionBoxNavigatorForm(forms.WPFWindow):
                 except Exception as ex:
                     logger.warning("Error removing DC3D server: {}".format(ex))
 
-            # Refresh view
-            uidoc.RefreshActiveView()
+            # Refresh view - fetch fresh reference; cached uidoc may be stale
+            try:
+                _uidoc = revit.uidoc
+                if _uidoc:
+                    _uidoc.RefreshActiveView()
+            except Exception:
+                pass
 
             # Save nudge values and radio buttons
             level_nudge_value = self._get_validated_nudge_amount(
