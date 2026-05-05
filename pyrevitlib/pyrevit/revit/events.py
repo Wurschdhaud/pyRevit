@@ -1,5 +1,6 @@
 """Revit events handler management."""
 #pylint: disable=unused-argument
+from six.moves import queue
 from pyrevit import HOST_APP
 from pyrevit import EXEC_PARAMS, DB, UI
 from pyrevit import framework
@@ -143,19 +144,25 @@ def stop_events():
 
 class _GenericExternalEventHandler(UI.IExternalEventHandler):
     def __init__(self):
-        self.func = None
-        self.args = ()
-        self.kwargs = {}
+        self._queue = queue.Queue()
 
     def Execute(self, uiapp):
         try:
-            if self.func:
-                self.func(*self.args, **self.kwargs)
-        except Exception as ex:
-            mlogger.error("ExternalEvent error: {}".format(ex))
+            while True:
+                fn = self._queue.get_nowait()
+                try:
+                    fn()
+                except Exception as ex:
+                    mlogger.error("ExternalEvent error: {}".format(ex))
+        except queue.Empty:
+            pass
 
     def GetName(self):
         return "GenericExternalEventHandler"
+
+    def schedule(self, func):
+        self._queue.put(func)
+
 
 if compat.IRONPY:
     _HANDLER = _GenericExternalEventHandler()
@@ -213,14 +220,26 @@ def execute_in_revit_context(func, *args, **kwargs):
         if type(v) is _module_type
     }
 
-    def _func_with_modules(*a, **kw):
+    def _wrapper():
+        # types.FunctionType with closures is not supported in IronPython 2,
+        # so we do a bounded mutation: save, patch, call, restore.
+        _MISSING = object()
         g = func.__globals__
-        for k, v in _saved_modules.items():
-            if k not in g:
-                g[k] = v
-        return func(*a, **kw)
+        saved = {
+            k: g.get(k, _MISSING)
+            for k in _saved_modules
+            if k not in g or g[k] is None
+        }
+        for k in saved:
+            g[k] = _saved_modules[k]
+        try:
+            func(*args, **kwargs)
+        finally:
+            for k, old in saved.items():
+                if old is _MISSING:
+                    g.pop(k, None)
+                else:
+                    g[k] = old
 
-    _HANDLER.func = _func_with_modules
-    _HANDLER.args = args
-    _HANDLER.kwargs = kwargs
+    _HANDLER.schedule(_wrapper)
     _EXTERNAL_EVENT.Raise()
