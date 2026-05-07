@@ -1,6 +1,6 @@
 """Revit events handler management."""
 #pylint: disable=unused-argument
-from six.moves import queue
+from collections import deque
 from pyrevit import HOST_APP
 from pyrevit import EXEC_PARAMS, DB, UI
 from pyrevit import framework
@@ -144,24 +144,21 @@ def stop_events():
 
 class _GenericExternalEventHandler(UI.IExternalEventHandler):
     def __init__(self):
-        self._queue = queue.Queue()
+        self._queue = deque()
 
     def Execute(self, uiapp):
-        try:
-            while True:
-                fn = self._queue.get_nowait()
-                try:
-                    fn()
-                except Exception as ex:
-                    mlogger.error("ExternalEvent error: {}".format(ex))
-        except queue.Empty:
-            pass
+        while self._queue:
+            fn = self._queue.popleft()
+            try:
+                fn()
+            except Exception as ex:
+                mlogger.error("ExternalEvent error: {}".format(ex))
 
     def GetName(self):
         return "GenericExternalEventHandler"
 
     def schedule(self, func):
-        self._queue.put(func)
+        self._queue.append(func)
 
 
 if compat.IRONPY:
