@@ -6,8 +6,8 @@ Shift-Click:
 Keep only not-mirrored elements. If nothing is selected, pick a region to
 filter non-mirrored elements from.
 """
-# pylint: disable=import-error,invalid-name,broad-except
-from pyrevit import revit, UI
+from pyrevit import revit, EXEC_PARAMS
+from pyrevit import UI
 
 
 class MirroredSelectionFilter(UI.Selection.ISelectionFilter):
@@ -26,11 +26,14 @@ class MirroredSelectionFilter(UI.Selection.ISelectionFilter):
 
 selection = list(revit.get_selection())
 if selection:
-    mirrored_elements = revit.select.select_mirrored(revit.get_selection())
-    revit.get_selection().set_to(mirrored_elements)
+    filtered = revit.select.select_mirrored(
+        selection,
+        mirrored=not EXEC_PARAMS.config_mode
+    )
+    revit.get_selection().set_to(filtered)
 else:
     try:
-        pick_filter = MirroredSelectionFilter(keep_mirrored=not __shiftclick__)
+        pick_filter = MirroredSelectionFilter(keep_mirrored=not EXEC_PARAMS.config_mode)
         elements = revit.pick_rectangle(pick_filter=pick_filter)
         revit.get_selection().set_to(elements)
     except Exception:
