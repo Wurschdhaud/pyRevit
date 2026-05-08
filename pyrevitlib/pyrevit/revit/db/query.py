@@ -1171,11 +1171,11 @@ def get_document_clean_name(doc=None):
     document_name = db.ProjectInfo(doc or DOCS.doc).path
     if not document_name:
         return "File Not Saved"
-    if document_name.startswith("BIM 360://"):
-        path = document_name.split("://", 1)[1]
-    else:
-        path = document_name
-    return splitext(basename(path))[0]
+    # Strip any URI-style scheme (BIM 360://, ACC://, etc.)
+    if "://" in document_name:
+        document_name = document_name.split("://", 1)[1]
+
+    return splitext(basename(document_name))[0]
 
 
 def get_links(linktype=None, doc=None):
