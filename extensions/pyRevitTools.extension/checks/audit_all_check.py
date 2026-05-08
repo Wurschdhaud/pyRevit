@@ -977,6 +977,12 @@ def audit_document(doc, output):
         links_documents_data = []
         for rvt_link_instance in q.get_linked_model_instances(doc).ToElements():
             link_doc = rvt_link_instance.GetLinkDocument()
+            if not link_doc:
+                logger.error(
+                    "Link '%s' is not loaded -- skipping.",
+                    q.get_rvt_link_instance_name(rvt_link_instance)
+                )
+                continue
             link_document_data = ReportData(link_doc)
             link_data.append(
                 [
