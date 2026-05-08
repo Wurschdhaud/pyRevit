@@ -21,6 +21,7 @@ from pyrevit.output.cards import card_builder, create_frame
 from pyrevit.revit.db import ProjectInfo as RevitProjectInfo
 import sys
 import os
+
 # Add current directory to path for local imports
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 if _current_dir not in sys.path:
@@ -84,7 +85,9 @@ _PresureLossReport = getattr(DB.ViewType, "PresureLossReport", None)
 _SystemsAnalysisReport = getattr(DB.ViewType, "SystemsAnalysisReport", None)
 VALID_VIEW_TYPES = list(_VALID_VIEW_TYPES_BASE)
 if _PresureLossReport is not None:
-    VALID_VIEW_TYPES.insert(VALID_VIEW_TYPES.index(DB.ViewType.LoadsReport) + 1, _PresureLossReport)
+    VALID_VIEW_TYPES.insert(
+        VALID_VIEW_TYPES.index(DB.ViewType.LoadsReport) + 1, _PresureLossReport
+    )
 if _SystemsAnalysisReport is not None:
     VALID_VIEW_TYPES.append(_SystemsAnalysisReport)
 
@@ -958,6 +961,7 @@ def audit_document(doc, output):
             "N/A",
         ]
         from check_translations import get_check_translation
+
         output.print_md("# {}".format(get_check_translation("AuditAllMainFileInfos")))
         translated_headers = [
             get_check_translation("AuditAllProjectName"),
@@ -968,7 +972,7 @@ def audit_document(doc, output):
             get_check_translation("AuditAllLinkedFileName"),
             get_check_translation("ModelCheckerInstanceName"),
             get_check_translation("AuditAllLoadedStatus"),
-            get_check_translation("ModelCheckerPinnedStatus")
+            get_check_translation("ModelCheckerPinnedStatus"),
         ]
         output.print_table([project_info], columns=translated_headers)
 
@@ -998,12 +1002,18 @@ def audit_document(doc, output):
             )
             links_documents_data.append(link_document_data)
         if link_data:
-            output.print_md("# {}".format(get_check_translation("AuditAllLinkedFilesInfos")))
+            output.print_md(
+                "# {}".format(get_check_translation("AuditAllLinkedFilesInfos"))
+            )
             output.print_table(link_data, columns=translated_headers)
             links_cards = card_builder(
-                50, data.links_info.rvtlinks_count, " {}".format(get_check_translation("AuditAllLinks"))
+                50,
+                data.links_info.rvtlinks_count,
+                " {}".format(get_check_translation("AuditAllLinks")),
             ) + card_builder(
-                0, data.links_info.rvtlinks_unpinned_count, " {}".format(get_check_translation("AuditAllLinksNotPinned"))
+                0,
+                data.links_info.rvtlinks_unpinned_count,
+                " {}".format(get_check_translation("AuditAllLinksNotPinned")),
             )
 
         output.print_md(
@@ -1015,7 +1025,9 @@ def audit_document(doc, output):
         data.export_to_csv()
 
         if data.rvtlinks_elements_items:
-            output.print_md("# {}".format(get_check_translation("ModelCheckerRVTLinks")))
+            output.print_md(
+                "# {}".format(get_check_translation("ModelCheckerRVTLinks"))
+            )
             for link_doc_data in links_documents_data:
                 generate_rvt_links_report(link_doc_data, output)
     except Exception as e:
@@ -1039,9 +1051,12 @@ def generate_rvt_links_report(link_document_data, output):
     output.print_md("___")
     links_data = ""
     from check_translations import get_check_translation
+
     if link_document_data.rvtlinks_elements_items:
         links_data = card_builder(
-            50, link_document_data.links_info.rvtlinks_count, " {}".format(get_check_translation("AuditAllLinks"))
+            50,
+            link_document_data.links_info.rvtlinks_count,
+            " {}".format(get_check_translation("AuditAllLinks")),
         ) + card_builder(
             0,
             link_document_data.links_info.rvtlinks_unpinned_count,
@@ -1055,12 +1070,13 @@ def generate_rvt_links_report(link_document_data, output):
 class ModelChecker(PreflightTestCase):
     __metaclass__ = DocstringMeta
     _docstring_key = "CheckDescription_AuditAll"
-    
+
     @property
     def name(self):
         from check_translations import get_check_translation
+
         return get_check_translation("CheckName_AuditAll")
-    
+
     author = "Jean-Marc Couffin"
 
     def setUp(self, doc, output):
