@@ -1,9 +1,4 @@
 # -*- coding: UTF-8 -*-
-
-__cleanengine__ = True
-__fullframeengine__ = True
-__persistentengine__ = True
-
 from traceback import format_exc
 from csv import writer, reader
 from os.path import isfile
