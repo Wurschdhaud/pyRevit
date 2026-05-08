@@ -1171,9 +1171,11 @@ def get_document_clean_name(doc=None):
     document_name = db.ProjectInfo(doc or DOCS.doc).path
     if not document_name:
         return "File Not Saved"
-    # Strip any URI-style scheme (BIM 360://, ACC://, etc.)
-    if "://" in document_name:
-        document_name = document_name.split("://", 1)[1]
+    _CLOUD_URI_SCHEMES = ("BIM 360://", "ACC://", "Autodesk Docs://")
+    for scheme in _CLOUD_URI_SCHEMES:
+        if document_name.startswith(scheme):
+            document_name = document_name[len(scheme):]
+            break
 
     return splitext(basename(document_name))[0]
 
