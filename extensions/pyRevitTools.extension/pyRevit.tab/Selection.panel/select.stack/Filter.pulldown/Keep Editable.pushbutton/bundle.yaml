@@ -33,3 +33,10 @@ tooltip:
     Mantém apenas os elementos editáveis (não reivindicados ou do usuário atual)
     na seleção atual. Se nada estiver selecionado, selecione uma região para
     filtrar.
+context:
+  any:
+    - selection
+    - active-plan-view
+    - active-section-view
+    - active-3d-view
+    - active-elevation-view
