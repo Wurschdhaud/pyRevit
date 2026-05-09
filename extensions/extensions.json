@@ -267,17 +267,17 @@
             "dependencies": []
         },
         {
-            "builtin": false,
-            "rocket_mode_compatible": false,
+            "builtin": "False",
+            "rocket_mode_compatible": "False",
             "type": "extension",
             "name": "Seed43",
-            "description": "Seed43 tools for Revit",
+            "description": "Free Tools for automating repetitive Revit workflows, no subscriptions, no paywalls.",
             "author": "Seed43",
             "author_profile": "https://www.linkedin.com/company/seed43/",
             "url": "https://github.com/Seed-43/Seed43.git",
             "website": "https://seed43.org",
             "image": "",
             "dependencies": []
-    }
+        }
     ]
 }
