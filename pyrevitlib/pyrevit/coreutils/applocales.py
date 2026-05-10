@@ -277,13 +277,11 @@ def get_locale_string_from_xaml(xaml_base_path, key):
     def _read_key(filepath):
         try:
             root = ET.parse(filepath).getroot()
-            ns = {
-                "x": "http://schemas.microsoft.com/winfx/2006/xaml",
-                "system": "clr-namespace:System;assembly=mscorlib",
-            }
-            elem = root.find(".//system:String[@x:Key='{}']".format(key), ns)
-            if elem is not None:
-                return elem.text
+            x_ns = "http://schemas.microsoft.com/winfx/2006/xaml"
+            sys_ns = "clr-namespace:System;assembly=mscorlib"
+            for elem in root.iter("{%s}String" % sys_ns):
+                if elem.get("{%s}Key" % x_ns) == key:
+                    return elem.text
         except Exception:
             pass
         return None
