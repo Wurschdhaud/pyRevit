@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """Run perflight checks on current model"""
 # pylint: disable=import-error,invalid-name,broad-except,superfluous-parens
 import os
