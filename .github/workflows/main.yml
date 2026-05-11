@@ -145,15 +145,11 @@ jobs:
         with:
           path: release/version
 
-      # Secrets are not available for pull_request workflows from forks; skip signing there (push run will sign).
+      # Only sign on merged PR runs (WIP/Release) or manual release dispatches.
       - name: Require Trusted Signing secrets
         if: >
           github.repository == env.MainRepo &&
-          (github.event_name != 'pull_request' ||
-           github.event.pull_request.head.repo.full_name == github.repository) &&
-          (env.WipRun == 'true' || env.ReleaseRun == 'true' ||
-           github.event_name == 'workflow_dispatch' ||
-           github.event_name == 'push')
+          (env.WipRun == 'true' || env.ReleaseRun == 'true')
         shell: pwsh
         run: |
           if (-not "${{ secrets.AZURE_ENDPOINT }}") { throw "Missing secret: AZURE_ENDPOINT" }
@@ -166,8 +162,7 @@ jobs:
       - name: Sign files with Trusted Signing (DLLs and EXEs)
         if: >
           github.repository == env.MainRepo &&
-          (github.event_name != 'pull_request' ||
-           github.event.pull_request.head.repo.full_name == github.repository)
+          (env.WipRun == 'true' || env.ReleaseRun == 'true')
         uses: azure/trusted-signing-action@v1.2.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -191,8 +186,7 @@ jobs:
       - name: Sign files with Trusted Signing (installers)
         if: >
           github.repository == env.MainRepo &&
-          (github.event_name != 'pull_request' ||
-           github.event.pull_request.head.repo.full_name == github.repository)
+          (env.WipRun == 'true' || env.ReleaseRun == 'true')
         uses: azure/trusted-signing-action@v1.2.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
