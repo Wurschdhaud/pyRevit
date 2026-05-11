@@ -7,7 +7,8 @@ from pyrevit import revit, UI
 
 def _has_painted_faces(el):
     try:
-        return bool(el.GetMaterialIds(True))
+        material_ids = el.GetMaterialIds(True)
+        return material_ids.Count > 0
     except Exception:
         return False
 
