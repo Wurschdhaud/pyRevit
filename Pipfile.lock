@@ -489,12 +489,12 @@
         },
         "mkdocs-section-index": {
             "hashes": [
-                "sha256:26f008f4860789e6c41dce868e3e1dcd1528f8cbc1db181416c5edc18f0f15a0",
-                "sha256:81a5948af0e974bfb474f40b45aeddbb621024ff132eb8ace8854b9db6b41812"
+                "sha256:285635bf86c643b0fc7a343053d7a818049817bff4408f52b80c4367bd5e7268",
+                "sha256:a1100039546beb4ebef63ce6fc91f3195fb9c0c3763105d4d3d7cd31e0a046eb"
             ],
             "index": "pypi",
-            "markers": "python_version >= '3.9'",
-            "version": "==0.3.11"
+            "markers": "python_version >= '3.10'",
+            "version": "==0.3.12"
         },
         "mkdocstrings": {
             "hashes": [
