@@ -76,5 +76,5 @@ if results:
         )
         my_config.set_option("custom_prefix_dwg_value", custom_prefix_value)
 
-    script.save_config(reload=True)
+    script.save_config()
     main()

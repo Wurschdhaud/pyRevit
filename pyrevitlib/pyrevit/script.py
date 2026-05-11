@@ -164,7 +164,7 @@ def get_config(section=None, reload=False):
     Args:
         section (str, optional): config section name. If not provided,
             it will default to the command name plus the 'config' suffix.
-        reload (bool, optional): forces a reload, in case changes where made.
+        reload (bool, optional): forces a reload, in case changes were made.
 
     Returns:
         (pyrevit.coreutils.configparser.PyRevitConfigSectionParser):
@@ -183,19 +183,14 @@ def get_config(section=None, reload=False):
         return user_config.add_section(section)
 
 
-def save_config(reload=False):
+def save_config():
     """Save pyRevit config.
 
     Scripts should call this to save any changes they have done to their
     config section object received from script.get_config() method.
-
-    Args:
-        reload (bool, optional): forces a reload, in case a script uses newly set config.
     """
     from pyrevit.userconfig import user_config
     user_config.save_changes()
-    if reload:
-        user_config.reload()
 
 
 def reset_config(section=None):
