@@ -10,7 +10,7 @@ from pyrevit import script
 
 
 def _is_cloud_path(model_path):
-    return hasattr(model_path, "CloudPath") and model_path.CloudPath
+    return bool(getattr(model_path, "CloudPath", None))
 
 
 def _get_acc_url(model_path):
