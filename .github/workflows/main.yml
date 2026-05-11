@@ -145,7 +145,7 @@ jobs:
         with:
           path: release/version
 
-      # Only sign on merged PR runs (WIP/Release) or manual release dispatches; skip fork PR contexts without secrets.
+      # Only sign on merged PR runs (WIP/Release); fork PR contexts without secrets are excluded.
       - name: Require Trusted Signing secrets
         if: >
           github.repository == env.MainRepo &&
