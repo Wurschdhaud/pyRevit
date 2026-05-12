@@ -1251,6 +1251,7 @@ namespace pyRevitExtensionParser
                 doc = SubstituteTemplates(doc, mergedTemplates);
                 author = SubstituteTemplates(author, mergedTemplates);
                 var hyperlink = SubstituteTemplates(bundleInComponent?.Hyperlink, mergedTemplates);
+                var bundleHelpUrl = SubstituteTemplates(bundleInComponent?.HelpUrl, mergedTemplates);
                 scriptHelpUrl = SubstituteTemplates(scriptHelpUrl, mergedTemplates);
 
                 // Apply template substitution to localized values
@@ -1288,8 +1289,8 @@ namespace pyRevitExtensionParser
                     : scriptHighlight;
 
                 // Determine final help URL: bundle helpurl takes precedence over script helpurl
-                string finalHelpUrl = !string.IsNullOrEmpty(bundleInComponent?.HelpUrl)
-                    ? bundleInComponent.HelpUrl
+                string finalHelpUrl = !string.IsNullOrEmpty(bundleHelpUrl)
+                    ? bundleHelpUrl
                     : scriptHelpUrl;
 
                 // Determine final help URL: bundle hyperlink takes precedence over script helpurl
@@ -1345,6 +1346,8 @@ namespace pyRevitExtensionParser
                     MaxRevitVersion = finalMaxRevitVersion,
                     IsBeta = finalIsBeta,
                     Collapsed = bundleInComponent?.Collapsed ?? false,
+                    InheritIcon = bundleInComponent?.InheritIcon ?? true,
+                    LargeIcon = bundleInComponent?.LargeIcon ?? false,
                     PanelBackground = bundleInComponent?.PanelBackground,
                     TitleBackground = bundleInComponent?.TitleBackground,
                     SlideoutBackground = bundleInComponent?.SlideoutBackground,
