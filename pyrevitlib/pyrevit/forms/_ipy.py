@@ -3154,7 +3154,7 @@ def select_family_parameters(
             list of FamilyParamOption objects or parameter name strings to pre-check
 
     Returns:
-        (list[FamilyParamOption]): list of family parameter option objects
+        (list[DB.FamilyParameter]): list of family parameter objects
 
     Examples:
         ```python
