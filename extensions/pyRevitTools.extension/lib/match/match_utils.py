@@ -33,7 +33,7 @@ class PropKeyValue(object):
         self.datatype = datatype
         self.value = value
         self.istype = istype
-        self.display_value = display_value or value
+        self.display_value = str(display_value or value)
         self.categories = categories if categories is not None else []
 
     @staticmethod
