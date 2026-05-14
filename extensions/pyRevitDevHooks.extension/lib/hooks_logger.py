@@ -16,14 +16,14 @@ def _timestamp():
 
 def _write_record(record_str):
     try:
-        log_dir = op.dirname(HOOK_LOGS)
-        if not op.exists(log_dir):
-            os.makedirs(log_dir)
+        try:
+            os.makedirs(op.dirname(HOOK_LOGS))
+        except OSError:
+            pass  # directory already exists - not an error
         with open(HOOK_LOGS, 'a') as f:
             f.write(record_str + '\n')
-    except (IOError, OSError) as e:
-        import sys
-        print("hooks_logger: failed to write to {}: {}".format(HOOK_LOGS, e), file=sys.stderr)
+    except (IOError, OSError):
+        pass  # silently swallow write failures (e.g. permission denied)
 
 
 def _get_hook_parts(hook_script):
