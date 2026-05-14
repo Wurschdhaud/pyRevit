@@ -1,9 +1,10 @@
 # pylint: skip-file
 import re
+import os
 import os.path as op
 import datetime
-USER_DESKTOP = op.expandvars('%userprofile%\\desktop')
-HOOK_LOGS = op.join(USER_DESKTOP, 'hooks.log')
+HOOK_LOGS = op.join(os.environ.get('APPDATA', op.expandvars('%userprofile%')),
+                    'pyRevit', 'hooks.log')
 
 
 from pyrevit import revit
@@ -14,8 +15,14 @@ def _timestamp():
 
 
 def _write_record(record_str):
-    with open(HOOK_LOGS, 'a') as f:
-        f.write(record_str + '\n')
+    try:
+        log_dir = op.dirname(HOOK_LOGS)
+        if not op.exists(log_dir):
+            os.makedirs(log_dir)
+        with open(HOOK_LOGS, 'a') as f:
+            f.write(record_str + '\n')
+    except (IOError, OSError):
+        pass
 
 
 def _get_hook_parts(hook_script):
