@@ -21,8 +21,9 @@ def _write_record(record_str):
             os.makedirs(log_dir)
         with open(HOOK_LOGS, 'a') as f:
             f.write(record_str + '\n')
-    except (IOError, OSError):
-        pass
+    except (IOError, OSError) as e:
+        import sys
+        print("hooks_logger: failed to write to {}: {}".format(HOOK_LOGS, e), file=sys.stderr)
 
 
 def _get_hook_parts(hook_script):
