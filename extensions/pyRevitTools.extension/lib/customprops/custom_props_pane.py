@@ -255,15 +255,19 @@ class CustomPropertiesPanel(forms.WPFPanel):
 
     def _setup_events(self):
         try:
-            HOST_APP.uiapp.SelectionChanged += framework.EventHandler[
+            self._sel_handler = framework.EventHandler[
                 UI.Events.SelectionChangedEventArgs
             ](self._on_selection_changed)
-            HOST_APP.app.DocumentChanged += framework.EventHandler[
+            self._doc_handler = framework.EventHandler[
                 DB.Events.DocumentChangedEventArgs
             ](self._on_doc_changed)
-            HOST_APP.uiapp.ViewActivated += framework.EventHandler[
+            self._view_handler = framework.EventHandler[
                 UI.Events.ViewActivatedEventArgs
             ](self._on_view_activated)
+
+            HOST_APP.uiapp.SelectionChanged += self._sel_handler
+            HOST_APP.app.DocumentChanged += self._doc_handler
+            HOST_APP.uiapp.ViewActivated += self._view_handler
         except Exception as ex:
             self.logger.warning("Event wiring failed: {}".format(ex))
 
@@ -291,15 +295,9 @@ class CustomPropertiesPanel(forms.WPFPanel):
 
     def _on_unloaded(self, sender, args):
         try:
-            HOST_APP.uiapp.SelectionChanged -= framework.EventHandler[
-                UI.Events.SelectionChangedEventArgs
-            ](self._on_selection_changed)
-            HOST_APP.app.DocumentChanged -= framework.EventHandler[
-                DB.Events.DocumentChangedEventArgs
-            ](self._on_doc_changed)
-            HOST_APP.uiapp.ViewActivated -= framework.EventHandler[
-                UI.Events.ViewActivatedEventArgs
-            ](self._on_view_activated)
+            HOST_APP.uiapp.SelectionChanged -= self._sel_handler
+            HOST_APP.app.DocumentChanged -= self._doc_handler
+            HOST_APP.uiapp.ViewActivated -= self._view_handler
         except Exception:
             pass
 
@@ -337,7 +335,10 @@ class CustomPropertiesPanel(forms.WPFPanel):
             deleted = set(args.GetDeletedElementIds())
             current_ids = set(e.Id for e in self._elements)
             if current_ids & (modified | deleted):
-                self._safe_ui(self._update_display, list(self._elements), doc)
+                live_ids = current_ids - deleted
+                live_elements = [doc.GetElement(eid) for eid in live_ids]
+                live_elements = [e for e in live_elements if e is not None]
+                self._safe_ui(self._update_display, live_elements, doc)
         except Exception:
             pass
 
@@ -904,13 +905,13 @@ class CustomPropertiesPanel(forms.WPFPanel):
             return True
         doc = self._doc
         try:
-            cat_ids = [e.Category.Id for e in self._elements if e.Category]
+            cat_ids = list(set(e.Category.Id for e in self._elements if e.Category))
             if not cat_ids:
                 return True
             filterable_vals = set(
                 get_elementid_value(fid)
                 for fid in DB.ParameterFilterUtilities.GetFilterableParametersInCommon(
-                    doc, framework.List[DB.ElementId]([cat_ids[0]])
+                    doc, framework.List[DB.ElementId](cat_ids)
                 )
             )
         except AttributeError:
@@ -1218,12 +1219,12 @@ class CustomPropertiesPanel(forms.WPFPanel):
             param_id = self._get_param_id(doc, pkv)
             if not param_id:
                 return False
-            cat_ids = [e.Category.Id for e in self._elements if e.Category]
+            cat_ids = list(set(e.Category.Id for e in self._elements if e.Category))
             if not cat_ids:
                 return False
             filterable = DB.ParameterFilterUtilities.GetFilterableParametersInCommon(
                 doc,
-                framework.List[DB.ElementId]([cat_ids[0]]),
+                framework.List[DB.ElementId](cat_ids),
             )
             param_id_val = get_elementid_value(param_id)
             return any(get_elementid_value(fid) == param_id_val for fid in filterable)
