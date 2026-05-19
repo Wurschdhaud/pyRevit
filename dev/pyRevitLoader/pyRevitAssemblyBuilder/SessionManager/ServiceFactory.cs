@@ -133,7 +133,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
         /// <param name="buildContext">Shared build context that carries the current per-build settings.</param>
         /// <param name="smartButtonScriptInitializer">The shared SmartButton script initializer. Must be the same instance passed to <see cref="CreateStackBuilder"/> so a single IronPython engine is reused across both standalone and stacked SmartButton paths.</param>
         /// <returns>A new IButtonBuilderFactory instance.</returns>
-        public static IButtonBuilderFactory CreateButtonBuilderFactory(UIApplication uiApplication, ILogger logger, IButtonPostProcessor buttonPostProcessor, BuildContext buildContext, SmartButtonScriptInitializer smartButtonScriptInitializer)
+        public static IButtonBuilderFactory CreateButtonBuilderFactory(ILogger logger, IButtonPostProcessor buttonPostProcessor, BuildContext buildContext, SmartButtonScriptInitializer smartButtonScriptInitializer)
         {
             // Create individual button builders
             var linkButtonBuilder = new LinkButtonBuilder(logger, buttonPostProcessor);
