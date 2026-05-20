@@ -266,8 +266,6 @@ namespace pyRevitAssemblyBuilder.SessionManager
             var panelStyleManager = CreatePanelStyleManager(logger);
             var tabBuilder = CreateTabBuilder(uiApplication, logger);
             var panelBuilder = CreatePanelBuilder(uiApplication, logger, panelStyleManager);
-            // Single shared SmartButton initializer so the IronPython engine is spun up once,
-            // not once per code path (standalone buttons vs. stacked buttons).
             var smartButtonScriptInitializer = new SmartButtonScriptInitializer(uiApplication, logger);
             var buttonBuilderFactory = CreateButtonBuilderFactory(logger, buttonPostProcessor, buildContext, smartButtonScriptInitializer);
             var stackBuilder = CreateStackBuilder(logger, buttonPostProcessor, buildContext, smartButtonScriptInitializer);
