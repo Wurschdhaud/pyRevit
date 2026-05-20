@@ -52,6 +52,12 @@ namespace pyRevitAssemblyBuilder.UIManager
         private readonly List<(string PanelName, long ElapsedMs)> _panelTimings = new List<(string, long)>();
 
         /// <summary>
+        /// Snapshot of <see cref="IButtonPostProcessor.ResetAndGetStats"/> taken at the end of
+        /// the most recent <see cref="BuildUI"/> call. Read by <see cref="EmitBuildUIPerfLines"/>.
+        /// </summary>
+        private (long IconMs, long TooltipMs, long HelpMs, long HighlightMs, int Calls) _postProcessorStats;
+
+        /// <summary>
         /// Gets the UIApplication instance used by this service.
         /// </summary>
         public UIApplication UIApplication => _uiApp;
@@ -164,6 +170,10 @@ namespace pyRevitAssemblyBuilder.UIManager
             _topLevelCount.Clear();
             _panelTimings.Clear();
 
+            // Clear per-build accumulators on shared collaborators so what we capture below
+            // attributes only to this extension's BuildUI window.
+            _buttonPostProcessor.ResetAndGetStats();
+
             var topLevelSw = new Stopwatch();
             foreach (var component in extension.Children)
             {
@@ -178,6 +188,8 @@ namespace pyRevitAssemblyBuilder.UIManager
                     _topLevelCount[key] = _topLevelCount.TryGetValue(key, out var c) ? c + 1 : 1;
                 }
             }
+
+            _postProcessorStats = _buttonPostProcessor.ResetAndGetStats();
             _currentExtension = null;
         }
 
@@ -201,6 +213,14 @@ namespace pyRevitAssemblyBuilder.UIManager
             foreach (var (panelName, elapsedMs) in _panelTimings.OrderByDescending(p => p.ElapsedMs))
             {
                 _logger.Debug($"[PERF]   {extensionName}/Panel '{panelName}': {elapsedMs}ms");
+            }
+
+            var pp = _postProcessorStats;
+            if (pp.Calls > 0)
+            {
+                _logger.Debug(
+                    $"[PERF]   {extensionName}/Post: icon={pp.IconMs}ms, tip={pp.TooltipMs}ms, " +
+                    $"help={pp.HelpMs}ms, hl={pp.HighlightMs}ms (x{pp.Calls})");
             }
         }
 

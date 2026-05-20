@@ -1,6 +1,8 @@
 #nullable enable
 using System;
 using System.Collections;
+using System.Diagnostics;
+using System.Threading;
 using Autodesk.Revit.UI;
 using Autodesk.Windows;
 using pyRevitAssemblyBuilder.UIManager.Icons;
@@ -21,6 +23,14 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
         private readonly ILogger _logger;
         private readonly IIconManager _iconManager;
         private readonly ITooltipManager _tooltipManager;
+
+        // Sub-step timing accumulators. Updated with Interlocked so calls from a future
+        // off-thread caller (e.g. parallel icon warm-up) can't tear the counters.
+        private long _iconMs;
+        private long _tooltipMs;
+        private long _helpMs;
+        private long _highlightMs;
+        private int _processCalls;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ButtonPostProcessor"/> class.
@@ -56,24 +66,46 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
             if (ribbonItem == null || component == null)
                 return;
 
+            var sw = new Stopwatch();
+            Interlocked.Increment(ref _processCalls);
+
             try
             {
                 // Apply icon (with optional parent fallback)
+                sw.Restart();
                 _iconManager.ApplyIcon(ribbonItem, component, parentComponent, iconMode);
+                Interlocked.Add(ref _iconMs, sw.ElapsedMilliseconds);
 
                 // Apply tooltip (text + media)
+                sw.Restart();
                 _tooltipManager.ApplyTooltip(ribbonItem, component);
+                Interlocked.Add(ref _tooltipMs, sw.ElapsedMilliseconds);
 
                 // Apply contextual help (F1 help URL)
+                sw.Restart();
                 ApplyContextualHelp(ribbonItem, component);
+                Interlocked.Add(ref _helpMs, sw.ElapsedMilliseconds);
 
                 // Apply highlight (new/updated badge)
+                sw.Restart();
                 ApplyHighlight(ribbonItem, component);
+                Interlocked.Add(ref _highlightMs, sw.ElapsedMilliseconds);
             }
             catch (Exception ex)
             {
                 _logger.Debug($"Failed to process button '{component.DisplayName}'. Exception: {ex.Message}");
             }
+        }
+
+        /// <inheritdoc/>
+        public (long IconMs, long TooltipMs, long HelpMs, long HighlightMs, int Calls) ResetAndGetStats()
+        {
+            var icon = Interlocked.Exchange(ref _iconMs, 0);
+            var tooltip = Interlocked.Exchange(ref _tooltipMs, 0);
+            var help = Interlocked.Exchange(ref _helpMs, 0);
+            var highlight = Interlocked.Exchange(ref _highlightMs, 0);
+            var calls = Interlocked.Exchange(ref _processCalls, 0);
+            return (icon, tooltip, help, highlight, calls);
         }
 
         /// <inheritdoc/>
