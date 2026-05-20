@@ -1,5 +1,7 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Autodesk.Revit.UI;
 using pyRevitAssemblyBuilder.AssemblyMaker;
@@ -34,6 +36,20 @@ namespace pyRevitAssemblyBuilder.UIManager
         /// When true, non-critical startup work (e.g. icon pre-loading) is skipped to reduce load time.
         /// </summary>
         private bool _rocketMode;
+
+        /// <summary>
+        /// Per-type aggregated time spent at the top level of the current extension
+        /// (direct children of <c>extension.Children</c>). Populated during <see cref="BuildUI"/>
+        /// and read back by <see cref="EmitBuildUIPerfLines"/>.
+        /// </summary>
+        private readonly Dictionary<CommandComponentType, long> _topLevelMs = new Dictionary<CommandComponentType, long>();
+        private readonly Dictionary<CommandComponentType, int> _topLevelCount = new Dictionary<CommandComponentType, int>();
+
+        /// <summary>
+        /// Per-panel timing captured inside <see cref="HandleTab"/>. Recorded in build order
+        /// so the emitted lines stay deterministic across runs even when sorted by elapsed.
+        /// </summary>
+        private readonly List<(string PanelName, long ElapsedMs)> _panelTimings = new List<(string, long)>();
 
         /// <summary>
         /// Gets the UIApplication instance used by this service.
@@ -144,14 +160,48 @@ namespace pyRevitAssemblyBuilder.UIManager
             // The OS file cache is already warm from bundle.yaml parsing in PASS 1.
 
             _currentExtension = extension;
+            _topLevelMs.Clear();
+            _topLevelCount.Clear();
+            _panelTimings.Clear();
+
+            var topLevelSw = new Stopwatch();
             foreach (var component in extension.Children)
             {
                 if (component != null)
                 {
+                    topLevelSw.Restart();
                     RecursivelyBuildUI(component, null, null, extension.Name, assemblyInfo);
+                    var elapsed = topLevelSw.ElapsedMilliseconds;
+
+                    var key = component.Type;
+                    _topLevelMs[key] = _topLevelMs.TryGetValue(key, out var prev) ? prev + elapsed : elapsed;
+                    _topLevelCount[key] = _topLevelCount.TryGetValue(key, out var c) ? c + 1 : 1;
                 }
             }
             _currentExtension = null;
+        }
+
+        /// <summary>
+        /// Emits the per-extension [PERF] breakdown lines collected during the most recent
+        /// <see cref="BuildUI"/> call. Called by the session manager immediately after the
+        /// wrapping <c>[PERF] {ext.Name} - BuildUI: Xms</c> line so the sub-step detail sits
+        /// underneath it in the log.
+        /// </summary>
+        public void EmitBuildUIPerfLines(string extensionName)
+        {
+            if (string.IsNullOrEmpty(extensionName))
+                return;
+
+            foreach (var kv in _topLevelMs.OrderByDescending(p => p.Value))
+            {
+                var count = _topLevelCount.TryGetValue(kv.Key, out var n) ? n : 0;
+                _logger.Debug($"[PERF]   {extensionName}/{kv.Key} (x{count}): {kv.Value}ms");
+            }
+
+            foreach (var (panelName, elapsedMs) in _panelTimings.OrderByDescending(p => p.ElapsedMs))
+            {
+                _logger.Debug($"[PERF]   {extensionName}/Panel '{panelName}': {elapsedMs}ms");
+            }
         }
 
         /// <summary>
@@ -248,9 +298,22 @@ namespace pyRevitAssemblyBuilder.UIManager
                 _logger.Debug($"Tab '{tabText}' has current Title '{renamedTabTitle}' — marked both as touched.");
             }
 
-            // Recursively build children, passing the renamed title so panels can dual-mark too
+            // Recursively build children, passing the renamed title so panels can dual-mark too.
+            // Time each child (typically a panel) individually so we can pinpoint a slow panel
+            // within an otherwise fast tab.
+            var childSw = new Stopwatch();
             foreach (var child in component.Children ?? Enumerable.Empty<ParsedComponent>())
+            {
+                if (child == null)
+                    continue;
+
+                childSw.Restart();
                 RecursivelyBuildUI(child, component, null, tabText, assemblyInfo, renamedTabTitle);
+                var elapsed = childSw.ElapsedMilliseconds;
+
+                var label = string.IsNullOrEmpty(child.DisplayName) ? child.Type.ToString() : child.DisplayName;
+                _panelTimings.Add((label, elapsed));
+            }
         }
 
         private void HandlePanel(ParsedComponent component, string tabName,

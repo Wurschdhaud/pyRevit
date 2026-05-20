@@ -231,6 +231,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
                     stepStopwatch.Restart();
                     _uiManager?.BuildUI(ext, assmInfo);
                     _logger.Debug($"[PERF] {ext.Name} - BuildUI: {stepStopwatch.ElapsedMilliseconds}ms");
+                    _uiManager?.EmitBuildUIPerfLines(ext.Name);
                     _logger.Info($"UI created for extension: {ext.Name}");
                 }
                 catch (Exception ex)
