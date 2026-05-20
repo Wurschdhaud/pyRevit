@@ -58,6 +58,12 @@ namespace pyRevitAssemblyBuilder.UIManager
         private (long IconMs, long TooltipMs, long HelpMs, long HighlightMs, int Calls) _postProcessorStats;
 
         /// <summary>
+        /// Snapshot of <see cref="IIconManager.ResetAndGetStats"/> taken at the end of the most
+        /// recent <see cref="BuildUI"/> call.
+        /// </summary>
+        private (int CacheHits, int CacheMisses, long DecodeMs) _iconStats;
+
+        /// <summary>
         /// Gets the UIApplication instance used by this service.
         /// </summary>
         public UIApplication UIApplication => _uiApp;
@@ -173,6 +179,7 @@ namespace pyRevitAssemblyBuilder.UIManager
             // Clear per-build accumulators on shared collaborators so what we capture below
             // attributes only to this extension's BuildUI window.
             _buttonPostProcessor.ResetAndGetStats();
+            _buttonPostProcessor.IconManager?.ResetAndGetStats();
 
             var topLevelSw = new Stopwatch();
             foreach (var component in extension.Children)
@@ -190,6 +197,7 @@ namespace pyRevitAssemblyBuilder.UIManager
             }
 
             _postProcessorStats = _buttonPostProcessor.ResetAndGetStats();
+            _iconStats = _buttonPostProcessor.IconManager?.ResetAndGetStats() ?? (0, 0, 0L);
             _currentExtension = null;
         }
 
@@ -221,6 +229,14 @@ namespace pyRevitAssemblyBuilder.UIManager
                 _logger.Debug(
                     $"[PERF]   {extensionName}/Post: icon={pp.IconMs}ms, tip={pp.TooltipMs}ms, " +
                     $"help={pp.HelpMs}ms, hl={pp.HighlightMs}ms (x{pp.Calls})");
+            }
+
+            var ic = _iconStats;
+            if (ic.CacheHits > 0 || ic.CacheMisses > 0 || ic.DecodeMs > 0)
+            {
+                _logger.Debug(
+                    $"[PERF]   {extensionName}/Icons: hits={ic.CacheHits}, " +
+                    $"misses={ic.CacheMisses}, decode={ic.DecodeMs}ms");
             }
         }
 
