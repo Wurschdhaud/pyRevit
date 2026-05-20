@@ -160,6 +160,8 @@ class SettingsWindow(forms.WPFWindow):
         
         self.new_loader.IsChecked = user_config.new_loader
 
+        self.read_script_metadata_cb.IsChecked = user_config.read_script_metadata
+
         self.minimize_consoles_cb.IsChecked = user_config.output_close_others
 
         mode = user_config.output_close_mode_enum
@@ -863,6 +865,7 @@ class SettingsWindow(forms.WPFWindow):
 
         user_config.load_beta = self.loadbetatools_cb.IsChecked
         user_config.new_loader = self.new_loader.IsChecked
+        user_config.read_script_metadata = self.read_script_metadata_cb.IsChecked
 
         user_config.output_close_others = self.minimize_consoles_cb.IsChecked
         if self.closewindows_current_rb.IsChecked:

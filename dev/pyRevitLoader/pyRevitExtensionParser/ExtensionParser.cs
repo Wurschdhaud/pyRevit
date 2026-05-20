@@ -1572,7 +1572,9 @@ namespace pyRevitExtensionParser
 
         private static PythonScriptConstants ReadPythonScriptConstants(string scriptPath)
         {
-            // Check cache first
+            if (!GetConfig().ReadScriptMetadata)
+                return new PythonScriptConstants();
+
             if (_pythonScriptCache.TryGetValue(scriptPath, out var cached))
                 return cached;
 
