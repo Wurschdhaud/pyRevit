@@ -127,7 +127,6 @@ namespace pyRevitAssemblyBuilder.SessionManager
         /// <summary>
         /// Creates a ButtonBuilderFactory with all registered button builders.
         /// </summary>
-        /// <param name="uiApplication">The Revit UIApplication instance.</param>
         /// <param name="logger">The logger instance.</param>
         /// <param name="buttonPostProcessor">The button post-processor instance.</param>
         /// <param name="buildContext">Shared build context that carries the current per-build settings.</param>
@@ -158,13 +157,12 @@ namespace pyRevitAssemblyBuilder.SessionManager
         /// <summary>
         /// Creates a StackBuilder instance.
         /// </summary>
-        /// <param name="uiApplication">The Revit UIApplication instance.</param>
         /// <param name="logger">The logger instance.</param>
         /// <param name="buttonPostProcessor">The button post-processor instance.</param>
         /// <param name="buildContext">Shared build context that carries the current per-build settings.</param>
         /// <param name="smartButtonScriptInitializer">The shared SmartButton script initializer. Must be the same instance passed to <see cref="CreateButtonBuilderFactory"/> so a single IronPython engine is reused across both standalone and stacked SmartButton paths.</param>
         /// <returns>A new IStackBuilder instance.</returns>
-        public static IStackBuilder CreateStackBuilder(UIApplication uiApplication, ILogger logger, IButtonPostProcessor buttonPostProcessor, BuildContext buildContext, SmartButtonScriptInitializer smartButtonScriptInitializer)
+        public static IStackBuilder CreateStackBuilder(ILogger logger, IButtonPostProcessor buttonPostProcessor, BuildContext buildContext, SmartButtonScriptInitializer smartButtonScriptInitializer)
         {
             var linkButtonBuilder = new LinkButtonBuilder(logger, buttonPostProcessor);
             var pulldownButtonBuilder = new PulldownButtonBuilder(buildContext, logger, buttonPostProcessor, linkButtonBuilder, smartButtonScriptInitializer);
@@ -271,8 +269,8 @@ namespace pyRevitAssemblyBuilder.SessionManager
             // Single shared SmartButton initializer so the IronPython engine is spun up once,
             // not once per code path (standalone buttons vs. stacked buttons).
             var smartButtonScriptInitializer = new SmartButtonScriptInitializer(uiApplication, logger);
-            var buttonBuilderFactory = CreateButtonBuilderFactory(uiApplication, logger, buttonPostProcessor, buildContext, smartButtonScriptInitializer);
-            var stackBuilder = CreateStackBuilder(uiApplication, logger, buttonPostProcessor, buildContext, smartButtonScriptInitializer);
+            var buttonBuilderFactory = CreateButtonBuilderFactory(logger, buttonPostProcessor, buildContext, smartButtonScriptInitializer);
+            var stackBuilder = CreateStackBuilder(logger, buttonPostProcessor, buildContext, smartButtonScriptInitializer);
             var comboBoxBuilder = CreateComboBoxBuilder(uiApplication, logger, buttonPostProcessor);
 
             // Create ribbon scanner for UI cleanup
