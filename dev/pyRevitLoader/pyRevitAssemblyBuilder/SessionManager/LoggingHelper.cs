@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.IO;
 using pyRevitLabs.NLog;
 
 namespace pyRevitAssemblyBuilder.SessionManager
@@ -10,7 +11,9 @@ namespace pyRevitAssemblyBuilder.SessionManager
     public class LoggingHelper : ILogger
     {
         private static readonly Logger nlog = LogManager.GetCurrentClassLogger();
+        private static readonly object _sidecarLock = new object();
         private readonly dynamic? _pythonLogger;
+        private readonly string? _sidecarPath;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="LoggingHelper"/> class.
@@ -19,6 +22,36 @@ namespace pyRevitAssemblyBuilder.SessionManager
         public LoggingHelper(object? pythonLogger)
         {
             _pythonLogger = pythonLogger;
+
+            // Sidecar capture: when PYREVIT_CSHARP_LOG_FILE is set, mirror every log
+            // line to a flat text file. Sidesteps the C#-mlogger → Python FileHandler
+            // bridge issue where _pythonLogger.debug(...) calls don't reach runtime.log.
+            var path = Environment.GetEnvironmentVariable("PYREVIT_CSHARP_LOG_FILE");
+            _sidecarPath = string.IsNullOrWhiteSpace(path) ? null : path;
+        }
+
+        /// <summary>
+        /// Appends a timestamped line to the sidecar log file when configured.
+        /// Swallows IO exceptions: instrumentation must never break the loader.
+        /// </summary>
+        private void WriteSidecar(string level, string message)
+        {
+            if (_sidecarPath == null)
+                return;
+
+            try
+            {
+                lock (_sidecarLock)
+                {
+                    File.AppendAllText(
+                        _sidecarPath,
+                        $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {level} {message}{Environment.NewLine}");
+                }
+            }
+            catch
+            {
+                // Intentionally swallowed — sidecar is best-effort.
+            }
         }
 
         /// <summary>
@@ -38,6 +71,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
             {
                 nlog.Error(ex, "Logging (Info) failed");
             }
+            WriteSidecar("INFO ", message);
         }
 
         /// <summary>
@@ -57,6 +91,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
             {
                 nlog.Error(ex, "Logging (Debug) failed");
             }
+            WriteSidecar("DEBUG", message);
         }
 
         /// <summary>
@@ -76,6 +111,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
             {
                 nlog.Error(ex, "Logging (Error) failed");
             }
+            WriteSidecar("ERROR", message);
         }
 
         /// <summary>
@@ -95,6 +131,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
             {
                 nlog.Error(ex, "Logging (Warning) failed");
             }
+            WriteSidecar("WARN ", message);
         }
     }
 }
