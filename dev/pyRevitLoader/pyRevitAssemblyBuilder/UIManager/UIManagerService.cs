@@ -77,6 +77,18 @@ namespace pyRevitAssemblyBuilder.UIManager
         private (long SelfInitMs, int Calls) _smartButtonStats;
 
         /// <summary>
+        /// Per-type build counts for the current extension. Populated by
+        /// <see cref="RecursivelyBuildUI"/> as it walks supported components.
+        /// </summary>
+        private readonly Dictionary<CommandComponentType, int> _typeCounts = new Dictionary<CommandComponentType, int>();
+
+        /// <summary>
+        /// Total declared child count for compound components (split/pulldown/stack) seen in
+        /// the current extension. Provides context for per-type counts in the Counts: line.
+        /// </summary>
+        private readonly Dictionary<CommandComponentType, int> _childCounts = new Dictionary<CommandComponentType, int>();
+
+        /// <summary>
         /// Gets the UIApplication instance used by this service.
         /// </summary>
         public UIApplication UIApplication => _uiApp;
@@ -191,6 +203,8 @@ namespace pyRevitAssemblyBuilder.UIManager
             _topLevelMs.Clear();
             _topLevelCount.Clear();
             _panelTimings.Clear();
+            _typeCounts.Clear();
+            _childCounts.Clear();
 
             // Clear per-build accumulators on shared collaborators so what we capture below
             // attributes only to this extension's BuildUI window.
@@ -270,6 +284,55 @@ namespace pyRevitAssemblyBuilder.UIManager
             {
                 _logger.Debug($"[PERF]   {extensionName}/SmartButton: selfinit={sb.SelfInitMs}ms (x{sb.Calls})");
             }
+
+            EmitCountsLine(extensionName);
+        }
+
+        /// <summary>
+        /// Emits a one-line summary of the per-type and per-compound-children counts collected
+        /// during the most recent <see cref="BuildUI"/> call. Helps interpret the timing lines
+        /// above by giving raw composition (e.g. a slow extension with 200 push buttons reads
+        /// differently from one with 20).
+        /// </summary>
+        private void EmitCountsLine(string extensionName)
+        {
+            if (_typeCounts.Count == 0)
+                return;
+
+            var parts = new List<string>();
+            AppendCount(parts, "panels", CommandComponentType.Panel);
+            AppendCount(parts, "push", CommandComponentType.PushButton);
+            AppendCount(parts, "smart", CommandComponentType.SmartButton);
+            AppendCountWithChildren(parts, "split", CommandComponentType.SplitButton);
+            AppendCountWithChildren(parts, "splitpush", CommandComponentType.SplitPushButton);
+            AppendCountWithChildren(parts, "pulldown", CommandComponentType.PullDown);
+            AppendCountWithChildren(parts, "stack", CommandComponentType.Stack);
+            AppendCount(parts, "panelbtn", CommandComponentType.PanelButton);
+            AppendCount(parts, "link", CommandComponentType.LinkButton);
+            AppendCount(parts, "url", CommandComponentType.UrlButton);
+            AppendCount(parts, "invoke", CommandComponentType.InvokeButton);
+            AppendCount(parts, "content", CommandComponentType.ContentButton);
+            AppendCount(parts, "combo", CommandComponentType.ComboBox);
+
+            if (parts.Count == 0)
+                return;
+
+            _logger.Debug($"[PERF]   {extensionName}/Counts: {string.Join(", ", parts)}");
+        }
+
+        private void AppendCount(List<string> parts, string label, CommandComponentType type)
+        {
+            if (_typeCounts.TryGetValue(type, out var n) && n > 0)
+                parts.Add($"{label}={n}");
+        }
+
+        private void AppendCountWithChildren(List<string> parts, string label, CommandComponentType type)
+        {
+            if (!_typeCounts.TryGetValue(type, out var n) || n <= 0)
+                return;
+
+            var children = _childCounts.TryGetValue(type, out var c) ? c : 0;
+            parts.Add(children > 0 ? $"{label}={n} ({children} children)" : $"{label}={n}");
         }
 
         /// <summary>
@@ -318,6 +381,22 @@ namespace pyRevitAssemblyBuilder.UIManager
             {
                 _logger.Debug($"Skipping component '{component.DisplayName}' due to version incompatibility or beta status.");
                 return;
+            }
+
+            // Composition counts for this extension. Skip Tab so the summary line reads
+            // panels=N, push=N, ... rather than starting with tab=1 every time.
+            if (component.Type != CommandComponentType.Tab)
+            {
+                _typeCounts[component.Type] = _typeCounts.TryGetValue(component.Type, out var n) ? n + 1 : 1;
+
+                if (component.Type == CommandComponentType.Stack
+                    || component.Type == CommandComponentType.PullDown
+                    || component.Type == CommandComponentType.SplitButton
+                    || component.Type == CommandComponentType.SplitPushButton)
+                {
+                    var childCount = component.Children?.Count ?? 0;
+                    _childCounts[component.Type] = _childCounts.TryGetValue(component.Type, out var c) ? c + childCount : childCount;
+                }
             }
 
             switch (component.Type)
