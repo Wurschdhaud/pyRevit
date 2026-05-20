@@ -32,6 +32,12 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
         private long _highlightMs;
         private int _processCalls;
 
+        // AddItem timing accumulator. Builders call RecordAddItemMs around their
+        // parentPanel.AddItem(...) / splitBtn.AddPushButton(...) calls so we can answer
+        // "is the Revit ribbon API itself the bottleneck?" per extension.
+        private long _addItemMs;
+        private int _addItemCalls;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ButtonPostProcessor"/> class.
         /// </summary>
@@ -106,6 +112,21 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
             var highlight = Interlocked.Exchange(ref _highlightMs, 0);
             var calls = Interlocked.Exchange(ref _processCalls, 0);
             return (icon, tooltip, help, highlight, calls);
+        }
+
+        /// <inheritdoc/>
+        public void RecordAddItemMs(long elapsedMs)
+        {
+            Interlocked.Add(ref _addItemMs, elapsedMs);
+            Interlocked.Increment(ref _addItemCalls);
+        }
+
+        /// <inheritdoc/>
+        public (long AddItemMs, int Calls) ResetAndGetAddItemStats()
+        {
+            var ms = Interlocked.Exchange(ref _addItemMs, 0);
+            var calls = Interlocked.Exchange(ref _addItemCalls, 0);
+            return (ms, calls);
         }
 
         /// <inheritdoc/>

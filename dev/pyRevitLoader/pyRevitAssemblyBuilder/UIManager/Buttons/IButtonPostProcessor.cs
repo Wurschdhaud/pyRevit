@@ -67,5 +67,18 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
         /// when no <see cref="Process"/> calls have run since the previous reset.
         /// </returns>
         (long IconMs, long TooltipMs, long HelpMs, long HighlightMs, int Calls) ResetAndGetStats();
+
+        /// <summary>
+        /// Adds <paramref name="elapsedMs"/> to the shared AddItem accumulator. Builders call
+        /// this from around their <c>parentPanel.AddItem(...)</c> / <c>splitBtn.AddPushButton(...)</c>
+        /// invocations so the per-extension instrumentation can quantify how much BuildUI time
+        /// is spent inside the Revit ribbon API itself.
+        /// </summary>
+        void RecordAddItemMs(long elapsedMs);
+
+        /// <summary>
+        /// Returns the accumulated AddItem timing collected since the last call and resets it.
+        /// </summary>
+        (long AddItemMs, int Calls) ResetAndGetAddItemStats();
     }
 }

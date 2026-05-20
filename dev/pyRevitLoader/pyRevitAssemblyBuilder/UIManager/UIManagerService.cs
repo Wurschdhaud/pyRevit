@@ -27,6 +27,7 @@ namespace pyRevitAssemblyBuilder.UIManager
         private readonly IStackBuilder _stackBuilder;
         private readonly IComboBoxBuilder _comboBoxBuilder;
         private readonly IUIRibbonScanner? _ribbonScanner;
+        private readonly SmartButtonScriptInitializer? _smartButtonScriptInitializer;
         private readonly UIApplication _uiApp;
         private readonly BuildContext _buildContext;
         private ParsedExtension? _currentExtension;
@@ -64,6 +65,18 @@ namespace pyRevitAssemblyBuilder.UIManager
         private (int CacheHits, int CacheMisses, long DecodeMs) _iconStats;
 
         /// <summary>
+        /// Snapshot of <see cref="IButtonPostProcessor.ResetAndGetAddItemStats"/> taken at the
+        /// end of the most recent <see cref="BuildUI"/> call.
+        /// </summary>
+        private (long AddItemMs, int Calls) _addItemStats;
+
+        /// <summary>
+        /// Snapshot of <see cref="SmartButtonScriptInitializer.ResetAndGetStats"/> taken at
+        /// the end of the most recent <see cref="BuildUI"/> call.
+        /// </summary>
+        private (long SelfInitMs, int Calls) _smartButtonStats;
+
+        /// <summary>
         /// Gets the UIApplication instance used by this service.
         /// </summary>
         public UIApplication UIApplication => _uiApp;
@@ -87,6 +100,7 @@ namespace pyRevitAssemblyBuilder.UIManager
         /// <param name="comboBoxBuilder">The combo box builder instance.</param>
         /// <param name="buildContext">Shared build context that holds the current per-build settings; updated at the start of each <see cref="BuildUI"/> call so all builders observe the same snapshot.</param>
         /// <param name="ribbonScanner">Optional ribbon scanner for tracking UI elements.</param>
+        /// <param name="smartButtonScriptInitializer">Optional SmartButton initializer; passed in only to read per-extension self-init timing.</param>
         public UIManagerService(
             UIApplication uiApp,
             ILogger logger,
@@ -97,7 +111,8 @@ namespace pyRevitAssemblyBuilder.UIManager
             IStackBuilder stackBuilder,
             IComboBoxBuilder comboBoxBuilder,
             BuildContext buildContext,
-            IUIRibbonScanner? ribbonScanner = null)
+            IUIRibbonScanner? ribbonScanner = null,
+            SmartButtonScriptInitializer? smartButtonScriptInitializer = null)
         {
             _uiApp = uiApp ?? throw new ArgumentNullException(nameof(uiApp));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -109,6 +124,7 @@ namespace pyRevitAssemblyBuilder.UIManager
             _comboBoxBuilder = comboBoxBuilder ?? throw new ArgumentNullException(nameof(comboBoxBuilder));
             _buildContext = buildContext ?? throw new ArgumentNullException(nameof(buildContext));
             _ribbonScanner = ribbonScanner;
+            _smartButtonScriptInitializer = smartButtonScriptInitializer;
 
             RefreshBuildSettings(initial: true);
         }
@@ -179,7 +195,9 @@ namespace pyRevitAssemblyBuilder.UIManager
             // Clear per-build accumulators on shared collaborators so what we capture below
             // attributes only to this extension's BuildUI window.
             _buttonPostProcessor.ResetAndGetStats();
+            _buttonPostProcessor.ResetAndGetAddItemStats();
             _buttonPostProcessor.IconManager?.ResetAndGetStats();
+            _smartButtonScriptInitializer?.ResetAndGetStats();
 
             var topLevelSw = new Stopwatch();
             foreach (var component in extension.Children)
@@ -197,7 +215,9 @@ namespace pyRevitAssemblyBuilder.UIManager
             }
 
             _postProcessorStats = _buttonPostProcessor.ResetAndGetStats();
+            _addItemStats = _buttonPostProcessor.ResetAndGetAddItemStats();
             _iconStats = _buttonPostProcessor.IconManager?.ResetAndGetStats() ?? (0, 0, 0L);
+            _smartButtonStats = _smartButtonScriptInitializer?.ResetAndGetStats() ?? (0L, 0);
             _currentExtension = null;
         }
 
@@ -237,6 +257,18 @@ namespace pyRevitAssemblyBuilder.UIManager
                 _logger.Debug(
                     $"[PERF]   {extensionName}/Icons: hits={ic.CacheHits}, " +
                     $"misses={ic.CacheMisses}, decode={ic.DecodeMs}ms");
+            }
+
+            var ai = _addItemStats;
+            if (ai.Calls > 0)
+            {
+                _logger.Debug($"[PERF]   {extensionName}/AddItem: {ai.AddItemMs}ms (x{ai.Calls})");
+            }
+
+            var sb = _smartButtonStats;
+            if (sb.Calls > 0)
+            {
+                _logger.Debug($"[PERF]   {extensionName}/SmartButton: selfinit={sb.SelfInitMs}ms (x{sb.Calls})");
             }
         }
 

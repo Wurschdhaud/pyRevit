@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using Autodesk.Revit.UI;
 using pyRevitExtensionParser;
 using pyRevitAssemblyBuilder.SessionManager;
@@ -262,6 +264,11 @@ namespace pyRevitAssemblyBuilder.UIManager
         private bool _instanceInitialized;
         private bool _instanceInitializationFailed;
 
+        // Per-extension instrumentation: accumulated time spent inside the IronPython
+        // ExecuteSelfInit call. Read and reset by UIManagerService around each BuildUI.
+        private long _selfInitMs;
+        private int _selfInitCalls;
+
         public SmartButtonScriptInitializer(UIApplication uiApp, ILogger logger)
         {
             _uiApp = uiApp;
@@ -396,6 +403,7 @@ namespace pyRevitAssemblyBuilder.UIManager
                 }
             }
 
+            var sw = Stopwatch.StartNew();
             try
             {
                 // Call SmartButtonExecutor.ExecuteSelfInit(scriptPath, context, additionalPaths)
@@ -412,6 +420,22 @@ namespace pyRevitAssemblyBuilder.UIManager
                 _logger.Error($"Error executing __selfinit__: {ex.Message}");
                 return true;
             }
+            finally
+            {
+                Interlocked.Add(ref _selfInitMs, sw.ElapsedMilliseconds);
+                Interlocked.Increment(ref _selfInitCalls);
+            }
+        }
+
+        /// <summary>
+        /// Returns the accumulated SmartButton __selfinit__ timing collected since the last
+        /// call and resets the counters. Used by per-extension instrumentation.
+        /// </summary>
+        public (long SelfInitMs, int Calls) ResetAndGetStats()
+        {
+            var ms = Interlocked.Exchange(ref _selfInitMs, 0);
+            var calls = Interlocked.Exchange(ref _selfInitCalls, 0);
+            return (ms, calls);
         }
     }
 }

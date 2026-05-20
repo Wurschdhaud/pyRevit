@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Autodesk.Revit.UI;
 using pyRevitAssemblyBuilder.AssemblyMaker;
@@ -74,7 +75,9 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 // Use Title from bundle.yaml if available, with config script indicator if applicable
                 var splitButtonText = ButtonPostProcessor.GetButtonText(component);
                 var splitData = new SplitButtonData(component.DisplayName, splitButtonText);
+                var addItemSw = Stopwatch.StartNew();
                 var splitBtn = parentPanel.AddItem(splitData) as SplitButton;
+                ButtonPostProcessor.RecordAddItemMs(addItemSw.ElapsedMilliseconds);
 
                 if (splitBtn != null)
                 {
@@ -282,7 +285,9 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 try
                 {
                     var pushButtonData = CreatePushButtonData(sub, assemblyInfo!);
+                    var addItemSw = Stopwatch.StartNew();
                     var subBtn = splitBtn.AddPushButton(pushButtonData);
+                    ButtonPostProcessor.RecordAddItemMs(addItemSw.ElapsedMilliseconds);
                     if (subBtn != null)
                     {
                         ButtonPostProcessor.Process(subBtn, sub, component, GetCompactIconMode(sub));
@@ -319,7 +324,9 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 try
                 {
                     var pushButtonData = CreatePushButtonData(sub, assemblyInfo!);
+                    var addItemSw = Stopwatch.StartNew();
                     var subBtn = splitBtn.AddPushButton(pushButtonData);
+                    ButtonPostProcessor.RecordAddItemMs(addItemSw.ElapsedMilliseconds);
                     if (subBtn != null)
                     {
                         ButtonPostProcessor.Process(subBtn, sub, component, GetCompactIconMode(sub));
@@ -343,7 +350,9 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                     var subLinkData = _linkButtonBuilder.CreateLinkButtonData(sub);
                     if (subLinkData != null)
                     {
+                        var addItemSw = Stopwatch.StartNew();
                         var linkSubBtn = splitBtn.AddPushButton(subLinkData);
+                        ButtonPostProcessor.RecordAddItemMs(addItemSw.ElapsedMilliseconds);
                         if (linkSubBtn != null)
                         {
                             ButtonPostProcessor.Process(linkSubBtn, sub, component, GetCompactIconMode(sub));

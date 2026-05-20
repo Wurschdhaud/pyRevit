@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Autodesk.Revit.UI;
@@ -65,7 +66,9 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 var linkData = CreateLinkButtonData(component);
                 if (linkData != null)
                 {
+                    var addItemSw = Stopwatch.StartNew();
                     var linkBtn = parentPanel.AddItem(linkData) as PushButton;
+                    ButtonPostProcessor.RecordAddItemMs(addItemSw.ElapsedMilliseconds);
                     if (linkBtn != null)
                     {
                         ButtonPostProcessor.Process(linkBtn, component);
