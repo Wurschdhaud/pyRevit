@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.IO;
+using pyRevitExtensionParser;
 using pyRevitLabs.NLog;
 
 namespace pyRevitAssemblyBuilder.SessionManager
@@ -23,10 +24,19 @@ namespace pyRevitAssemblyBuilder.SessionManager
         {
             _pythonLogger = pythonLogger;
 
-            // Sidecar capture: when PYREVIT_CSHARP_LOG_FILE is set, mirror every log
-            // line to a flat text file. Sidesteps the C#-mlogger → Python FileHandler
+            // Sidecar capture: when [core] csharp_loader_log_file is set in pyrevit_config.ini,
+            // mirror every log line to that path. Sidesteps the C#-mlogger → Python FileHandler
             // bridge issue where _pythonLogger.debug(...) calls don't reach runtime.log.
-            var path = Environment.GetEnvironmentVariable("PYREVIT_CSHARP_LOG_FILE");
+            // Swallow any config-read failure so logging never breaks the loader.
+            string? path = null;
+            try
+            {
+                path = PyRevitConfig.Load().CSharpLoaderLogFile;
+            }
+            catch
+            {
+                // Intentionally swallowed - sidecar is best-effort.
+            }
             _sidecarPath = string.IsNullOrWhiteSpace(path) ? null : path;
         }
 
