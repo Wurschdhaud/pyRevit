@@ -30,7 +30,7 @@ def _collect_rename_inputs(mode):
         if find_txt is None:
             return None
         if find_txt == '':
-            forms.alert('Find text can not be empty.')
+            forms.alert('Find text cannot be empty.')
             return None
         replace_txt = forms.ask_for_string(
             default='',
@@ -50,7 +50,7 @@ def _collect_rename_inputs(mode):
         if prefix_txt is None:
             return None
         if prefix_txt == '':
-            forms.alert('Prefix can not be empty.')
+            forms.alert('Prefix cannot be empty.')
             return None
         return {'prefix': prefix_txt}
 
@@ -63,7 +63,7 @@ def _collect_rename_inputs(mode):
         if suffix_txt is None:
             return None
         if suffix_txt == '':
-            forms.alert('Suffix can not be empty.')
+            forms.alert('Suffix cannot be empty.')
             return None
         return {'suffix': suffix_txt}
 
