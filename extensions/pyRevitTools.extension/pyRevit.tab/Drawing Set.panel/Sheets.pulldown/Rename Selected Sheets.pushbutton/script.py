@@ -268,17 +268,14 @@ def main():
             valid_pairs.append(pairs[0])
 
     selected_sheet_ids = set([x['sheet'].Id.IntegerValue for x in valid_pairs])
+    existing_names = set(
+        name for sid, name in all_sheet_names.items()
+        if sid not in selected_sheet_ids
+    )
 
     unique_pairs = []
     for pair in valid_pairs:
-        name_taken = False
-        for sheet_id, sheet_name in all_sheet_names.items():
-            if sheet_id in selected_sheet_ids:
-                continue
-            if sheet_name == pair['new_name']:
-                name_taken = True
-                break
-        if name_taken:
+        if pair['new_name'] in existing_names:
             conflicts.append({
                 'sheet_number': pair['sheet'].SheetNumber,
                 'old_name': pair['old_name'],
