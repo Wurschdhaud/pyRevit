@@ -248,8 +248,6 @@ def main():
             _report_results([], unchanged, [], [])
         return
 
-    selected_sheet_ids = set([x['sheet'].Id.IntegerValue for x in rename_pairs])
-
     conflicts = []
     valid_pairs = []
     target_names = {}
@@ -268,6 +266,8 @@ def main():
                 })
         else:
             valid_pairs.append(pairs[0])
+
+    selected_sheet_ids = set([x['sheet'].Id.IntegerValue for x in valid_pairs])
 
     unique_pairs = []
     for pair in valid_pairs:
