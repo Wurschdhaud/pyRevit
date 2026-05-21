@@ -7,7 +7,7 @@ title:
   de_de: Gewählte Pläne umbenennen (klein oder GROSS-Buchstaben)
   pt_br: Renomear Folhas Selecionadas
 tooltip:
-  en_us: Change the selected sheet names
+  en_us: Batch rename selected sheet names (find/replace, prefix/suffix, or case conversion)
   fr_fr: Modifier les noms des feuilles sélectionnés
   ru: Изменить имена выбранных листов.
   chinese_s: 更改选定图纸的名称
