@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Diagnostics;
 using System.IO;
 using pyRevitExtensionParser;
 using pyRevitLabs.NLog;
@@ -20,24 +21,55 @@ namespace pyRevitAssemblyBuilder.SessionManager
         /// Initializes a new instance of the <see cref="LoggingHelper"/> class.
         /// </summary>
         /// <param name="pythonLogger">The Python logger instance passed from Python code.</param>
-        public LoggingHelper(object? pythonLogger)
+        /// <param name="revitVersion">
+        /// Revit version (e.g. "2025") used to build the default sidecar path.
+        /// When null/empty the sidecar stays disabled even if config opts in, since we'd have
+        /// nowhere conventional to put the file.
+        /// </param>
+        public LoggingHelper(object? pythonLogger, string? revitVersion = null)
         {
             _pythonLogger = pythonLogger;
 
-            // Sidecar capture: when [core] csharp_loader_log_file is set in pyrevit_config.ini,
-            // mirror every log line to that path. Sidesteps the C#-mlogger → Python FileHandler
-            // bridge issue where _pythonLogger.debug(...) calls don't reach runtime.log.
-            // Swallow any config-read failure so logging never breaks the loader.
-            string? path = null;
+            // Sidecar capture: when [core] csharp_filelogging = true in pyrevit_config.ini,
+            // mirror every log line to a per-process file alongside runtime.log. Sidesteps
+            // the C#-mlogger → Python FileHandler bridge issue where _pythonLogger.debug(...)
+            // calls don't reach runtime.log. Swallow any config-read failure so logging never
+            // breaks the loader.
+            _sidecarPath = ResolveSidecarPath(revitVersion);
+        }
+
+        /// <summary>
+        /// Returns the per-process sidecar log path when <c>csharp_filelogging</c> is enabled
+        /// and the Revit version is known, or <c>null</c> otherwise. The path mirrors the
+        /// Python <c>runtime.log</c> convention used by <see cref="PyRevitConfig.FileLogging"/>:
+        /// <c>%APPDATA%\pyRevit\{revitVersion}\pyRevit_{revitVersion}_{pid}_csharp_loader.log</c>.
+        /// </summary>
+        private static string? ResolveSidecarPath(string? revitVersion)
+        {
             try
             {
-                path = PyRevitConfig.Load().CSharpLoaderLogFile;
+                if (!PyRevitConfig.Load().CSharpFileLogging)
+                    return null;
+
+                if (string.IsNullOrWhiteSpace(revitVersion))
+                    return null;
+
+                var roaming = Environment.GetEnvironmentVariable("APPDATA");
+                if (string.IsNullOrWhiteSpace(roaming))
+                    return null;
+
+                var dir = Path.Combine(roaming, "pyRevit", revitVersion);
+                Directory.CreateDirectory(dir);
+
+                var pid = Process.GetCurrentProcess().Id;
+                var fileName = $"pyRevit_{revitVersion}_{pid}_csharp_loader.log";
+                return Path.Combine(dir, fileName);
             }
             catch
             {
                 // Intentionally swallowed - sidecar is best-effort.
+                return null;
             }
-            _sidecarPath = string.IsNullOrWhiteSpace(path) ? null : path;
         }
 
         /// <summary>
