@@ -137,6 +137,7 @@
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Margin" Value="0"/>
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="AllowDrop" Value="True"/>
             <Style.Triggers>
                 <DataTrigger Binding="{Binding locked}" Value="True">
@@ -189,8 +190,7 @@
                                Foreground="{StaticResource TextPrimaryBrush}"
                                FontSize="13"
                                VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis"
-                               TextWrapping="NoWrap"/>
+                               TextWrapping="Wrap"/>
 
                     <!-- STATUS BADGES -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal"
@@ -510,7 +510,7 @@
 
             <TreeView x:Name="keynotes_tv"
                       BorderThickness="0" Background="Transparent" Padding="6,4"
-                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                       VirtualizingPanel.IsVirtualizing="True"
                       VirtualizingPanel.VirtualizationMode="Recycling"
                       ItemTemplate="{StaticResource KeynoteTreeItem}"
