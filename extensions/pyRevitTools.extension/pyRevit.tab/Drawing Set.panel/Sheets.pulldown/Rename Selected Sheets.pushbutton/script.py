@@ -167,15 +167,33 @@ def _execute_renames(rename_pairs):
                     'new_name': pair['new_name'],
                 })
             except Exception as err:
+                restore_reason = ''
                 try:
                     _set_sheet_name(sheet, pair['old_name'])
-                except Exception:
-                    pass
+                    restore_reason = ' Restored original name.'
+                except Exception as restore_err:
+                    temp_name = temp_name_map[sheet.Id.IntegerValue]
+                    try:
+                        _set_sheet_name(sheet, temp_name)
+                        restore_reason = (
+                            ' Could not restore original name: {}. '
+                            'Sheet was kept on temporary name: {}.'
+                            .format(restore_err, temp_name)
+                        )
+                    except Exception as temp_restore_err:
+                        restore_reason = (
+                            ' Could not restore original name: {}. '
+                            'Could not restore temporary name {} either: {}.'
+                            .format(restore_err, temp_name, temp_restore_err)
+                        )
                 failed.append({
                     'sheet_number': pair['sheet'].SheetNumber,
                     'old_name': pair['old_name'],
                     'new_name': pair['new_name'],
-                    'reason': 'Could not assign target name: {}'.format(err),
+                    'reason': 'Could not assign target name: {}.{}'.format(
+                        err,
+                        restore_reason
+                    ),
                 })
 
     return renamed, failed
