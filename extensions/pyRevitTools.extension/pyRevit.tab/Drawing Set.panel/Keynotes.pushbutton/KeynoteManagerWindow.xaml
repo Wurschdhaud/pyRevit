@@ -190,7 +190,7 @@
                                Foreground="{StaticResource TextPrimaryBrush}"
                                FontSize="13"
                                VerticalAlignment="Center"
-                               TextWrapping="Wrap"/>
+                               TextWrapping="WrapWithOverflow"/>
 
                     <!-- STATUS BADGES -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal"
