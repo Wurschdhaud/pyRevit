@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -303,7 +304,9 @@ namespace pyRevitExtensionParser
                     var fullPath = Path.GetFullPath(extDir);
                     if (discoveredExtensions.Add(fullPath))
                     {
+                        var sw = Stopwatch.StartNew();
                         var parsed = ParseExtension(extDir, revitYear);
+                        RecordParseTiming(extDir, "ui", sw.ElapsedMilliseconds);
                         if (parsed != null)
                             yield return parsed;
                     }
@@ -325,11 +328,41 @@ namespace pyRevitExtensionParser
                     var fullPath = Path.GetFullPath(libDir);
                     if (discoveredExtensions.Add(fullPath))
                     {
+                        var sw = Stopwatch.StartNew();
                         var parsed = ParseExtension(libDir, revitYear);
+                        RecordParseTiming(libDir, "lib", sw.ElapsedMilliseconds);
                         if (parsed != null)
                             yield return parsed;
                     }
                 }
+            }
+        }
+
+        // Per-extension parse timings collected as ParseInstalledExtensions iterates. Read and
+        // cleared by SessionManagerService after the .ToList() call that consumes the enumerator.
+        private static readonly object _parseStatsLock = new object();
+        private static readonly List<(string Name, string Kind, long ElapsedMs)> _parseTimings = new List<(string, string, long)>();
+
+        private static void RecordParseTiming(string extDir, string kind, long elapsedMs)
+        {
+            lock (_parseStatsLock)
+            {
+                _parseTimings.Add((Path.GetFileName(extDir), kind, elapsedMs));
+            }
+        }
+
+        /// <summary>
+        /// Returns per-extension parse timings collected since the last call and clears them.
+        /// Used by per-session instrumentation to attribute <c>ParseAllExtensions</c> cost to
+        /// individual <c>.extension</c> / <c>.lib</c> bundles.
+        /// </summary>
+        public static List<(string Name, string Kind, long ElapsedMs)> ResetAndGetParseStats()
+        {
+            lock (_parseStatsLock)
+            {
+                var snapshot = _parseTimings.ToList();
+                _parseTimings.Clear();
+                return snapshot;
             }
         }
 
