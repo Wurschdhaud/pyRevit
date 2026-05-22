@@ -217,6 +217,17 @@ namespace pyRevitExtensionParser
         /// </summary>
         private static string _cachedLocale = null;
 
+        // Per-session cache for ReadScriptMetadata so we don't re-read the INI
+        // once per script during a single parse pass.
+        private static bool? _readScriptMetadataCache;
+
+        private static bool ReadScriptMetadataEnabled()
+        {
+            if (!_readScriptMetadataCache.HasValue)
+                _readScriptMetadataCache = GetConfig().ReadScriptMetadata;
+            return _readScriptMetadataCache.Value;
+        }
+
         /// <summary>
         /// Clears all static caches to force re-parsing of extensions.
         /// This should be called before reloading pyRevit to ensure newly installed
@@ -230,7 +241,8 @@ namespace pyRevitExtensionParser
             _cachedExtensionRoots = null;
             PyRevitConfig.ClearCache();
             _pythonScriptCache.Clear();
-            BundleParser.BundleYamlParser.ClearCache(); 
+            _readScriptMetadataCache = null;
+            BundleParser.BundleYamlParser.ClearCache();
         }
 
         /// <summary>
@@ -930,16 +942,14 @@ namespace pyRevitExtensionParser
 
                 if (scriptPath == null)
                 {
-                    // Look for script files in order of preference: .py, .cs, .vb, .rb, .dyn, .gh, .ghx, .rfa
-                    // Use cached file listing instead of EnumerateFiles
                     var dirFiles = GetFilesInDirectory(dir, "*script.*", SearchOption.TopDirectoryOnly);
                     var validEndings = new[] { "script", "_script", "-script", ".script" };
                     dirFiles = dirFiles.Where(f =>
                         validEndings.Any(end => Path.GetFileNameWithoutExtension(f).EndsWith(end, StringComparison.OrdinalIgnoreCase))
                     ).ToArray();
-                    
-                    // Check for scripts in priority order
+
                     var scriptExtensions = new[] { ".py", ".cs", ".vb", ".rb", ".dyn", ".gh", ".ghx", ".rfa" };
+
                     foreach (var scriptExt in scriptExtensions)
                     {
                         var scriptFile = $"script{scriptExt}";
@@ -1572,7 +1582,7 @@ namespace pyRevitExtensionParser
 
         private static PythonScriptConstants ReadPythonScriptConstants(string scriptPath)
         {
-            if (!GetConfig().ReadScriptMetadata)
+            if (!ReadScriptMetadataEnabled())
                 return new PythonScriptConstants();
 
             if (_pythonScriptCache.TryGetValue(scriptPath, out var cached))
@@ -1582,139 +1592,105 @@ namespace pyRevitExtensionParser
 
             try
             {
-                // Read all lines to handle multiline strings properly
-                var allLines = File.ReadAllLines(scriptPath);
-                var lineIndex = 0;
-
-                foreach (var line in allLines)
+                // Stream lines lazily (File.ReadLines) instead of eager File.ReadAllLines.
+                // This keeps peak memory bounded and lets ExtractPythonMultilineString
+                // consume continuation lines straight from the enumerator instead of
+                // allocating a fresh List<string> per multi-line dunder.
+                using (var enumerator = File.ReadLines(scriptPath).GetEnumerator())
                 {
-                    var trimmedLine = line.TrimStart();
-
-                    if (trimmedLine.StartsWith("__title__"))
+                    while (enumerator.MoveNext())
                     {
-                        // Check if it's a dictionary
-                        var dictValue = ExtractPythonDictionary(trimmedLine);
-                        if (dictValue != null)
+                        var trimmedLine = enumerator.Current.TrimStart();
+
+                        if (trimmedLine.StartsWith("__title__"))
                         {
-                            result.LocalizedTitles = LocaleSupport.NormalizeLocaleDict(dictValue);
-                            // Get default locale value for backward compatibility
-                            result.Title = GetLocalizedValue(result.LocalizedTitles);
-                        }
-                        else
-                        {
-                            // Check if it's a multiline triple-quoted string
-                            if (trimmedLine.Contains("\"\"\""))
+                            var dictValue = ExtractPythonDictionary(trimmedLine);
+                            if (dictValue != null)
                             {
-                                var remainingLines = allLines.Skip(lineIndex + 1).ToList();
-                                result.Title = ExtractPythonMultilineString(trimmedLine, remainingLines);
+                                result.LocalizedTitles = LocaleSupport.NormalizeLocaleDict(dictValue);
+                                result.Title = GetLocalizedValue(result.LocalizedTitles);
+                            }
+                            else if (trimmedLine.Contains("\"\"\""))
+                            {
+                                result.Title = ExtractPythonMultilineString(trimmedLine, enumerator);
                             }
                             else
                             {
                                 result.Title = ExtractPythonConstantValue(trimmedLine);
                             }
                         }
-                    }
-                    else if (trimmedLine.StartsWith("__authors__"))
-                    {
-                        // __authors__ is a list, join with newline like Python does
-                        var listValue = ExtractPythonList(trimmedLine);
-                        if (listValue != null && listValue.Count > 0)
+                        else if (trimmedLine.StartsWith("__authors__"))
                         {
-                            result.Author = string.Join("\n", listValue);
+                            // __authors__ is a list, join with newline like Python does
+                            var listValue = ExtractPythonList(trimmedLine);
+                            if (listValue != null && listValue.Count > 0)
+                                result.Author = string.Join("\n", listValue);
                         }
-                    }
-                    else if (trimmedLine.StartsWith("__author__"))
-                    {
-                        // Only use __author__ if __authors__ wasn't found
-                        if (string.IsNullOrEmpty(result.Author))
+                        else if (trimmedLine.StartsWith("__author__"))
                         {
-                            result.Author = ExtractPythonConstantValue(trimmedLine);
+                            // Only use __author__ if __authors__ wasn't found
+                            if (string.IsNullOrEmpty(result.Author))
+                                result.Author = ExtractPythonConstantValue(trimmedLine);
                         }
-                    }
-                    else if (trimmedLine.StartsWith("__doc__"))
-                    {
-                        // Check if it's a dictionary for multi-language tooltip
-                        var dictValue = ExtractPythonDictionary(trimmedLine);
-                        if (dictValue != null)
+                        else if (trimmedLine.StartsWith("__doc__"))
                         {
-                            result.LocalizedTooltips = LocaleSupport.NormalizeLocaleDict(dictValue);
-                            // Get default locale value for backward compatibility
-                            result.Doc = GetLocalizedValue(result.LocalizedTooltips);
-                        }
-                        else
-                        {
-                            // Check if it's a multiline triple-quoted string
-                            if (trimmedLine.Contains("\"\"\""))
+                            var dictValue = ExtractPythonDictionary(trimmedLine);
+                            if (dictValue != null)
                             {
-                                var remainingLines = allLines.Skip(lineIndex + 1).ToList();
-                                result.Doc = ExtractPythonMultilineString(trimmedLine, remainingLines);
+                                result.LocalizedTooltips = LocaleSupport.NormalizeLocaleDict(dictValue);
+                                result.Doc = GetLocalizedValue(result.LocalizedTooltips);
+                            }
+                            else if (trimmedLine.Contains("\"\"\""))
+                            {
+                                result.Doc = ExtractPythonMultilineString(trimmedLine, enumerator);
                             }
                             else
                             {
                                 result.Doc = ExtractPythonConstantValue(trimmedLine);
                             }
                         }
-                    }
-                    else if (trimmedLine.StartsWith("__helpurl__"))
-                    {
-                        // Check if it's a dictionary for multi-language help URL
-                        var dictValue = ExtractPythonDictionary(trimmedLine);
-                        if (dictValue != null)
+                        else if (trimmedLine.StartsWith("__helpurl__"))
                         {
-                            result.LocalizedHelpUrls = LocaleSupport.NormalizeLocaleDict(dictValue);
-                            // Get default locale value for backward compatibility
-                            result.HelpUrl = GetLocalizedValue(result.LocalizedHelpUrls);
+                            var dictValue = ExtractPythonDictionary(trimmedLine);
+                            if (dictValue != null)
+                            {
+                                result.LocalizedHelpUrls = LocaleSupport.NormalizeLocaleDict(dictValue);
+                                result.HelpUrl = GetLocalizedValue(result.LocalizedHelpUrls);
+                            }
+                            else
+                            {
+                                result.HelpUrl = ExtractPythonConstantValue(trimmedLine);
+                            }
                         }
-                        else
+                        else if (trimmedLine.StartsWith("__context__"))
                         {
-                            result.HelpUrl = ExtractPythonConstantValue(trimmedLine);
+                            var listValue = ExtractPythonList(trimmedLine);
+                            if (listValue != null && listValue.Count > 0)
+                            {
+                                result.ContextItems = listValue;
+                                // Format as context string (ALL must match)
+                                result.Context = "(" + string.Join("&", listValue) + ")";
+                            }
+                            else
+                            {
+                                result.Context = NormalizeContextString(ExtractPythonConstantValue(trimmedLine));
+                            }
                         }
+                        else if (trimmedLine.StartsWith("__highlight__"))
+                            result.Highlight = ExtractPythonConstantValue(trimmedLine);
+                        else if (trimmedLine.StartsWith("__min_revit_ver__"))
+                            result.MinRevitVersion = ExtractPythonValue(trimmedLine);
+                        else if (trimmedLine.StartsWith("__max_revit_ver__"))
+                            result.MaxRevitVersion = ExtractPythonValue(trimmedLine);
+                        else if (trimmedLine.StartsWith("__beta__"))
+                            result.IsBeta = ExtractPythonBoolValue(trimmedLine);
+                        else if (trimmedLine.StartsWith("__cleanengine__"))
+                            result.CleanEngine = ExtractPythonBoolValue(trimmedLine);
+                        else if (trimmedLine.StartsWith("__fullframeengine__"))
+                            result.FullFrameEngine = ExtractPythonBoolValue(trimmedLine);
+                        else if (trimmedLine.StartsWith("__persistentengine__"))
+                            result.PersistentEngine = ExtractPythonBoolValue(trimmedLine);
                     }
-                    else if (trimmedLine.StartsWith("__context__"))
-                    {
-                        // Check if it's a list
-                        var listValue = ExtractPythonList(trimmedLine);
-                        if (listValue != null && listValue.Count > 0)
-                        {
-                            result.ContextItems = listValue;
-                            // Format as context string (ALL must match)
-                            result.Context = "(" + string.Join("&", listValue) + ")";
-                        }
-                        else
-                        {
-                            result.Context = NormalizeContextString(ExtractPythonConstantValue(trimmedLine));
-                        }
-                    }
-                    else if (trimmedLine.StartsWith("__highlight__"))
-                    {
-                        result.Highlight = ExtractPythonConstantValue(trimmedLine);
-                    }
-                    else if (trimmedLine.StartsWith("__min_revit_ver__"))
-                    {
-                        result.MinRevitVersion = ExtractPythonValue(trimmedLine);
-                    }
-                    else if (trimmedLine.StartsWith("__max_revit_ver__"))
-                    {
-                        result.MaxRevitVersion = ExtractPythonValue(trimmedLine);
-                    }
-                    else if (trimmedLine.StartsWith("__beta__"))
-                    {
-                        result.IsBeta = ExtractPythonBoolValue(trimmedLine);
-                    }
-                    else if (trimmedLine.StartsWith("__cleanengine__"))
-                    {
-                        result.CleanEngine = ExtractPythonBoolValue(trimmedLine);
-                    }
-                    else if (trimmedLine.StartsWith("__fullframeengine__"))
-                    {
-                        result.FullFrameEngine = ExtractPythonBoolValue(trimmedLine);
-                    }
-                    else if (trimmedLine.StartsWith("__persistentengine__"))
-                    {
-                        result.PersistentEngine = ExtractPythonBoolValue(trimmedLine);
-                    }
-
-                    lineIndex++;
                 }
             }
             catch (Exception ex)
@@ -1798,12 +1774,12 @@ namespace pyRevitExtensionParser
         }
 
         /// <summary>
-        /// Extracts a multiline Python string literal (triple-quoted) from the remaining lines.
+        /// Extracts a multiline Python string literal (triple-quoted) starting at firstLine,
+        /// consuming additional lines from the enumerator until the closing triple quote.
         /// Handles docstrings and other multiline string content.
         /// </summary>
-        private static string ExtractPythonMultilineString(string firstLine, IEnumerable<string> remainingLines)
+        private static string ExtractPythonMultilineString(string firstLine, IEnumerator<string> enumerator)
         {
-            // Find the opening triple quote position in the first line
             var firstLineTrimmed = firstLine.TrimStart();
             int firstQuotePos = firstLineTrimmed.IndexOf("\"\"\"");
             if (firstQuotePos == -1)
@@ -1812,42 +1788,36 @@ namespace pyRevitExtensionParser
             int contentStart = firstQuotePos + 3;
             string partialContent = firstLineTrimmed.Substring(contentStart);
 
-            // Check if the closing quote is on the same line
+            // Closing quote on the same line — single-line triple-quoted literal.
             int closingQuotePos = partialContent.IndexOf("\"\"\"");
             if (closingQuotePos != -1)
-            {
-                // Single-line multiline string
                 return partialContent.Substring(0, closingQuotePos);
-            }
 
-            // Need to read more lines to find the closing triple quote
             var content = new StringBuilder();
             content.Append(partialContent);
             content.Append("\n");
 
-            foreach (var line in remainingLines)
+            while (enumerator.MoveNext())
             {
+                var line = enumerator.Current;
                 content.Append(line);
                 content.Append("\n");
 
-                // Check if this line contains the closing triple quote
                 if (line.Contains("\"\"\""))
                 {
-                    // Find the last occurrence of triple quotes in this line
                     var lastQuotePos = line.LastIndexOf("\"\"\"");
                     if (lastQuotePos > 0)
                     {
-                        // Remove the content after the closing triple quote (including the quote itself)
+                        // Strip the just-appended line + newline and replace with the
+                        // content up to (but not including) the closing triple quote.
                         var beforeClosing = line.Substring(0, lastQuotePos);
-                        // Remove the content we just added and replace with proper content
-                        content.Length -= line.Length + 1; // Remove the last line + newline
+                        content.Length -= line.Length + 1;
                         content.Append(beforeClosing);
                     }
                     break;
                 }
             }
 
-            // Process escape sequences in the collected content
             return ProcessPythonEscapeSequences(content.ToString());
         }
 
