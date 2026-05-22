@@ -1,4 +1,4 @@
-# pylint: skip-file
+# encoding: utf-8
 import re
 import os.path as op
 import datetime
