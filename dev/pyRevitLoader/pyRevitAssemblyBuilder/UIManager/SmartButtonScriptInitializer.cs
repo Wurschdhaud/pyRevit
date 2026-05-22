@@ -246,6 +246,35 @@ namespace pyRevitAssemblyBuilder.UIManager
     }
 
     /// <summary>
+    /// Per-button stage timing for a single SmartButton __selfinit__ invocation.
+    /// Returned as part of <see cref="SmartButtonStats.PerButton"/> so per-extension perf logs
+    /// can attribute compile/execute/invoke cost to individual SmartButtons.
+    /// </summary>
+    public class PerSmartButtonStats
+    {
+        public string Name;
+        public long CompileMs;
+        public long ExecuteMs;
+        public long InvokeMs;
+    }
+
+    /// <summary>
+    /// Aggregated SmartButton timing for a single per-extension batch.
+    /// Returned by <see cref="SmartButtonScriptInitializer.ResetAndGetStats"/> at the end of
+    /// each <c>BuildUI</c>. Engine init is non-zero only on the first batch per session;
+    /// reload BuildUIs report <c>EngineInitMs == 0</c> because the engine is already warm.
+    /// </summary>
+    public class SmartButtonStats
+    {
+        public long EngineInitMs;
+        public long CompileMs;
+        public long ExecuteMs;
+        public long InvokeMs;
+        public int Calls;
+        public List<PerSmartButtonStats> PerButton = new List<PerSmartButtonStats>();
+    }
+
+    /// <summary>
     /// Handles execution of SmartButton __selfinit__ scripts.
     /// Delegates to PyRevitLoader.SmartButtonExecutor for actual execution.
     /// </summary>
@@ -261,13 +290,26 @@ namespace pyRevitAssemblyBuilder.UIManager
         private static readonly object _staticLock = new object();
         private object _executor;
         private MethodInfo _executeMethod;
+        // Reflection accessors for executor stage stats. Cached during EnsureInstanceInitialized
+        // because SmartButtonExecutor lives in a separate assembly (PyRevitLoader) and is reached
+        // via reflection from this assembly (pyRevitAssemblyBuilder).
+        private MethodInfo _consumeEngineInitMethod;
+        private PropertyInfo _lastCompileMsProp;
+        private PropertyInfo _lastExecuteMsProp;
+        private PropertyInfo _lastInvokeMsProp;
         private bool _instanceInitialized;
         private bool _instanceInitializationFailed;
 
-        // Per-extension instrumentation: accumulated time spent inside the IronPython
-        // ExecuteSelfInit call. Read and reset by UIManagerService around each BuildUI.
-        private long _selfInitMs;
-        private int _selfInitCalls;
+        // Per-extension instrumentation. Accumulators are summed across all ExecuteSelfInit
+        // calls in the current batch; PerButton holds the breakdown. All read+reset together by
+        // UIManagerService around each BuildUI via ResetAndGetStats.
+        private readonly object _statsLock = new object();
+        private long _engineInitMs;
+        private long _compileMs;
+        private long _executeMs;
+        private long _invokeMs;
+        private int _calls;
+        private List<PerSmartButtonStats> _perButton = new List<PerSmartButtonStats>();
 
         public SmartButtonScriptInitializer(UIApplication uiApp, ILogger logger)
         {
@@ -344,6 +386,13 @@ namespace pyRevitAssemblyBuilder.UIManager
                 // Get ExecuteSelfInit method
                 _executeMethod = _executorType.GetMethod("ExecuteSelfInit");
 
+                // Cache stage-timing accessors. These are exposed by SmartButtonExecutor for
+                // per-call attribution; null-tolerant in case an older executor build is loaded.
+                _consumeEngineInitMethod = _executorType.GetMethod("ConsumeEngineInitMs");
+                _lastCompileMsProp = _executorType.GetProperty("LastCompileMs");
+                _lastExecuteMsProp = _executorType.GetProperty("LastExecuteMs");
+                _lastInvokeMsProp = _executorType.GetProperty("LastInvokeMs");
+
                 _instanceInitialized = true;
                 _logger.Debug("SmartButtonScriptInitializer initialized successfully");
             }
@@ -403,7 +452,6 @@ namespace pyRevitAssemblyBuilder.UIManager
                 }
             }
 
-            var sw = Stopwatch.StartNew();
             try
             {
                 // Call SmartButtonExecutor.ExecuteSelfInit(scriptPath, context, additionalPaths)
@@ -422,20 +470,72 @@ namespace pyRevitAssemblyBuilder.UIManager
             }
             finally
             {
-                Interlocked.Add(ref _selfInitMs, sw.ElapsedMilliseconds);
-                Interlocked.Increment(ref _selfInitCalls);
+                // Drain stage timings from the executor (set during the call above) and accumulate
+                // into per-extension batch stats. Engine-init is drain-on-read so reload BuildUIs
+                // report 0 (engine already warm). Reflection accessors may be null if the executor
+                // is an older build without stage instrumentation; in that case fall back silently.
+                try
+                {
+                    long compile = _lastCompileMsProp != null
+                        ? Convert.ToInt64(_lastCompileMsProp.GetValue(_executor)) : 0L;
+                    long execute = _lastExecuteMsProp != null
+                        ? Convert.ToInt64(_lastExecuteMsProp.GetValue(_executor)) : 0L;
+                    long invoke = _lastInvokeMsProp != null
+                        ? Convert.ToInt64(_lastInvokeMsProp.GetValue(_executor)) : 0L;
+                    long engineInit = _consumeEngineInitMethod != null
+                        ? Convert.ToInt64(_consumeEngineInitMethod.Invoke(_executor, null)) : 0L;
+
+                    lock (_statsLock)
+                    {
+                        _engineInitMs += engineInit;
+                        _compileMs += compile;
+                        _executeMs += execute;
+                        _invokeMs += invoke;
+                        _calls++;
+                        _perButton.Add(new PerSmartButtonStats
+                        {
+                            Name = component?.Name ?? "<unknown>",
+                            CompileMs = compile,
+                            ExecuteMs = execute,
+                            InvokeMs = invoke,
+                        });
+                    }
+                }
+                catch
+                {
+                    // Stats are best-effort; never let instrumentation break the load.
+                }
             }
         }
 
         /// <summary>
-        /// Returns the accumulated SmartButton __selfinit__ timing collected since the last
-        /// call and resets the counters. Used by per-extension instrumentation.
+        /// Returns the accumulated SmartButton stats collected since the last call and resets
+        /// the counters + per-button list. Used by per-extension instrumentation (one call per
+        /// BuildUI batch, drained by UIManagerService).
         /// </summary>
-        public (long SelfInitMs, int Calls) ResetAndGetStats()
+        public SmartButtonStats ResetAndGetStats()
         {
-            var ms = Interlocked.Exchange(ref _selfInitMs, 0);
-            var calls = Interlocked.Exchange(ref _selfInitCalls, 0);
-            return (ms, calls);
+            lock (_statsLock)
+            {
+                var snapshot = new SmartButtonStats
+                {
+                    EngineInitMs = _engineInitMs,
+                    CompileMs = _compileMs,
+                    ExecuteMs = _executeMs,
+                    InvokeMs = _invokeMs,
+                    Calls = _calls,
+                    PerButton = _perButton,
+                };
+
+                _engineInitMs = 0;
+                _compileMs = 0;
+                _executeMs = 0;
+                _invokeMs = 0;
+                _calls = 0;
+                _perButton = new List<PerSmartButtonStats>();
+
+                return snapshot;
+            }
         }
     }
 }

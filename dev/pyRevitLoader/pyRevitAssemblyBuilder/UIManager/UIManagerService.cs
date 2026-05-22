@@ -72,9 +72,10 @@ namespace pyRevitAssemblyBuilder.UIManager
 
         /// <summary>
         /// Snapshot of <see cref="SmartButtonScriptInitializer.ResetAndGetStats"/> taken at
-        /// the end of the most recent <see cref="BuildUI"/> call.
+        /// the end of the most recent <see cref="BuildUI"/> call. Holds the per-stage breakdown
+        /// (engine init / compile / execute / invoke) plus per-button records for the [PERF] lines.
         /// </summary>
-        private (long SelfInitMs, int Calls) _smartButtonStats;
+        private SmartButtonStats _smartButtonStats;
 
         /// <summary>
         /// Per-type build counts for the current extension. Populated by
@@ -231,7 +232,7 @@ namespace pyRevitAssemblyBuilder.UIManager
             _postProcessorStats = _buttonPostProcessor.ResetAndGetStats();
             _addItemStats = _buttonPostProcessor.ResetAndGetAddItemStats();
             _iconStats = _buttonPostProcessor.IconManager?.ResetAndGetStats() ?? (0, 0, 0L);
-            _smartButtonStats = _smartButtonScriptInitializer?.ResetAndGetStats() ?? (0L, 0);
+            _smartButtonStats = _smartButtonScriptInitializer?.ResetAndGetStats();
             _currentExtension = null;
         }
 
@@ -280,9 +281,16 @@ namespace pyRevitAssemblyBuilder.UIManager
             }
 
             var sb = _smartButtonStats;
-            if (sb.Calls > 0)
+            if (sb != null && sb.Calls > 0)
             {
-                _logger.Debug($"[PERF]   {extensionName}/SmartButton: selfinit={sb.SelfInitMs}ms (x{sb.Calls})");
+                _logger.Debug($"[PERF]   {extensionName}/SmartButton: engineInit={sb.EngineInitMs}ms, compile={sb.CompileMs}ms, execute={sb.ExecuteMs}ms, invoke={sb.InvokeMs}ms (x{sb.Calls})");
+                if (sb.PerButton != null)
+                {
+                    foreach (var btn in sb.PerButton)
+                    {
+                        _logger.Debug($"[PERF]     '{btn.Name}': compile={btn.CompileMs}ms, execute={btn.ExecuteMs}ms, invoke={btn.InvokeMs}ms");
+                    }
+                }
             }
 
             EmitCountsLine(extensionName);

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.IO;
@@ -24,6 +25,14 @@ namespace PyRevitLoader {
         private string _pyrevitLibPath;
         private HashSet<string> _baseSearchPaths;
 
+        // Stage timing accumulators. Engine init is drain-on-read via ConsumeEngineInitMs so
+        // reload BuildUIs (where the engine is already warm) correctly report 0. The Last* fields
+        // are overwritten per call and read after each ExecuteSelfInit by the calling initializer.
+        private long _engineInitMs;
+        private long _lastCompileMs;
+        private long _lastExecuteMs;
+        private long _lastInvokeMs;
+
         public SmartButtonExecutor(UIApplication uiApplication, Action<string> logger = null) {
             _revit = uiApplication;
             _logger = logger;
@@ -31,23 +40,46 @@ namespace PyRevitLoader {
 
         public string Message { get; private set; } = null;
 
+        /// <summary>Last call's __selfinit__ script compile time, ms.</summary>
+        public long LastCompileMs => _lastCompileMs;
+
+        /// <summary>Last call's __selfinit__ script module-body execute time, ms.</summary>
+        public long LastExecuteMs => _lastExecuteMs;
+
+        /// <summary>Last call's __selfinit__ function invocation time, ms.</summary>
+        public long LastInvokeMs => _lastInvokeMs;
+
+        /// <summary>
+        /// Returns engine-init time accumulated since the last call and resets to zero.
+        /// First load reports the full cold-start cost; subsequent loads (reload) report 0
+        /// because the engine is already initialized.
+        /// </summary>
+        public long ConsumeEngineInitMs() {
+            var ret = _engineInitMs;
+            _engineInitMs = 0;
+            return ret;
+        }
+
         private void Log(string message) {
             _logger?.Invoke(message);
         }
-        
+
         /// <summary>
         /// Ensures the IronPython engine is initialized. Called once, reused for all buttons.
         /// </summary>
         private void EnsureEngineInitialized() {
             if (_engine != null)
                 return;
-                
+
+            var sw = Stopwatch.StartNew();
             Log("Initializing shared IronPython engine for SmartButtons");
             _scriptExecutor = new ScriptExecutor(_revit, false);
             _engine = _scriptExecutor.CreateEngine();
-            
+
             // Cache base search paths
             _baseSearchPaths = new HashSet<string>(_engine.GetSearchPaths());
+            sw.Stop();
+            _engineInitMs += sw.ElapsedMilliseconds;
         }
 
         /// <summary>
@@ -62,6 +94,12 @@ namespace PyRevitLoader {
             SmartButtonContext context,
             IEnumerable<string> additionalSearchPaths = null) {
             
+            // Reset per-call stage timings; a partial call (e.g. compile failure) should not leak
+            // last successful values to the next observation.
+            _lastCompileMs = 0;
+            _lastExecuteMs = 0;
+            _lastInvokeMs = 0;
+
             if (string.IsNullOrEmpty(scriptPath) || !File.Exists(scriptPath)) {
                 return true; // Don't deactivate
             }
@@ -72,9 +110,10 @@ namespace PyRevitLoader {
             }
 
             try {
-                // Reuse the engine instead of creating new one each time
+                // Reuse the engine instead of creating new one each time. EnsureEngineInitialized
+                // self-times into _engineInitMs (drained by ConsumeEngineInitMs).
                 EnsureEngineInitialized();
-                
+
                 // Create a fresh scope for this script (but reuse engine)
                 var scope = _scriptExecutor.SetupEnvironment(_engine);
 
@@ -93,7 +132,10 @@ namespace PyRevitLoader {
                 compilerOptions.Module |= IronPython.Runtime.ModuleOptions.Initialize;
 
                 var errors = new ErrorReporter();
+                var compileSw = Stopwatch.StartNew();
                 var compiled = script.Compile(compilerOptions, errors);
+                compileSw.Stop();
+                _lastCompileMs = compileSw.ElapsedMilliseconds;
                 if (compiled == null) {
                     Message = string.Join("\r\n", "Compilation failed:", string.Join("\r\n", errors.Errors.ToArray()));
                     Log(Message);
@@ -101,7 +143,10 @@ namespace PyRevitLoader {
                 }
 
                 try {
+                    var executeSw = Stopwatch.StartNew();
                     script.Execute(scope);
+                    executeSw.Stop();
+                    _lastExecuteMs = executeSw.ElapsedMilliseconds;
                 }
                 catch (SystemExitException) {
                     return true;
@@ -126,8 +171,11 @@ namespace PyRevitLoader {
                 try {
                     // Call __selfinit__(script_cmp, ui_button_cmp, __rvt__)
                     var ops = _engine.Operations;
+                    var invokeSw = Stopwatch.StartNew();
                     var result = ops.Invoke(selfInitFunc, context, context, _revit);
-                    
+                    invokeSw.Stop();
+                    _lastInvokeMs = invokeSw.ElapsedMilliseconds;
+
                     // If __selfinit__ returns False, the button should be deactivated
                     if (result is bool boolResult && boolResult == false) {
                         Log($"__selfinit__ returned False for '{context.name}' - deactivating button");
