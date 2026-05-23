@@ -38,6 +38,9 @@ Examples:
 import os
 import os.path as op
 
+from pyrevit._perf import mark as _perfmark, time_block as _perfblock
+_perfmark("pyrevit.userconfig:entry")
+
 from pyrevit import EXEC_PARAMS, HOME_DIR, HOST_APP
 from pyrevit import PyRevitException
 from pyrevit import EXTENSIONS_DEFAULT_DIR, THIRDPARTY_EXTENSIONS_DEFAULT_DIR
@@ -51,6 +54,7 @@ from pyrevit.coreutils import appdata
 from pyrevit.coreutils import configparser
 from pyrevit.coreutils import logger
 from pyrevit.versionmgr import upgrade
+_perfmark("pyrevit.userconfig:after imports")
 # pylint: disable=C0103,C0413,W0703
 DEFAULT_CSV_SEPARATOR = ','
 
@@ -768,18 +772,21 @@ class PyRevitConfig(configparser.PyRevitConfigParser):
     def get_active_cpython_engine(self):
         """Return active cpython engine."""
         # try to find attachment and get engines from the clone
-        attachment = self.get_current_attachment()
+        with _perfblock("userconfig.get_active_cpython_engine:GetAttached"):
+            attachment = self.get_current_attachment()
         if attachment and attachment.Clone:
             clone = attachment.Clone
         else:
             # if can not find attachment, instantiate a temp clone
             try:
-                clone = PyRevit.PyRevitClone(clonePath=HOME_DIR)
+                with _perfblock("userconfig.get_active_cpython_engine:PyRevitClone(HOME_DIR) fallback"):
+                    clone = PyRevit.PyRevitClone(clonePath=HOME_DIR)
             except Exception as cEx:
                 mlogger.debug('Can not create clone from path: %s', str(cEx))
                 clone = None
         # find cpython engines
-        engines = clone.GetCPythonEngines() if clone else []
+        with _perfblock("userconfig.get_active_cpython_engine:clone.GetCPythonEngines"):
+            engines = clone.GetCPythonEngines() if clone else []
         cpy_engines_dict = {x.Version: x for x in engines}
         mlogger.debug('cpython engines dict: %s', cpy_engines_dict)
 
@@ -875,9 +882,10 @@ LOCAL_CONFIG_FILE = ADMIN_CONFIG_FILE = USER_CONFIG_FILE = CONFIG_FILE = ''
 user_config = None
 
 # location for default pyRevit config files
-LOCAL_CONFIG_FILE = find_config_file(HOME_DIR)
-ADMIN_CONFIG_FILE = find_config_file(PYREVIT_ALLUSER_APP_DIR)
-USER_CONFIG_FILE = find_config_file(PYREVIT_APP_DIR)
+with _perfblock("pyrevit.userconfig:find_config_file x3 (HOME / ALLUSER / USER)"):
+    LOCAL_CONFIG_FILE = find_config_file(HOME_DIR)
+    ADMIN_CONFIG_FILE = find_config_file(PYREVIT_ALLUSER_APP_DIR)
+    USER_CONFIG_FILE = find_config_file(PYREVIT_APP_DIR)
 
 # decide which config file to use
 # check if a config file is inside the repo. for developers config override
@@ -932,13 +940,19 @@ mlogger.debug('Using %s config file: %s', CONFIG_TYPE, CONFIG_FILE)
 # read config, or setup default config file if not available
 # this pushes reading settings at first import of this module.
 try:
-    verify_configs(CONFIG_FILE)
-    user_config = PyRevitConfig(cfg_file_path=CONFIG_FILE,
-                                config_type=CONFIG_TYPE)
-    upgrade.upgrade_user_config(user_config)
-    user_config.save_changes()
+    with _perfblock("pyrevit.userconfig:verify_configs(CONFIG_FILE)"):
+        verify_configs(CONFIG_FILE)
+    with _perfblock("pyrevit.userconfig:PyRevitConfig(__init__)"):
+        user_config = PyRevitConfig(cfg_file_path=CONFIG_FILE,
+                                    config_type=CONFIG_TYPE)
+    with _perfblock("pyrevit.userconfig:upgrade.upgrade_user_config"):
+        upgrade.upgrade_user_config(user_config)
+    with _perfblock("pyrevit.userconfig:user_config.save_changes"):
+        user_config.save_changes()
 except Exception as cfg_err:
     mlogger.debug('Can not read confing file at: %s | %s',
                     CONFIG_FILE, cfg_err)
     mlogger.debug('Using configs in memory...')
     user_config = verify_configs()
+
+_perfmark("pyrevit.userconfig:exit (user_config ready)")
