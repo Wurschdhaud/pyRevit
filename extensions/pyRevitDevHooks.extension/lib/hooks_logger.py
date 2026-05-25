@@ -1,5 +1,6 @@
-# pylint: skip-file
+# encoding: utf-8
 import re
+import codecs
 import os.path as op
 import datetime
 USER_DESKTOP = op.expandvars('%userprofile%\\desktop')
@@ -14,7 +15,7 @@ def _timestamp():
 
 
 def _write_record(record_str):
-    with open(HOOK_LOGS, 'a') as f:
+    with codecs.open(HOOK_LOGS, 'a', 'utf-8') as f:
         f.write(record_str + '\n')
 
 
