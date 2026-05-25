@@ -48,6 +48,11 @@ def heal_bloated_telemetry_fields(user_config):
 
     if not bloated:
         return []
+    # Take a backup before mutating the in-memory parser. If we cannot
+    # produce a backup of the on-disk file, abort the heal so the user
+    # still has a recoverable copy of whatever was previously stored.
+    # The next reload will retry the heal once the issue (disk full,
+    # ACLs, etc.) is resolved.
     cfg_path = user_config.config_file
     if cfg_path and op.exists(cfg_path):
         timestamp = time.strftime('%Y%m%d-%H%M%S')
@@ -56,9 +61,11 @@ def heal_bloated_telemetry_fields(user_config):
             shutil.copy2(cfg_path, backup_path)
             mlogger.info('Backed up bloated config to: %s', backup_path)
         except Exception as backup_err:
-            mlogger.warning(
-                'Could not back up bloated config to %s | %s',
+            mlogger.error(
+                'Could not back up bloated config to %s | %s. '
+                'Skipping heal to preserve recoverable copy on disk.',
                 backup_path, backup_err)
+            return []
 
     healed = []
     for field_name, original_len in bloated:
