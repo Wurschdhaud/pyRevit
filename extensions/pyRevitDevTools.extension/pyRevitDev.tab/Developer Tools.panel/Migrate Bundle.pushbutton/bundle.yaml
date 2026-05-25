@@ -1,0 +1,8 @@
+title: Migrate Bundle
+tooltip: |
+  Walk an .extension folder, read inline dunder metadata from each script.py
+  via the new pyRevitExtensionParser, and merge it into bundle.yaml.
+  Runs on CPython. Offers settings for merge policy and script-cleanup.
+context: zero-doc
+authors:
+  - Roman Golev

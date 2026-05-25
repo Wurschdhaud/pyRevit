@@ -1019,29 +1019,31 @@ namespace pyRevitExtensionParser
                 if (configScriptPath == null)
                     configScriptPath = scriptPath;
 
+                // Parse bundle.yaml once up front. ContentButton reuses the same parsed
+                // bundle below instead of re-parsing into a separate tempBundle.
+                var bundleFile = Path.Combine(dir, "bundle.yaml");
+                ParsedBundle bundleInComponent = null;
+                if (FileExists(bundleFile))
+                {
+                    try
+                    {
+                        bundleInComponent = BundleParser.BundleYamlParser.Parse(bundleFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogParseException(bundleFile, ex);
+                    }
+                }
+
                 // Handle .content bundles - special logic for Revit family (.rfa) files
                 // Content bundles load RFA files, with scriptPath being the primary content
                 // and configScriptPath being the alternative content (CTRL+Click)
                 if (componentType == CommandComponentType.ContentButton)
                 {
-                    var bundleYaml = Path.Combine(dir, "bundle.yaml");
-                    ParsedBundle tempBundle = null;
-                    if (FileExists(bundleYaml))
-                    {
-                        try
-                        {
-                            tempBundle = BundleParser.BundleYamlParser.Parse(bundleYaml);
-                        }
-                        catch (Exception ex)
-                        {
-                            LogParseException(bundleYaml, ex);
-                        }
-                    }
-
                     // Try to get content from bundle.yaml metadata first
-                    if (tempBundle != null && !string.IsNullOrEmpty(tempBundle.Content))
+                    if (bundleInComponent != null && !string.IsNullOrEmpty(bundleInComponent.Content))
                     {
-                        scriptPath = ResolveContentPath(dir, tempBundle.Content);
+                        scriptPath = ResolveContentPath(dir, bundleInComponent.Content);
                     }
 
                     // If no content in metadata, use naming convention
@@ -1076,9 +1078,9 @@ namespace pyRevitExtensionParser
                     }
 
                     // Handle alternative content (CTRL+Click)
-                    if (tempBundle != null && !string.IsNullOrEmpty(tempBundle.ContentAlt))
+                    if (bundleInComponent != null && !string.IsNullOrEmpty(bundleInComponent.ContentAlt))
                     {
-                        configScriptPath = ResolveContentPath(dir, tempBundle.ContentAlt);
+                        configScriptPath = ResolveContentPath(dir, bundleInComponent.ContentAlt);
                     }
                     else
                     {
@@ -1120,22 +1122,6 @@ namespace pyRevitExtensionParser
 
                 // Look for help file (help.* pattern) for file-based help
                 var helpFile = FindHelpFile(dir);
-
-                var bundleFile = Path.Combine(dir, "bundle.yaml");
-
-                // Then parse bundle and override with bundle values if they exist
-                ParsedBundle bundleInComponent = null;
-                if (FileExists(bundleFile))
-                {
-                    try
-                    {
-                        bundleInComponent = BundleParser.BundleYamlParser.Parse(bundleFile);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogParseException(bundleFile, ex);
-                    }
-                }
 
                 // Merge templates: inherited templates + current bundle templates
                 // Current bundle templates override inherited ones
@@ -1588,6 +1574,78 @@ namespace pyRevitExtensionParser
             if (_pythonScriptCache.TryGetValue(scriptPath, out var cached))
                 return cached;
 
+            var result = ParseScriptConstants(scriptPath);
+            _pythonScriptCache[scriptPath] = result;
+            return result;
+        }
+
+        /// <summary>
+        /// Reads dunder metadata (__title__, __author__, __doc__, ...) directly from
+        /// a Python script and returns it as a bundle.yaml-shaped dictionary.
+        /// Bypasses both the read_script_metadata user setting and the per-path cache,
+        /// so migration / tooling callers always receive the script's raw declarations.
+        /// </summary>
+        public static IReadOnlyDictionary<string, object> ReadScriptMetadata(string scriptPath)
+        {
+            var yaml = new Dictionary<string, object>();
+            if (string.IsNullOrEmpty(scriptPath) || !File.Exists(scriptPath))
+                return yaml;
+
+            var c = ParseScriptConstants(scriptPath);
+
+            if (c.LocalizedTitles != null && c.LocalizedTitles.Count > 0)
+                yaml["title"] = c.LocalizedTitles;
+            else if (!string.IsNullOrEmpty(c.Title))
+                yaml["title"] = c.Title;
+
+            if (!string.IsNullOrEmpty(c.Author))
+                yaml["author"] = c.Author;
+
+            if (c.LocalizedTooltips != null && c.LocalizedTooltips.Count > 0)
+                yaml["tooltip"] = c.LocalizedTooltips;
+            else if (!string.IsNullOrEmpty(c.Doc))
+                yaml["tooltip"] = c.Doc;
+
+            if (c.LocalizedHelpUrls != null && c.LocalizedHelpUrls.Count > 0)
+                yaml["help_url"] = c.LocalizedHelpUrls;
+            else if (!string.IsNullOrEmpty(c.HelpUrl))
+                yaml["help_url"] = c.HelpUrl;
+
+            if (c.ContextItems != null && c.ContextItems.Count > 0)
+            {
+                yaml["context"] = c.ContextItems;
+            }
+            else if (!string.IsNullOrEmpty(c.Context))
+            {
+                // Strip the parser's surrounding "(...)" so the yaml value matches the
+                // shape humans write (a bare string like "zero-doc" or "selection").
+                var ctx = c.Context.Trim();
+                if (ctx.Length >= 2 && ctx[0] == '(' && ctx[ctx.Length - 1] == ')')
+                    ctx = ctx.Substring(1, ctx.Length - 2);
+                yaml["context"] = ctx;
+            }
+
+            if (!string.IsNullOrEmpty(c.Highlight))
+                yaml["highlight"] = c.Highlight;
+            if (!string.IsNullOrEmpty(c.MinRevitVersion))
+                yaml["min_revit_version"] = c.MinRevitVersion;
+            if (!string.IsNullOrEmpty(c.MaxRevitVersion))
+                yaml["max_revit_version"] = c.MaxRevitVersion;
+            if (c.IsBeta)
+                yaml["is_beta"] = true;
+
+            var engine = new Dictionary<string, object>();
+            if (c.CleanEngine) engine["clean"] = true;
+            if (c.FullFrameEngine) engine["full_frame"] = true;
+            if (c.PersistentEngine) engine["persistent"] = true;
+            if (engine.Count > 0)
+                yaml["engine"] = engine;
+
+            return yaml;
+        }
+
+        private static PythonScriptConstants ParseScriptConstants(string scriptPath)
+        {
             var result = new PythonScriptConstants();
 
             try
@@ -1698,7 +1756,6 @@ namespace pyRevitExtensionParser
                 LogParseException(scriptPath, ex);
             }
 
-            _pythonScriptCache[scriptPath] = result;
             return result;
         }
 
