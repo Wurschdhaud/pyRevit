@@ -408,6 +408,13 @@ namespace pyRevitExtensionParser
         {
             var extName = Path.GetFileNameWithoutExtension(extDir);
 
+            // Bail out before we walk the component tree if the user has disabled
+            // this extension in pyRevit_config.ini. extConfig is reused below so
+            // ParseExtensionByName runs once, not twice.
+            var extConfig = GetConfig().ParseExtensionByName(extName);
+            if (extConfig != null && extConfig.Disabled)
+                return null;
+
             var bundlePath = Path.Combine(extDir, "bundle.yaml");
             ParsedBundle parsedBundle = null;
             if (FileExists(bundlePath))
@@ -525,10 +532,8 @@ namespace pyRevitExtensionParser
                 extensionTemplates.Count > 0 ? extensionTemplates : null,
                 revitYear);
 
-            // Read extension config from pyRevit config file (cached).
-            // Config is keyed by folder name (e.g. [extension_test.extension]) so it matches install and Python.
-            var config = GetConfig();
-            var extConfig = config.ParseExtensionByName(extName);
+            // extConfig was already loaded at the top of this method for the early
+            // disabled-extension bail-out; reuse it here instead of re-fetching.
 
             var parsedExtension = new ParsedExtension
             {
@@ -942,11 +947,19 @@ namespace pyRevitExtensionParser
 
                 if (scriptPath == null)
                 {
-                    var dirFiles = GetFilesInDirectory(dir, "*script.*", SearchOption.TopDirectoryOnly);
+                    // Pull the full file listing for this bundle dir once. The other
+                    // pattern lookups below (config script, content RFAs, ...) all
+                    // filter this same array in memory, so the per-bundle file-system
+                    // enumeration shrinks to a single syscall on cold start instead
+                    // of one per glob.
+                    var bundleDirFiles = GetFilesInDirectory(dir, "*", SearchOption.TopDirectoryOnly);
+
                     var validEndings = new[] { "script", "_script", "-script", ".script" };
-                    dirFiles = dirFiles.Where(f =>
-                        validEndings.Any(end => Path.GetFileNameWithoutExtension(f).EndsWith(end, StringComparison.OrdinalIgnoreCase))
-                    ).ToArray();
+                    var dirFiles = bundleDirFiles.Where(f =>
+                    {
+                        var nameNoExt = Path.GetFileNameWithoutExtension(f);
+                        return validEndings.Any(end => nameNoExt.EndsWith(end, StringComparison.OrdinalIgnoreCase));
+                    }).ToArray();
 
                     var scriptExtensions = new[] { ".py", ".cs", ".vb", ".rb", ".dyn", ".gh", ".ghx", ".rfa" };
 
@@ -963,11 +976,10 @@ namespace pyRevitExtensionParser
                     // This handles cases like BIM1_ArrowHeadSwitcher_script.dyn
                     if (scriptPath == null)
                     {
-                        var allFiles = GetFilesInDirectory(dir, "*", SearchOption.TopDirectoryOnly);
                         foreach (var scriptExt in scriptExtensions)
                         {
                             // Look for any file ending with _script{ext} or just {ext}
-                            scriptPath = allFiles.FirstOrDefault(f =>
+                            scriptPath = bundleDirFiles.FirstOrDefault(f =>
                                 (f.EndsWith($"_script{scriptExt}", StringComparison.OrdinalIgnoreCase) ||
                                  (f.EndsWith(scriptExt, StringComparison.OrdinalIgnoreCase) &&
                                   !f.EndsWith($"_config{scriptExt}", StringComparison.OrdinalIgnoreCase))));
@@ -1046,12 +1058,20 @@ namespace pyRevitExtensionParser
                         scriptPath = ResolveContentPath(dir, bundleInComponent.Content);
                     }
 
-                    // If no content in metadata, use naming convention
+                    // If no content in metadata, use naming convention. All the
+                    // .rfa lookups below filter the already-cached "*" listing in
+                    // memory instead of opening one cache slot per glob.
+                    var bundleDirFilesForContent = GetFilesInDirectory(dir, "*", SearchOption.TopDirectoryOnly);
+
                     if (scriptPath == null)
                     {
                         // Look for version-specific content first: content_{version}.rfa
-                        var versionedContent = GetFilesInDirectory(dir, "content_*.rfa", SearchOption.TopDirectoryOnly)
-                            .FirstOrDefault();
+                        var versionedContent = bundleDirFilesForContent.FirstOrDefault(f =>
+                        {
+                            var name = Path.GetFileName(f);
+                            return name.StartsWith("content_", StringComparison.OrdinalIgnoreCase)
+                                && name.EndsWith(".rfa", StringComparison.OrdinalIgnoreCase);
+                        });
                         if (versionedContent != null)
                         {
                             scriptPath = versionedContent;
@@ -1067,8 +1087,8 @@ namespace pyRevitExtensionParser
                             else
                             {
                                 // Look for any .rfa file in the directory
-                                var anyRfa = GetFilesInDirectory(dir, "*.rfa", SearchOption.TopDirectoryOnly)
-                                    .FirstOrDefault();
+                                var anyRfa = bundleDirFilesForContent.FirstOrDefault(f =>
+                                    f.EndsWith(".rfa", StringComparison.OrdinalIgnoreCase));
                                 if (anyRfa != null)
                                 {
                                     scriptPath = anyRfa;
@@ -1085,8 +1105,12 @@ namespace pyRevitExtensionParser
                     else
                     {
                         // Look for version-specific alternative content: other_{version}.rfa
-                        var versionedAltContent = GetFilesInDirectory(dir, "other_*.rfa", SearchOption.TopDirectoryOnly)
-                            .FirstOrDefault();
+                        var versionedAltContent = bundleDirFilesForContent.FirstOrDefault(f =>
+                        {
+                            var name = Path.GetFileName(f);
+                            return name.StartsWith("other_", StringComparison.OrdinalIgnoreCase)
+                                && name.EndsWith(".rfa", StringComparison.OrdinalIgnoreCase);
+                        });
                         if (versionedAltContent != null)
                         {
                             configScriptPath = versionedAltContent;
@@ -1212,34 +1236,36 @@ namespace pyRevitExtensionParser
                         author = bundleInComponent.Author;
                 }
 
-                // Merge localized values: bundle takes precedence over script
-                var finalLocalizedTitles = scriptLocalizedTitles ?? new Dictionary<string, string>();
-                var finalLocalizedTooltips = scriptLocalizedTooltips ?? new Dictionary<string, string>();
-                var finalLocalizedHelpUrls = scriptLocalizedHelpUrls ?? new Dictionary<string, string>();
+                // Merge localized values: bundle takes precedence over script. Keep
+                // the locals null until there's actually something to store so the
+                // common case (no localized dunders, no localized yaml keys) does
+                // not allocate three empty dictionaries per component.
+                var finalLocalizedTitles = scriptLocalizedTitles;
+                var finalLocalizedTooltips = scriptLocalizedTooltips;
+                var finalLocalizedHelpUrls = scriptLocalizedHelpUrls;
 
-                // If bundle has localized values, they override script values
-                if (bundleInComponent?.Titles != null)
+                if (bundleInComponent?.Titles != null && bundleInComponent.Titles.Count > 0)
                 {
+                    if (finalLocalizedTitles == null)
+                        finalLocalizedTitles = new Dictionary<string, string>(bundleInComponent.Titles.Count);
                     foreach (var kvp in bundleInComponent.Titles)
-                    {
                         finalLocalizedTitles[kvp.Key] = kvp.Value;
-                    }
                 }
 
-                if (bundleInComponent?.Tooltips != null)
+                if (bundleInComponent?.Tooltips != null && bundleInComponent.Tooltips.Count > 0)
                 {
+                    if (finalLocalizedTooltips == null)
+                        finalLocalizedTooltips = new Dictionary<string, string>(bundleInComponent.Tooltips.Count);
                     foreach (var kvp in bundleInComponent.Tooltips)
-                    {
                         finalLocalizedTooltips[kvp.Key] = kvp.Value;
-                    }
                 }
 
-                if (bundleInComponent?.HelpUrls != null)
+                if (bundleInComponent?.HelpUrls != null && bundleInComponent.HelpUrls.Count > 0)
                 {
+                    if (finalLocalizedHelpUrls == null)
+                        finalLocalizedHelpUrls = new Dictionary<string, string>(bundleInComponent.HelpUrls.Count);
                     foreach (var kvp in bundleInComponent.HelpUrls)
-                    {
                         finalLocalizedHelpUrls[kvp.Key] = kvp.Value;
-                    }
                 }
 
                 // Apply template substitution to string values
@@ -1352,9 +1378,9 @@ namespace pyRevitExtensionParser
                     CommandClass = bundleInComponent?.CommandClass,
                     AvailabilityClass = bundleInComponent?.AvailabilityClass,
                     Modules = bundleInComponent?.Modules ?? new List<string>(),
-                    LocalizedTitles = finalLocalizedTitles.Count > 0 ? finalLocalizedTitles : null,
-                    LocalizedTooltips = finalLocalizedTooltips.Count > 0 ? finalLocalizedTooltips : null,
-                    LocalizedHelpUrls = finalLocalizedHelpUrls.Count > 0 ? finalLocalizedHelpUrls : null,
+                    LocalizedTitles = (finalLocalizedTitles != null && finalLocalizedTitles.Count > 0) ? finalLocalizedTitles : null,
+                    LocalizedTooltips = (finalLocalizedTooltips != null && finalLocalizedTooltips.Count > 0) ? finalLocalizedTooltips : null,
+                    LocalizedHelpUrls = (finalLocalizedHelpUrls != null && finalLocalizedHelpUrls.Count > 0) ? finalLocalizedHelpUrls : null,
                     Directory = dir,
                     Engine = finalEngine,
                     Members = bundleInComponent?.Members ?? new List<ComboBoxMember>(),
