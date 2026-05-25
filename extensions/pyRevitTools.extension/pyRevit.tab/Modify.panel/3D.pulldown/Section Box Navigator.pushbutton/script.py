@@ -6,6 +6,7 @@ from pyrevit import revit, script, forms
 from pyrevit.framework import System, Controls, Media
 from pyrevit.revit import events
 from pyrevit import DB
+from pyrevit.coreutils import applocales
 
 from sectionbox_navigation import (
     get_all_levels,
@@ -2004,39 +2005,28 @@ class SectionBoxNavigatorForm(forms.WPFWindow):
 # ---------
 
 if __name__ == "__main__":
+    _xaml_path = script.get_bundle_file("SectionBoxNavigator.xaml")
+
+    def _t(key):
+        return applocales.get_locale_string_from_xaml(_xaml_path, key)
+
     try:
         initialize_globals()
-        # Check if section box is active
         if not active_view.IsSectionBoxActive:
-            try:
-                info = get_section_box_info(active_view, DATAFILENAME)
-                restored_bbox = info.get("box")
-                if not restored_bbox:
-                    raise Exception
-
-                # Create a temporary form instance to get locale strings for alerts
-                temp_form = SectionBoxNavigatorForm.__new__(SectionBoxNavigatorForm)
-                forms.WPFWindow.__init__(
-                    temp_form, "SectionBoxNavigator.xaml", handle_esc=False
-                )
-
-                # Ask user if they want to restore
+            info = get_section_box_info(active_view, DATAFILENAME)
+            restored_bbox = info.get("box") if info else None
+            if restored_bbox:
                 if forms.alert(
-                    temp_form.get_locale_string("StoredSectionBoxFound"),
+                    _t("StoredSectionBoxFound"),
                     cancel=True,
-                    title=temp_form.get_locale_string("RestoreSectionBox"),
+                    title=_t("RestoreSectionBox"),
                 ):
                     with revit.Transaction("Restore SectionBox"):
                         active_view.SetSectionBox(restored_bbox)
-            except Exception:
-                # Create a temporary form instance to get locale strings
-                temp_form = SectionBoxNavigatorForm.__new__(SectionBoxNavigatorForm)
-                forms.WPFWindow.__init__(
-                    temp_form, "SectionBoxNavigator.xaml", handle_esc=False
-                )
+            else:
                 forms.alert(
-                    temp_form.get_locale_string("NoSectionBoxMessage"),
-                    title=temp_form.get_locale_string("NoSectionBoxTitle"),
+                    _t("NoSectionBoxMessage"),
+                    title=_t("NoSectionBoxTitle"),
                     exitscript=True,
                 )
 
@@ -2044,17 +2034,7 @@ if __name__ == "__main__":
 
     except Exception as ex:
         logger.exception("Error launching form: {}".format(ex))
-        # Create a temporary form instance to get locale strings
-        try:
-            temp_form = SectionBoxNavigatorForm.__new__(SectionBoxNavigatorForm)
-            forms.WPFWindow.__init__(
-                temp_form, "SectionBoxNavigator.xaml", handle_esc=False
-            )
-            error_title = temp_form.get_locale_string("ErrorTitle")
-            error_msg = temp_form.get_locale_string("AnErrorOccurredFormat").format(
-                str(ex)
-            )
-        except Exception:
-            error_title = "Error"
-            error_msg = "An error occurred: {}".format(str(ex))
-        forms.alert(error_msg, title=error_title)
+        forms.alert(
+            _t("AnErrorOccurredFormat").format(str(ex)),
+            title=_t("ErrorTitle"),
+        )
