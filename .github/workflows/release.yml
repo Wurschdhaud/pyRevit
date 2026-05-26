@@ -100,7 +100,6 @@ jobs:
           workflow: ci.yml
           commit: ${{ github.sha }}
           name: unsigned-bin-${{ github.sha }}
-          path: bin/
           if_no_artifact_found: fail
 
       - name: Sign binaries
