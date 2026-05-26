@@ -119,6 +119,7 @@ COMMANDS = [
     Command(name="build", target="autocmp", args=[], run=autoc.build_autocmp),
     Command(name="build", target="telem", args=[], run=telem.build_telem),
     Command(name="build", target="installers", args=[], run=release.build_installers),
+    Command(name="build", target="choco", args=[], run=release.build_choco),
     Command(name="build", target="commit", args=[], run=release.commit_and_tag_build),
     Command(name="clean", target="labs", args=[], run=build.clean_build),
     # unit testing

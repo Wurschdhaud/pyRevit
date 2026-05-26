@@ -114,13 +114,8 @@ jobs:
         run: |
           & "${{ github.workspace }}/release/Verify-LibGit2NativeDll.ps1"
 
-      - name: Build Installers
-        run: pipenv run pyrevit build installers
-
-      - name: Upload unsigned artifacts
+      - name: Upload unsigned bin artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: unsigned-build-${{ github.sha }}
-          path: |
-            bin/**
-            dist/**
+          name: unsigned-bin-${{ github.sha }}
+          path: bin/**
