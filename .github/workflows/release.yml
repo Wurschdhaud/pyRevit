@@ -141,19 +141,24 @@ jobs:
         run: pipenv run pyrevit build choco
 
       - name: Sign Choco Package
-        uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
-        with:
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          endpoint: ${{ secrets.AZURE_ENDPOINT }}
-          signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
-          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
-          files-folder: dist/
-          files-folder-filter: pyrevit-cli*.nupkg
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
+        shell: pwsh
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          TS_ACCOUNT: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
+          TS_PROFILE: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          TS_ENDPOINT: ${{ secrets.AZURE_ENDPOINT }}
+        run: |
+          dotnet tool install --global sign --prerelease
+          & "$env:USERPROFILE\.dotnet\tools\sign.exe" code trusted-signing `
+            dist\pyrevit-cli.*.nupkg `
+            --trusted-signing-account "$env:TS_ACCOUNT" `
+            --trusted-signing-certificate-profile "$env:TS_PROFILE" `
+            --trusted-signing-endpoint "$env:TS_ENDPOINT" `
+            --file-digest SHA256 `
+            --timestamp-url http://timestamp.acs.microsoft.com `
+            --timestamp-digest SHA256
 
       - name: Generate Release Notes
         env:
