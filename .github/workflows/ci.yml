@@ -2,7 +2,7 @@ name: pyRevit CI
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened]
     branches: [develop, master]
     paths:
       - 'bin/**'
@@ -13,6 +13,7 @@ on:
       - 'site-packages/**'
   push:
     branches: [develop, master]
+    tags: ['v*']
     paths:
       - 'bin/**'
       - 'dev/**'
@@ -26,8 +27,11 @@ permissions:
   contents: read
   actions: read
 
+env:
+  MainRepo: "pyrevitlabs/pyRevit"
+
 concurrency:
-  group: pyrevit-ci-${{ github.event.pull_request.number || github.sha }}
+  group: pyrevit-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -69,8 +73,33 @@ jobs:
       - name: Prepare msbuild
         uses: microsoft/setup-msbuild@v3
 
+      - name: Check Build Environment
+        if: github.repository == env.MainRepo
+        run: pipenv run pyrevit check
+
+      - name: Update Copyright Info
+        if: github.repository == env.MainRepo
+        run: pipenv run pyrevit set year
+
+      - name: Update Build Info (WIP)
+        if: github.repository == env.MainRepo && github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        run: pipenv run pyrevit set build wip
+
+      - name: Update Build Info (Release)
+        if: github.repository == env.MainRepo && github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+        run: pipenv run pyrevit set build release
+
+      - name: Publish Build Info
+        if: github.repository == env.MainRepo
+        run: pipenv run pyrevit set products
+
       - name: Build Products
         run: pipenv run pyrevit build products
+
+      - name: Verify LibGit2 native DLL in bin
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}/release/Verify-LibGit2NativeDll.ps1"
 
       - name: Build Installers
         run: pipenv run pyrevit build installers
