@@ -27,7 +27,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: pyrevit-ci-${{ github.ref }}
+  group: pyrevit-ci-${{ github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
