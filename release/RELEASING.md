@@ -24,7 +24,7 @@ This document captures the manual maintainer ritual that the old `main.yml` used
 
 ## Refreshing vendored dependencies (maintainer-only)
 
-The DLLs under `dev/libs/netfx/` and `dev/libs/netcore/` (`pyRevitLabs.MahAppsMetro.dll`, `pyRevitLabs.NLog.dll`, `pyRevitLabs.Json.dll`, `pyRevitLabs.PythonNet.dll`, `ControlzEx.dll`, ...) are vendored: every `.csproj` references them via `HintPath="$(PyRevitDevLibsDir)\..."` and the files are committed to git. CI does **not** rebuild them — `pipenv run pyrevit build products` only invokes labs / engines / runtime / telem / autocmp.
+The DLLs under `dev/libs/netfx/` and `dev/libs/netcore/` (`pyRevitLabs.MahAppsMetro.dll`, `pyRevitLabs.NLog.dll`, `pyRevitLabs.Json.dll`, `pyRevitLabs.PythonNet.dll`, `ControlzEx.dll`, ...) are vendored: projects that consume these DLLs reference them via `HintPath="$(PyRevitDevLibsDir)\..."`, and the files are committed to git. CI does **not** rebuild them — `pipenv run pyrevit build products` only invokes labs / engines / runtime / telem / autocmp.
 
 When you bump a submodule under `dev/modules/` (MahApps.Metro, NLog, Newtonsoft.Json, Python.Net, IronPython2/3), you need to refresh the vendored output **locally** and commit the result:
 
