@@ -46,7 +46,7 @@ This document captures the manual maintainer ritual that the old `main.yml` used
    ```
 
 4. Pushing the tag triggers two workflows in parallel:
-   - `ci.yml` rebuilds DLLs on the tagged commit and uploads `unsigned-bin-<sha>` (DLLs only; installers are no longer built in CI).
+   - `ci.yml` rebuilds the unsigned binaries on the tagged commit and uploads `unsigned-bin-<sha>` (the `bin/**` payload, including DLLs and companion EXEs; installers are not built in CI).
    - `release.yml` starts immediately and polls for the matching CI run (via `gh run watch`). Once CI finishes it downloads `unsigned-bin-<sha>`, signs the DLLs, runs `pipenv run pyrevit build installers` so the Inno + MSI installers pack signed DLLs, signs the resulting installer `.exe`/`.msi`, runs `pipenv run pyrevit build choco` so the `.nupkg` checksum is computed over the signed installer, signs the `.nupkg` with a NuGet author signature, generates release notes, publishes a draft GitHub release, notifies issue threads, and pushes to Chocolatey.
 
 5. Open the draft release on GitHub, review the auto-generated notes, then publish it.
