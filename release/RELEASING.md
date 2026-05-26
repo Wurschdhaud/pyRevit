@@ -1,8 +1,8 @@
 # Releasing pyRevit
 
-pyRevit uses a tag-driven release pipeline. CI builds unsigned binaries (DLLs + EXEs) on pushes to `develop` / `master` (and on `v*` tag pushes) **when changes touch build-related paths** (e.g. `bin/`, `dev/`, `extensions/`, `pyrevitlib/`, `release/`, `site-packages/`) and uploads them as `unsigned-bin-<sha>`. Two follow-up workflows consume that artifact and produce the final signed installers:
+pyRevit uses a tag-driven release pipeline. CI builds unsigned DLLs on pushes to `develop` / `master` (and on `v*` tag pushes) **when changes touch build-related paths** (e.g. `bin/`, `dev/`, `extensions/`, `pyrevitlib/`, `release/`, `site-packages/`) and uploads them as `unsigned-bin-<sha>`. Two follow-up workflows consume that artifact and produce the final signed installers:
 
-- `wip.yml`: downloads `unsigned-bin-<sha>`, signs binaries, builds Inno + MSI installers (so signed DLLs are packed inside), signs installers, builds the Chocolatey package (its embedded SHA is taken over the signed installer), signs the `.nupkg` (NuGet author signature via Azure Trusted Signing), uploads the WIP artifact, and notifies issue threads.
+- `wip.yml`: downloads `unsigned-bin-<sha>`, signs DLLs, builds Inno + MSI installers (so signed DLLs are packed inside), signs installers, builds the Chocolatey package (its embedded SHA is taken over the signed installer), signs the `.nupkg` (NuGet author signature via Azure Trusted Signing), uploads the WIP artifact, and notifies issue threads.
 - `release.yml`: same sign-then-build-then-sign-then-pack-then-sign flow as `wip.yml`, plus release-notes generation, draft GitHub release publishing, and Chocolatey push.
 
 This split guarantees that:
@@ -46,7 +46,7 @@ This document captures the manual maintainer ritual that the old `main.yml` used
    ```
 
 4. Pushing the tag triggers two workflows in parallel:
-   - `ci.yml` rebuilds the unsigned binaries on the tagged commit and uploads `unsigned-bin-<sha>` (the `bin/**` payload, including DLLs and companion EXEs; installers are not built in CI).
+   - `ci.yml` rebuilds DLLs on the tagged commit and uploads `unsigned-bin-<sha>` (DLLs only; installers are no longer built in CI).
    - `release.yml` starts immediately and polls for the matching CI run (via `gh run watch`). Once CI finishes it downloads `unsigned-bin-<sha>`, signs the DLLs, runs `pipenv run pyrevit build installers` so the Inno + MSI installers pack signed DLLs, signs the resulting installer `.exe`/`.msi`, runs `pipenv run pyrevit build choco` so the `.nupkg` checksum is computed over the signed installer, signs the `.nupkg` with a NuGet author signature, generates release notes, publishes a draft GitHub release, notifies issue threads, and pushes to Chocolatey.
 
 5. Open the draft release on GitHub, review the auto-generated notes, then publish it.

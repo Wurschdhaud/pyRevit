@@ -36,6 +36,7 @@ jobs:
           workflow: ci.yml
           commit: ${{ github.event.workflow_run.head_sha }}
           name: unsigned-bin-${{ github.event.workflow_run.head_sha }}
+          path: bin/
 
       - name: Prepare Python 3.14
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
