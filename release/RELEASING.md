@@ -1,6 +1,6 @@
 # Releasing pyRevit
 
-pyRevit uses a tag-driven release pipeline. CI builds unsigned artifacts on every push to `develop` / `master` (and on `v*` tag pushes). Two follow-up workflows consume those artifacts:
+pyRevit uses a tag-driven release pipeline. CI builds unsigned artifacts on pushes to `develop` / `master` (and on `v*` tag pushes) **when changes touch build-related paths** (e.g. `bin/`, `dev/`, `extensions/`, `pyrevitlib/`, `release/`, `site-packages/`). Two follow-up workflows consume those artifacts:
 
 - `wip.yml` signs and notifies after a successful `develop` build.
 - `release.yml` signs, generates release notes, publishes a draft GitHub release, and pushes to Chocolatey when a `v*` tag is pushed.
