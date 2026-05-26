@@ -22,6 +22,27 @@ This document captures the manual maintainer ritual that the old `main.yml` used
   - `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_ENDPOINT`, `AZURE_CODE_SIGNING_NAME`, `AZURE_CERT_PROFILE_NAME`
   - `CHOCO_TOKEN`
 
+## Refreshing vendored dependencies (maintainer-only)
+
+The DLLs under `dev/libs/netfx/` and `dev/libs/netcore/` (`pyRevitLabs.MahAppsMetro.dll`, `pyRevitLabs.NLog.dll`, `pyRevitLabs.Json.dll`, `pyRevitLabs.PythonNet.dll`, `ControlzEx.dll`, ...) are vendored: every `.csproj` references them via `HintPath="$(PyRevitDevLibsDir)\..."` and the files are committed to git. CI does **not** rebuild them — `pipenv run pyrevit build products` only invokes labs / engines / runtime / telem / autocmp.
+
+When you bump a submodule under `dev/modules/` (MahApps.Metro, NLog, Newtonsoft.Json, Python.Net, IronPython2/3), you need to refresh the vendored output **locally** and commit the result:
+
+```bash
+# one-time setup: install the .NET Core 3.1 SDK (MahApps.Metro netcore TFM
+# targets netcoreapp3.1; it's EOL but still publicly available)
+winget install Microsoft.DotNet.SDK.3_1
+
+# refresh dev/libs/{netfx,netcore} from the submodule sources
+pipenv run pyrevit build deps
+
+# review and commit the diff
+git add dev/libs
+git commit -m "chore(libs): refresh vendored deps for <submodule> bump"
+```
+
+This keeps the CI hot path on the SDKs preinstalled on `windows-2025` (.NET 4.8 + .NET 8 + .NET 10) and avoids depending on the EOL 3.1 archives in a hosted runner. If a submodule ever ships only via NuGet (e.g. modern MahApps.Metro), retire the local build from `_labs.build_deps` and switch the `.csproj` to a `PackageReference` instead of `HintPath`.
+
 ## Cut a release
 
 1. From a clean local clone on `develop`, stamp the build as a release:
