@@ -47,6 +47,16 @@ jobs:
           pip install pipenv
           pipenv sync --dev
 
+      - name: Prepare .NET SDKs
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Prepare msbuild
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
+
       - name: Get Install Version
         id: installversion
         uses: juliangruber/read-file-action@271ff311a4947af354c6abcd696a306553b9ec18 # v1.1.8
@@ -84,12 +94,13 @@ jobs:
           echo "Timed out waiting for CI run on $GITHUB_SHA" >&2
           exit 1
 
-      - name: Download unsigned artifacts
+      - name: Download unsigned bin artifact
         uses: dawidd6/action-download-artifact@ac66b43f0e6a346234dd65d4d0c8fbb31cb316e5 # v11
         with:
           workflow: ci.yml
           commit: ${{ github.sha }}
-          name: unsigned-build-${{ github.sha }}
+          name: unsigned-bin-${{ github.sha }}
+          path: bin/
           if_no_artifact_found: fail
 
       - name: Sign binaries
@@ -108,6 +119,9 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
 
+      - name: Build Installers
+        run: pipenv run pyrevit build installers
+
       - name: Sign installers
         uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
@@ -119,6 +133,24 @@ jobs:
           certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
           files-folder: dist/
           files-folder-filter: pyRevit*.exe,pyRevit*.msi,pyrevit*.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Build Choco Package
+        run: pipenv run pyrevit build choco
+
+      - name: Sign Choco Package
+        uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          files-folder: dist/
+          files-folder-filter: pyrevit-cli*.nupkg
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
