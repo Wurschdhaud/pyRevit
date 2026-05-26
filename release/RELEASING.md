@@ -34,8 +34,8 @@ This document captures the manual maintainer ritual that the old `main.yml` used
    ```bash
    git checkout master
    git pull
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
+   git tag "v$(cat pyrevitlib/pyrevit/version)"
+   git push origin "v$(cat pyrevitlib/pyrevit/version)"
    ```
 
 4. Pushing the tag triggers two workflows in parallel:
