@@ -1,0 +1,77 @@
+name: pyRevit Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: pyrevit-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: windows-2025
+    environment: production
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Validate tag matches version
+        shell: bash
+        run: |
+          FILE_VERSION=$(cat pyrevitlib/pyrevit/version)
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          [ "$FILE_VERSION" = "$TAG_VERSION" ] || exit 1
+
+      - name: Download unsigned artifacts
+        uses: dawidd6/action-download-artifact@v21
+        with:
+          workflow: ci.yml
+          commit: ${{ github.sha }}
+          name: unsigned-build-${{ github.sha }}
+
+      - name: Sign binaries
+        uses: azure/trusted-signing-action@v1.2.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          files-folder: bin/
+          files-folder-filter: pyrevit*.exe,pyRevit*.dll
+          files-folder-recurse: false
+
+      - name: Sign installers
+        uses: azure/trusted-signing-action@v1.2.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          files-folder: dist/
+          files-folder-filter: pyRevit*.exe,pyRevit*.msi,pyrevit*.exe
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          draft: true
+          files: dist/**
+
+      - name: Publish Chocolatey
+        run: |
+          choco apikey --key ${{ secrets.CHOCO_TOKEN }} --source https://push.chocolatey.org/
+          choco push dist/*.nupkg -s https://push.chocolatey.org/

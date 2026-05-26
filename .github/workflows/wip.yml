@@ -1,0 +1,66 @@
+name: pyRevit WIP
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [develop]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: pyrevit-wip-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sign-wip:
+    if: github.event.pull_request.merged == true && github.repository == 'pyrevitlabs/pyRevit'
+    runs-on: windows-2025
+    environment: production
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Download unsigned artifacts
+        uses: dawidd6/action-download-artifact@v21
+        with:
+          workflow: ci.yml
+          commit: ${{ github.event.pull_request.merge_commit_sha }}
+          name: unsigned-build-${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Sign binaries
+        uses: azure/trusted-signing-action@v1.2.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          files-folder: bin/
+          files-folder-filter: pyrevit*.exe,pyRevit*.dll
+          files-folder-recurse: false
+
+      - name: Sign installers
+        uses: azure/trusted-signing-action@v1.2.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          files-folder: dist/
+          files-folder-filter: pyRevit*.exe,pyRevit*.msi,pyrevit*.exe
+
+      - name: Upload signed WIP artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: pyrevit-wip-${{ github.sha }}
+          path: dist/**

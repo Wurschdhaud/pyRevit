@@ -1,0 +1,86 @@
+name: pyRevit CI
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [develop, master]
+    paths:
+      - 'bin/**'
+      - 'dev/**'
+      - 'extensions/**'
+      - 'pyrevitlib/**'
+      - 'release/**'
+      - 'site-packages/**'
+  push:
+    branches: [develop, master]
+    paths:
+      - 'bin/**'
+      - 'dev/**'
+      - 'extensions/**'
+      - 'pyrevitlib/**'
+      - 'release/**'
+      - 'site-packages/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: pyrevit-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Prepare Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: 'pipenv'
+
+      - name: Prepare pipenv
+        run: |
+          pip install pipenv
+          pipenv sync --dev
+
+      - name: Prepare .NET SDKs
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            3.1.x
+            8.0.x
+            10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Build.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Prepare msbuild
+        uses: microsoft/setup-msbuild@v3
+
+      - name: Build Products
+        run: pipenv run pyrevit build products
+
+      - name: Build Installers
+        run: pipenv run pyrevit build installers
+
+      - name: Upload unsigned artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-build-${{ github.sha }}
+          path: |
+            bin/**
+            dist/**
