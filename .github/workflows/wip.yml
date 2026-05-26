@@ -30,6 +30,12 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.workflow_run.head_sha }}
 
+      - name: Get Install Version
+        id: installversion
+        uses: juliangruber/read-file-action@271ff311a4947af354c6abcd696a306553b9ec18 # v1.1.8
+        with:
+          path: release/version
+
       - name: Download unsigned bin artifact
         uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151 # v21
         with:
@@ -49,12 +55,6 @@ jobs:
           pip install pipenv
           pipenv sync --dev
 
-      - name: Prepare .NET SDKs
-        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
-        with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
 
       - name: Prepare msbuild
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
@@ -119,8 +119,10 @@ jobs:
       - name: Upload signed WIP artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: pyrevit-wip-${{ github.event.workflow_run.head_sha }}
-          path: dist/**
+          name: pyrevit-wip-installers-${{ steps.installversion.outputs.content }}
+          path: |
+            dist/**
+            !dist/**/*.wixpdb
 
       - name: Notify Issue Threads (WIP)
         env:
