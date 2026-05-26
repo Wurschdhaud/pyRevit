@@ -1,0 +1,91 @@
+name: pyRevit WIP
+
+on:
+  workflow_run:
+    workflows: ["pyRevit CI"]
+    types: [completed]
+    branches: [develop]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: pyrevit-wip-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  sign-wip:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.repository == 'pyrevitlabs/pyRevit'
+    runs-on: windows-2025
+    environment: production
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download unsigned artifacts
+        uses: dawidd6/action-download-artifact@ac66b43f0e6a346234dd65d4d0c8fbb31cb316e5 # v11
+        with:
+          workflow: ci.yml
+          commit: ${{ github.event.workflow_run.head_sha }}
+          name: unsigned-build-${{ github.event.workflow_run.head_sha }}
+
+      - name: Sign binaries
+        uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          files-folder: bin/
+          files-folder-filter: pyrevit*.exe,pyRevit*.dll
+          files-folder-recurse: false
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Sign installers
+        uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          files-folder: dist/
+          files-folder-filter: pyRevit*.exe,pyRevit*.msi,pyrevit*.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Upload signed WIP artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pyrevit-wip-${{ github.event.workflow_run.head_sha }}
+          path: dist/**
+
+      - name: Prepare Python 3.14
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.14'
+          cache: 'pipenv'
+
+      - name: Prepare pipenv
+        run: |
+          pip install pipenv
+          pipenv sync --dev
+
+      - name: Notify Issue Threads (WIP)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pipenv run pyrevit notify wip https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

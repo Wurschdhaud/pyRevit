@@ -1,0 +1,113 @@
+name: pyRevit CI
+
+on:
+  pull_request:
+    types: [opened, reopened]
+    branches: [develop, master]
+    paths:
+      - 'bin/**'
+      - 'dev/**'
+      - 'extensions/**'
+      - 'pyrevitlib/**'
+      - 'release/**'
+      - 'site-packages/**'
+  push:
+    branches: [develop, master]
+    tags: ['v*']
+    paths:
+      - 'bin/**'
+      - 'dev/**'
+      - 'extensions/**'
+      - 'pyrevitlib/**'
+      - 'release/**'
+      - 'site-packages/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  MainRepo: "pyrevitlabs/pyRevit"
+
+concurrency:
+  group: pyrevit-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Prepare Python 3.14
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.14'
+          cache: 'pipenv'
+
+      - name: Prepare pipenv
+        run: |
+          pip install pipenv
+          pipenv sync --dev
+
+      - name: Prepare .NET SDKs
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Cache NuGet packages
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.USERPROFILE }}\.nuget\packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Build.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Prepare msbuild
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
+
+      - name: Check Build Environment
+        if: github.repository == env.MainRepo
+        run: pipenv run pyrevit check
+
+      - name: Update Copyright Info
+        if: github.repository == env.MainRepo
+        run: pipenv run pyrevit set year
+
+      - name: Update Build Info (WIP)
+        if: github.repository == env.MainRepo && github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        run: pipenv run pyrevit set build wip
+
+      - name: Update Build Info (Release)
+        if: github.repository == env.MainRepo && github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+        run: pipenv run pyrevit set build release
+
+      - name: Publish Build Info
+        if: github.repository == env.MainRepo
+        run: pipenv run pyrevit set products
+
+      - name: Build Products
+        run: pipenv run pyrevit build products
+
+      - name: Verify LibGit2 native DLL in bin
+        shell: pwsh
+        run: |
+          & "${{ github.workspace }}/release/Verify-LibGit2NativeDll.ps1"
+
+      - name: Build Installers
+        run: pipenv run pyrevit build installers
+
+      - name: Upload unsigned artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unsigned-build-${{ github.sha }}
+          path: |
+            bin/**
+            dist/**
