@@ -1,8 +1,8 @@
 # Releasing pyRevit
 
-pyRevit uses a tag-driven release pipeline. CI builds unsigned DLLs on pushes to `develop` / `master` (and on `v*` tag pushes) **when changes touch build-related paths** (e.g. `bin/`, `dev/`, `extensions/`, `pyrevitlib/`, `release/`, `site-packages/`) and uploads them as `unsigned-bin-<sha>`. Two follow-up workflows consume that artifact and produce the final signed installers:
+pyRevit uses a tag-driven release pipeline. CI builds unsigned binaries (DLLs + EXEs) on pushes to `develop` / `master` (and on `v*` tag pushes) **when changes touch build-related paths** (e.g. `bin/`, `dev/`, `extensions/`, `pyrevitlib/`, `release/`, `site-packages/`) and uploads them as `unsigned-bin-<sha>`. Two follow-up workflows consume that artifact and produce the final signed installers:
 
-- `wip.yml`: downloads `unsigned-bin-<sha>`, signs DLLs, builds Inno + MSI installers (so signed DLLs are packed inside), signs installers, builds the Chocolatey package (its embedded SHA is taken over the signed installer), signs the `.nupkg` (NuGet author signature via Azure Trusted Signing), uploads the WIP artifact, and notifies issue threads.
+- `wip.yml`: downloads `unsigned-bin-<sha>`, signs binaries, builds Inno + MSI installers (so signed DLLs are packed inside), signs installers, builds the Chocolatey package (its embedded SHA is taken over the signed installer), signs the `.nupkg` (NuGet author signature via Azure Trusted Signing), uploads the WIP artifact, and notifies issue threads.
 - `release.yml`: same sign-then-build-then-sign-then-pack-then-sign flow as `wip.yml`, plus release-notes generation, draft GitHub release publishing, and Chocolatey push.
 
 This split guarantees that:
