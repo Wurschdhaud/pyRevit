@@ -408,9 +408,9 @@ namespace pyRevitExtensionParser
         {
             var extName = Path.GetFileNameWithoutExtension(extDir);
 
-            // Bail out before we walk the component tree if the user has disabled
-            // this extension in pyRevit_config.ini. extConfig is reused below so
-            // ParseExtensionByName runs once, not twice.
+            // Skip the component tree recursion if the extension is disabled in
+            // pyRevit_config.ini. extConfig is reused below so ParseExtensionByName
+            // runs once, not twice.
             var extConfig = GetConfig().ParseExtensionByName(extName);
             if (extConfig != null && extConfig.Disabled)
                 return null;
