@@ -142,9 +142,9 @@ Supported bundle types: pushbutton, smartbutton, pulldown, splitbutton, panelbut
 - Python: Google docstring convention, formatted with black, linted with ruff
 - C#: Standard .NET conventions
 
----
+
  
-# Commenting guidelines
+## Commenting guidelines
  
 When writing or suggesting code comments, document **what** the code does and **why**, never **how**.
  
@@ -180,7 +180,7 @@ The same rule applies to docstrings, inline comments, and any documentation gene
 2017-2027, with separate builds per version:
 - Revit 2017-2024: .NET Framework 4.7.2/4.8
 - Revit 2025-2026: .NET 8.0
-- Revit 202ù: .NET 10.0
+- Revit 2027+: .NET 10.0
 
 ## Git Workflow
 
