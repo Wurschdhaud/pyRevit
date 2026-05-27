@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: write
 
 concurrency:
   group: pyrevit-wip-${{ github.event.workflow_run.head_sha }}
