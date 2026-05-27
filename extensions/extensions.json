@@ -265,7 +265,7 @@
             "website": "https://t3lab.space/",
             "image": "",
             "dependencies": []
-},
+        },
         {
             "builtin": "False",
             "type": "extension",
