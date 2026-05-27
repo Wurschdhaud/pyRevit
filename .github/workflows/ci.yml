@@ -114,3 +114,35 @@ jobs:
         with:
           name: unsigned-bin-${{ github.sha }}
           path: bin/**
+
+  wip:
+    needs: build
+    if: >
+      github.repository == env.MainRepo &&
+      github.ref == 'refs/heads/develop' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/wip.yml
+    with:
+      head_sha: ${{ github.sha }}
+      ci_run_id: ${{ github.run_id }}
+    secrets: inherit
+
+  notify:
+    needs: wip
+    if: >
+      github.repository == env.MainRepo &&
+      github.ref == 'refs/heads/develop' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/notify.yml
+    with:
+      head_sha: ${{ github.sha }}
+      build: wip
+      notify_url: https://github.com/${{ github.repository }}/actions/runs/${{ needs.wip.outputs.workflow_run_id }}
+    secrets: inherit

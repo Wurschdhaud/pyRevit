@@ -1,34 +1,45 @@
 name: pyRevit WIP
 
+# Called from ci.yml after build — not workflow_run (GITHUB_TOKEN cannot post issue comments there).
 on:
-  workflow_run:
-    workflows: ["pyRevit CI"]
-    types: [completed]
-    branches: [develop]
+  workflow_call:
+    inputs:
+      head_sha:
+        required: true
+        type: string
+      ci_run_id:
+        required: true
+        type: string
+    outputs:
+      workflow_run_id:
+        description: Actions run id for this WIP workflow (artifacts and notify link)
+        value: ${{ jobs.sign-wip.outputs.workflow_run_id }}
 
 concurrency:
-  group: pyrevit-wip-${{ github.event.workflow_run.head_sha }}
+  group: pyrevit-wip-${{ inputs.head_sha }}
   cancel-in-progress: true
 
 jobs:
   sign-wip:
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      (github.event.workflow_run.event == 'push' ||
-       github.event.workflow_run.event == 'workflow_dispatch') &&
-      github.repository == 'pyrevitlabs/pyRevit'
     runs-on: windows-2025
     permissions:
       contents: read
       actions: read
     environment: production
+    outputs:
+      workflow_run_id: ${{ steps.runmeta.outputs.run_id }}
 
     steps:
+      - name: Record workflow run id
+        id: runmeta
+        shell: bash
+        run: echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ inputs.head_sha }}
 
       - name: Get Install Version
         id: installversion
@@ -37,11 +48,11 @@ jobs:
           path: release/version
 
       - name: Download unsigned bin artifact
-        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151 # v21
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          workflow: ci.yml
-          commit: ${{ github.event.workflow_run.head_sha }}
-          name: unsigned-bin-${{ github.event.workflow_run.head_sha }}
+          name: unsigned-bin-${{ inputs.head_sha }}
+          run-id: ${{ inputs.ci_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           path: bin/
 
       - name: Prepare Python 3.14
@@ -122,38 +133,3 @@ jobs:
           path: |
             dist/**
             !dist/**/*.wixpdb
-  notify:
-    needs: sign-wip
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      (github.event.workflow_run.event == 'push' ||
-       github.event.workflow_run.event == 'workflow_dispatch') &&
-      github.repository == 'pyrevitlabs/pyRevit'
-    runs-on: windows-2025
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.workflow_run.head_sha }}
-
-      - name: Prepare Python 3.14
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.14'
-          cache: 'pipenv'
-
-      - name: Prepare pipenv
-        run: |
-          pip install pipenv
-          pipenv sync --dev
-
-      - name: Notify Issue Threads (WIP)
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: pipenv run pyrevit notify wip https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

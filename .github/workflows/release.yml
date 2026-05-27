@@ -186,38 +186,13 @@ jobs:
   notify:
     needs: release
     if: github.repository == 'pyrevitlabs/pyRevit' && github.ref_type == 'tag'
-    runs-on: windows-2025
     permissions:
       contents: read
       issues: write
       pull-requests: write
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-
-      - name: Prepare Python 3.14
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.14'
-          cache: 'pipenv'
-
-      - name: Prepare pipenv
-        run: |
-          pip install pipenv
-          pipenv sync --dev
-
-      - name: Validate release URL
-        shell: bash
-        run: |
-          if [ -z "${{ needs.release.outputs.release_url }}" ]; then
-            echo "release_url output is empty; cannot notify issues" >&2
-            exit 1
-          fi
-
-      - name: Notify Issue Threads (Release)
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: pipenv run pyrevit notify release ${{ needs.release.outputs.release_url }}
+    uses: ./.github/workflows/notify.yml
+    with:
+      head_sha: ${{ github.sha }}
+      build: release
+      notify_url: ${{ needs.release.outputs.release_url }}
+    secrets: inherit
