@@ -6,10 +6,6 @@ on:
     types: [completed]
     branches: [develop]
 
-permissions:
-  contents: read
-  actions: read
-
 concurrency:
   group: pyrevit-wip-${{ github.event.workflow_run.head_sha }}
   cancel-in-progress: true
@@ -137,6 +133,7 @@ jobs:
     permissions:
       contents: read
       issues: write
+      pull-requests: write
 
     steps:
       - name: Checkout Repository

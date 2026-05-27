@@ -6,10 +6,6 @@ on:
       - 'v*'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  actions: read
-
 concurrency:
   group: pyrevit-release-${{ github.ref }}
   cancel-in-progress: true
@@ -194,6 +190,7 @@ jobs:
     permissions:
       contents: read
       issues: write
+      pull-requests: write
 
     steps:
       - name: Checkout Repository
