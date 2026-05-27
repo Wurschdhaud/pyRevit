@@ -123,7 +123,6 @@ jobs:
           path: |
             dist/**
             !dist/**/*.wixpdb
-
   notify:
     needs: sign-wip
     if: >
@@ -149,53 +148,6 @@ jobs:
         run: |
           pip install pipenv
           pipenv sync --dev
-
-      - name: Notify Issue Threads (WIP)
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: pipenv run pyrevit notify wip https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}        with:
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          endpoint: ${{ secrets.AZURE_ENDPOINT }}
-          signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
-          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
-          files-folder: dist/
-          files-folder-filter: pyRevit*.exe,pyRevit*.msi,pyrevit*.exe
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
-
-      - name: Build Choco Package
-        run: pipenv run pyrevit build choco
-
-      - name: Sign Choco Package
-        shell: pwsh
-        env:
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          TS_ACCOUNT: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
-          TS_PROFILE: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
-          TS_ENDPOINT: ${{ secrets.AZURE_ENDPOINT }}
-        run: |
-          dotnet tool install --global sign --prerelease
-          & "$env:USERPROFILE\.dotnet\tools\sign.exe" code trusted-signing `
-            dist\pyrevit-cli.*.nupkg `
-            --trusted-signing-account "$env:TS_ACCOUNT" `
-            --trusted-signing-certificate-profile "$env:TS_PROFILE" `
-            --trusted-signing-endpoint "$env:TS_ENDPOINT" `
-            --file-digest SHA256 `
-            --timestamp-url http://timestamp.acs.microsoft.com `
-            --timestamp-digest SHA256
-
-      - name: Upload signed WIP artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: pyrevit-wip-installers-${{ steps.installversion.outputs.content }}
-          path: |
-            dist/**
-            !dist/**/*.wixpdb
 
       - name: Notify Issue Threads (WIP)
         env:
