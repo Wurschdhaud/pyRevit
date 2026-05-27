@@ -33,8 +33,9 @@ namespace pyRevitLabs.TargetApps.Revit {
                 if (!_revitProductResolved) {
                     _revitProductResolved = true;
                     try {
-                        var fileInfo = FileVersionInfo.GetVersionInfo(Module);
-                        _revitProduct = RevitProduct.ResolveProduct(fileInfo.ProductVersion, Module);
+                        var modulePath = Module;
+                        var fileInfo = FileVersionInfo.GetVersionInfo(modulePath);
+                        _revitProduct = RevitProduct.ResolveProduct(fileInfo.ProductVersion, modulePath);
                     }
                     catch {
                         _revitProduct = null;
