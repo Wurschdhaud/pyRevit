@@ -66,6 +66,14 @@
         Desativar esta opção pode melhorar o desempenho da inicialização, mas os comandos podem perder metadados definidos nos scripts.
         Os valores de bundle.yaml ainda serão usados independentemente desta configuração.
     </system:String>
+    <system:String x:Key="CoreSettings.Loader.NewLoader.Changed">
+        A configuração do novo carregador foi alterada. É necessário reiniciar o pyRevit para
+        que a alteração tenha efeito. Deseja reiniciar agora?
+    </system:String>
+    <system:String x:Key="CoreSettings.Loader.ReadScriptMetadata.Changed">
+        A configuração de leitura de metadados dos scripts foi alterada. É necessário
+        reiniciar o pyRevit para que a alteração tenha efeito. Deseja reiniciar agora?
+    </system:String>
 
     <system:String x:Key="CoreSettings.CloseOtherConsoles">Fechar outros consoles abertos</system:String>
     <system:String x:Key="CoreSettings.CloseOtherConsoles.Description">

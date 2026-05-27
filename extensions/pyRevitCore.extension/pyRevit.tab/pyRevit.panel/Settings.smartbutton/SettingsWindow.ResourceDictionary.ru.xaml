@@ -67,6 +67,14 @@
         Отключение этого параметра может повысить производительность при запуске, но команды могут потерять метаданные, определенные в скриптах.
         Значения из bundle.yaml будут использоваться независимо от этого параметра.
     </system:String>
+    <system:String x:Key="CoreSettings.Loader.NewLoader.Changed">
+        Настройка нового загрузчика изменена. Для применения изменения требуется перезагрузка
+        pyRevit. Перезагрузить сейчас?
+    </system:String>
+    <system:String x:Key="CoreSettings.Loader.ReadScriptMetadata.Changed">
+        Настройка чтения метаданных скриптов изменена. Для применения изменения требуется
+        перезагрузка pyRevit. Перезагрузить сейчас?
+    </system:String>
 
     <system:String x:Key="CoreSettings.CloseOtherConsoles">Закрывать другие открытые консоли</system:String>
     <system:String x:Key="CoreSettings.CloseOtherConsoles.Description">

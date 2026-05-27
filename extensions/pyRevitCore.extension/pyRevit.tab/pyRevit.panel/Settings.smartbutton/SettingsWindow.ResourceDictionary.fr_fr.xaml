@@ -66,6 +66,14 @@
         La désactivation de cette option peut améliorer les performances de démarrage, mais les commandes peuvent perdre les métadonnées définies dans les scripts.
         Les valeurs de bundle.yaml seront toujours utilisées quelle que soit ce paramètre.
     </system:String>
+    <system:String x:Key="CoreSettings.Loader.NewLoader.Changed">
+        Le paramètre du nouveau chargeur a changé. Un rechargement de pyRevit est requis pour
+        que ce changement prenne effet. Voulez-vous recharger maintenant ?
+    </system:String>
+    <system:String x:Key="CoreSettings.Loader.ReadScriptMetadata.Changed">
+        Le paramètre de lecture des métadonnées des scripts a changé. Un rechargement de
+        pyRevit est requis pour que ce changement prenne effet. Voulez-vous recharger maintenant ?
+    </system:String>
 
     <system:String x:Key="CoreSettings.CloseOtherConsoles">Fermer les consoles ouvertes</system:String>
     <system:String x:Key="CoreSettings.CloseOtherConsoles.Description">

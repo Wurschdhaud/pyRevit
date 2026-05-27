@@ -66,6 +66,14 @@
         Disabling this option can improve startup performance but commands may lose metadata defined in scripts.
         Bundle.yaml values will still be used regardless of this setting.
     </system:String>
+    <system:String x:Key="CoreSettings.Loader.NewLoader.Changed">
+        The new loader setting has changed. Reloading pyRevit is required for this
+        change to take effect. Do you want to reload now?
+    </system:String>
+    <system:String x:Key="CoreSettings.Loader.ReadScriptMetadata.Changed">
+        The read script metadata setting has changed. Reloading pyRevit is required
+        for this change to take effect. Do you want to reload now?
+    </system:String>
 
     <system:String x:Key="CoreSettings.CloseOtherConsoles">Close other open consoles</system:String>
     <system:String x:Key="CoreSettings.CloseOtherConsoles.Description">

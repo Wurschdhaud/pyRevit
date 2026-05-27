@@ -66,6 +66,14 @@
         Das Deaktivieren dieser Option kann die Startleistung verbessern, aber Befehle können Metadaten verlieren, die in Skripten definiert sind.
         Bundle.yaml-Werte werden unabhängig von dieser Einstellung immer verwendet.
     </system:String>
+    <system:String x:Key="CoreSettings.Loader.NewLoader.Changed">
+        Die Einstellung für den neuen Loader wurde geändert. Ein Neuladen von pyRevit ist
+        erforderlich, damit die Änderung wirksam wird. Möchten Sie jetzt neu laden?
+    </system:String>
+    <system:String x:Key="CoreSettings.Loader.ReadScriptMetadata.Changed">
+        Die Einstellung zum Lesen von Skriptmetadaten wurde geändert. Ein Neuladen von
+        pyRevit ist erforderlich, damit die Änderung wirksam wird. Möchten Sie jetzt neu laden?
+    </system:String>
 
     <system:String x:Key="CoreSettings.CloseOtherConsoles">Andere geöffnete Konsolen schließen</system:String>
     <system:String x:Key="CoreSettings.CloseOtherConsoles.Description">
