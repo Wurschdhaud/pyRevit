@@ -127,8 +127,8 @@ namespace pyRevitExtensionParser
         /// Gets or sets whether to read script metadata (__title__, __author__, etc.) from Python script files.
         /// </summary>
         /// <remarks>
-        /// When true (default), pyRevit reads metadata constants from .py files in bundles to populate
-        /// command attributes. When false, only bundle.yaml values are used, improving startup performance.
+        /// When false, bundles rely solely on bundle.yaml for display metadata, which reduces startup time.
+        /// When true (default), script-level dunders are merged with bundle.yaml (bundle wins on conflict).
         /// </remarks>
         public bool ReadScriptMetadata
         {
