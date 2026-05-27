@@ -7,10 +7,11 @@ metadata lines in scripts after migration.
 # pylint: disable=import-error,invalid-name,broad-except,wrong-import-position
 from __future__ import absolute_import, print_function
 
+import ast
 import codecs
 import os
 import os.path as op
-import shutil
+import re
 from collections import OrderedDict
 
 import clr
@@ -21,18 +22,22 @@ from pyrevit import forms, script
 from pyrevit.coreutils import yaml as pyryaml
 
 
-# Bundle directory extensions that can carry a script.py with dunders.
 SCRIPT_BUNDLE_EXTS = (
     '.pushbutton', '.smartbutton', '.panelbutton', '.invokebutton',
     '.nobutton', '.linkbutton', '.combobox',
 )
 
-# Module-level dunder names the new parser knows how to extract. Used by the
-# optional script-cleanup pass to comment matching lines out of script.py.
-DUNDER_NAMES = (
+DUNDER_NAMES = frozenset((
     '__title__', '__authors__', '__author__', '__doc__', '__helpurl__',
     '__context__', '__highlight__', '__min_revit_ver__', '__max_revit_ver__',
     '__beta__', '__cleanengine__', '__fullframeengine__', '__persistentengine__',
+))
+
+# Module-level dunder at column 0 (optional UTF-8 BOM already stripped from line).
+_MODULE_DUNDER_RE = re.compile(
+    r'^([ \t]*)({names})\s*[=:]'.format(
+        names='|'.join(re.escape(n) for n in sorted(DUNDER_NAMES, key=len, reverse=True))
+    )
 )
 
 output = script.get_output()
@@ -57,11 +62,9 @@ def find_script_in_bundle(bundle_dir):
         files = os.listdir(bundle_dir)
     except OSError:
         return None
-    # Exact "script.py" wins.
     for f in files:
         if f.lower() == 'script.py':
             return op.join(bundle_dir, f)
-    # Fall back to the *_script.py / -script.py / .script.py conventions.
     for f in files:
         lower = f.lower()
         if lower.endswith('.py') and (
@@ -84,7 +87,7 @@ def iter_bundles(extension_root):
 
 
 def read_script_metadata(script_path):
-    """Pull dunders from script_path via the new C# parser, as a native dict."""
+    """Pull dunders from script_path via the C# parser, as a native dict."""
     raw = ExtensionParser.ReadScriptMetadata(script_path)
     out = OrderedDict()
     for k in raw.Keys:
@@ -92,17 +95,14 @@ def read_script_metadata(script_path):
     return out
 
 
-def merge_yaml(existing, incoming, policy, rel_label):
-    """Return (merged, changed).
-
-    policy:
-        'yaml_wins'   - keep existing values where keys collide.
-        'script_wins' - overwrite existing with incoming on collision.
-        'ask'         - prompt per conflicting key.
-    """
+def merge_yaml(existing, incoming, policy, rel_label, dry_run=False):
+    """Return (merged, changed, skipped)."""
     existing = existing or OrderedDict()
     merged = OrderedDict(existing)
     changed = False
+    effective_policy = policy
+    if dry_run and policy == 'ask':
+        effective_policy = 'script_wins'
 
     for key, new_value in incoming.items():
         if key not in merged:
@@ -111,79 +111,297 @@ def merge_yaml(existing, incoming, policy, rel_label):
             continue
         if merged[key] == new_value:
             continue
-        if policy == 'yaml_wins':
+        if effective_policy == 'yaml_wins':
             continue
-        if policy == 'script_wins':
+        if effective_policy == 'script_wins':
             merged[key] = new_value
             changed = True
             continue
-        # policy == 'ask'
         choice = forms.CommandSwitchWindow.show(
             ['Keep YAML: {!r}'.format(merged[key]),
              'Use SCRIPT: {!r}'.format(new_value)],
             message='[{}] Conflict on `{}`'.format(rel_label, key),
         )
         if not choice:
-            return existing, False  # cancel => skip this bundle entirely
+            return existing, False, True
         if choice.startswith('Use SCRIPT'):
             merged[key] = new_value
             changed = True
 
-    return merged, changed
+    return merged, changed, False
 
 
-def comment_out_dunders(script_path):
-    """Prefix module-level dunder assignments in script.py with '# '.
-
-    Only matches dunders at column 0 to avoid touching identically-named
-    assignments inside functions/classes. Continuation lines of a multi-line
-    triple-quoted dunder are also commented out.
-    """
+def _read_script_source(script_path):
+    """Read script text as UTF-8 (with optional BOM)."""
     try:
-        with codecs.open(script_path, 'r', 'utf-8') as f:
-            lines = f.readlines()
+        with codecs.open(script_path, 'r', 'utf-8-sig') as f:
+            return f.read()
     except (OSError, IOError):
-        return False
+        return None
 
-    changed = False
-    new_lines = []
-    in_multiline = False
-    multiline_quote = None
 
-    for line in lines:
-        if in_multiline:
-            new_lines.append(line if line.startswith('# ') else '# ' + line)
-            if multiline_quote in line:
-                in_multiline = False
-                multiline_quote = None
-            changed = True
+def _strip_strings_and_comments(line):
+    """Roughly mask strings/comments so bracket counts ignore string contents."""
+    out = []
+    i = 0
+    n = len(line)
+    in_single = False
+    in_double = False
+    in_triple = None
+    while i < n:
+        if in_triple:
+            if line.startswith(in_triple, i):
+                out.extend([' '] * len(in_triple))
+                i += len(in_triple)
+                in_triple = None
+                continue
+            out.append(' ')
+            i += 1
             continue
-
-        starts_dunder = False
-        for name in DUNDER_NAMES:
-            if line.startswith(name) and len(line) > len(name) and line[len(name)] in (' ', '='):
-                starts_dunder = True
+        if not in_single and not in_double:
+            if line.startswith('"""', i) or line.startswith("'''", i):
+                in_triple = line[i:i + 3]
+                out.extend([' '] * 3)
+                i += 3
+                continue
+            if line[i] == '#':
+                out.extend([' '] * (n - i))
                 break
+            if line[i] == "'":
+                in_single = True
+                out.append(' ')
+                i += 1
+                continue
+            if line[i] == '"':
+                in_double = True
+                out.append(' ')
+                i += 1
+                continue
+        if in_single:
+            if line[i] == "'":
+                in_single = False
+            out.append(' ')
+            i += 1
+            continue
+        if in_double:
+            if line[i] == '"':
+                in_double = False
+            out.append(' ')
+            i += 1
+            continue
+        out.append(line[i])
+        i += 1
+    return ''.join(out)
 
-        if not starts_dunder:
+
+def _assignment_complete_on_line(masked_line):
+    """True if bracket/quote structure on this line is closed after the line."""
+    stack = []
+    pairs = {')': '(', ']': '[', '}': '{'}
+    in_single = in_double = False
+    in_triple = None
+    i = 0
+    n = len(masked_line)
+    while i < n:
+        ch = masked_line[i]
+        if in_triple:
+            if masked_line.startswith(in_triple, i):
+                i += len(in_triple)
+                in_triple = None
+            else:
+                i += 1
+            continue
+        if not in_single and not in_double:
+            if masked_line.startswith('"""', i) or masked_line.startswith("'''", i):
+                in_triple = masked_line[i:i + 3]
+                i += 3
+                continue
+            if ch == "'":
+                in_single = True
+                i += 1
+                continue
+            if ch == '"':
+                in_double = True
+                i += 1
+                continue
+            if ch in '([{':
+                stack.append(ch)
+            elif ch in ')]}':
+                if stack and stack[-1] == pairs[ch]:
+                    stack.pop()
+            i += 1
+            continue
+        if in_single:
+            if ch == "'":
+                in_single = False
+            i += 1
+            continue
+        if in_double:
+            if ch == '"':
+                in_double = False
+            i += 1
+            continue
+    return not stack and not in_single and not in_double and not in_triple
+
+
+def _line_range_for_assignment_block(source_lines, start_idx):
+    """Return 0-based indices for a module-level assignment starting at start_idx."""
+    if start_idx < 0 or start_idx >= len(source_lines):
+        return []
+
+    indices = []
+    combined = ''
+    for idx in range(start_idx, len(source_lines)):
+        indices.append(idx)
+        combined += source_lines[idx]
+        if source_lines[idx].rstrip().endswith('\\'):
+            continue
+        if _assignment_complete_on_line(_strip_strings_and_comments(combined)):
+            return indices
+    return indices
+
+
+def _is_module_level_line(line):
+    """True when the line belongs to module scope (no indentation)."""
+    if not line or not line.strip():
+        return False
+    return line[0] not in (' ', '\t')
+
+
+def _dunder_used_as_load(tree, dunder_name):
+    """True if dunder_name is read anywhere in the module."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id == dunder_name:
+            if isinstance(node.ctx, ast.Load):
+                return True
+    return False
+
+
+def _assign_target_names(target):
+    """Yield Name ids from an assignment target (Name or Tuple/List)."""
+    if isinstance(target, ast.Name):
+        yield target.id
+    elif isinstance(target, (ast.Tuple, ast.List)):
+        for elt in target.elts:
+            for name in _assign_target_names(elt):
+                yield name
+
+
+def _find_cleanup_indices_ast(source, source_lines):
+    """Return (indices, warning) using ast; warning is None on success."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return None, 'syntax_error'
+
+    indices = set()
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        assign_names = []
+        for target in node.targets:
+            for name in _assign_target_names(target):
+                if name in DUNDER_NAMES:
+                    assign_names.append(name)
+        if not assign_names:
+            continue
+        if any(_dunder_used_as_load(tree, name) for name in assign_names):
+            continue
+        start = node.lineno - 1
+        end_lineno = getattr(node, 'end_lineno', None)
+        if end_lineno is not None:
+            for idx in range(start, end_lineno):
+                indices.add(idx)
+        else:
+            for idx in _line_range_for_assignment_block(source_lines, start):
+                indices.add(idx)
+    return sorted(indices), None
+
+
+def _find_cleanup_indices_regex(source_lines):
+    """Conservative fallback: module-level dunder lines only (column 0)."""
+    indices = set()
+    i = 0
+    n = len(source_lines)
+    while i < n:
+        line = source_lines[i]
+        if not _is_module_level_line(line):
+            i += 1
+            continue
+        match = _MODULE_DUNDER_RE.match(line)
+        if not match:
+            i += 1
+            continue
+        if match.group(1):
+            i += 1
+            continue
+        for idx in _line_range_for_assignment_block(source_lines, i):
+            indices.add(idx)
+        i += 1
+        while i < n and not _is_module_level_line(source_lines[i]):
+            i += 1
+    return sorted(indices)
+
+
+def find_cleanup_line_indices(script_path):
+    """Return (sorted 0-based line indices, warning_message).
+
+    Uses ast.parse when possible; falls back to line-based matching when the
+    script has syntax errors. warning_message is non-None for fallback paths.
+    """
+    source = _read_script_source(script_path)
+    if source is None:
+        return None, 'could not read script'
+
+    source_lines = source.splitlines(True)
+    indices, ast_err = _find_cleanup_indices_ast(source, source_lines)
+    if ast_err == 'syntax_error':
+        regex_indices = _find_cleanup_indices_regex(source_lines)
+        if not regex_indices:
+            return None, (
+                'ast parse failed and line-based fallback found no safe lines'
+            )
+        return regex_indices, (
+            'used line-based fallback (script has syntax errors)'
+        )
+    if indices is None:
+        return None, 'could not analyze script'
+    return indices, None
+
+
+def apply_script_cleanup(script_path, cleanup_mode):
+    """Comment out or remove module-level dunder lines.
+
+    cleanup_mode: 'comment' or 'remove'
+    Returns (changed, warning_message).
+    """
+    indices, warn = find_cleanup_line_indices(script_path)
+    if warn and not indices:
+        return False, warn
+    if not indices:
+        return False, warn
+
+    source_lines = _read_script_source(script_path)
+    if source_lines is None:
+        return False, 'could not read script'
+    lines = source_lines.splitlines(True)
+
+    index_set = set(indices)
+    new_lines = []
+    for idx, line in enumerate(lines):
+        if idx not in index_set:
             new_lines.append(line)
             continue
+        if cleanup_mode == 'remove':
+            continue
+        if line.lstrip().startswith('#'):
+            new_lines.append(line)
+        else:
+            new_lines.append('# ' + line)
 
-        new_lines.append('# ' + line)
-        changed = True
-        for quote in ('"""', "'''"):
-            idx = line.find(quote)
-            if idx >= 0:
-                rest = line[idx + 3:]
-                if quote not in rest:
-                    in_multiline = True
-                    multiline_quote = quote
-                break
-
-    if changed:
-        with codecs.open(script_path, 'w', 'utf-8') as f:
-            f.writelines(new_lines)
-    return changed
+    with codecs.open(script_path, 'w', 'utf-8') as f:
+        f.writelines(new_lines)
+    return True, warn
 
 
 # === Main ===
@@ -193,34 +411,79 @@ if not target:
 if not target.lower().endswith('.extension'):
     forms.alert('Target folder must end with .extension.', exitscript=True)
 
-cleanup_choice = forms.CommandSwitchWindow.show(
-    ['Leave script.py alone',
-     'Comment-out migrated dunders in script.py'],
-    message='Script cleanup mode (applied after yaml write)',
+run_choice = forms.CommandSwitchWindow.show(
+    ['Preview only (no files written)',
+     'Apply changes'],
+    message='Run mode',
 )
-if not cleanup_choice:
+if not run_choice:
     script.exit()
-strip_after = cleanup_choice.startswith('Comment')
+dry_run = run_choice.startswith('Preview')
 
-merge_choice = forms.CommandSwitchWindow.show(
-    ['YAML wins',
-     'Script wins (overwrite YAML)',
-     'Ask per-key on conflict'],
-    message='Merge policy when bundle.yaml already has a key',
-)
-if not merge_choice:
-    script.exit()
-if merge_choice.startswith('YAML'):
-    policy = 'yaml_wins'
-elif merge_choice.startswith('Script'):
-    policy = 'script_wins'
+if dry_run:
+    backup_msg = (
+        'Preview mode scans the extension and reports what would change.\n\n'
+        'No files will be written. Commit or back up your extension before '
+        'running Apply changes.'
+    )
 else:
-    policy = 'ask'
+    backup_msg = (
+        'Apply mode will write bundle.yaml files under the selected extension '
+        'and may edit script.py files if you choose cleanup.\n\n'
+        'Commit your changes or make a backup before continuing.'
+    )
 
-output.print_md('### Migration started')
+if not forms.alert(backup_msg, ok=True, cancel=True):
+    script.exit()
+
+cleanup_mode = None
+cleanup_choice = 'Leave script.py alone'
+merge_choice = None
+
+if dry_run:
+    # Preview only reports yaml merges; cleanup never runs and per-key
+    # conflict prompts are disabled (see merge_yaml dry_run handling).
+    policy = 'script_wins'
+    merge_choice = 'Script wins (preview default)'
+else:
+    cleanup_choice = forms.CommandSwitchWindow.show(
+        ['Leave script.py alone',
+         'Comment-out migrated dunders in script.py',
+         'Remove migrated dunders from script.py'],
+        message='Script cleanup mode (applied after yaml write)',
+    )
+    if not cleanup_choice:
+        script.exit()
+    if cleanup_choice.startswith('Comment'):
+        cleanup_mode = 'comment'
+    elif cleanup_choice.startswith('Remove'):
+        cleanup_mode = 'remove'
+
+    merge_choice = forms.CommandSwitchWindow.show(
+        ['YAML wins',
+         'Script wins (overwrite YAML)',
+         'Ask per-key on conflict'],
+        message='Merge policy when bundle.yaml already has a key',
+    )
+    if not merge_choice:
+        script.exit()
+    if merge_choice.startswith('YAML'):
+        policy = 'yaml_wins'
+    elif merge_choice.startswith('Script'):
+        policy = 'script_wins'
+    else:
+        policy = 'ask'
+
+title = '### Migration preview' if dry_run else '### Migration started'
+output.print_md(title)
 output.print_md('- Target: `{}`'.format(target))
+output.print_md('- Mode: `{}`'.format(run_choice))
 output.print_md('- Cleanup: `{}`'.format(cleanup_choice))
 output.print_md('- Merge: `{}`'.format(merge_choice))
+if dry_run:
+    output.print_md(
+        '- Note: preview uses script-wins for conflicts; run Apply to choose cleanup and merge policy'
+    )
 output.print_md('')
 
 total = migrated = skipped_no_change = errored = 0
@@ -250,16 +513,23 @@ for bundle_dir, script_path in iter_bundles(target):
             output.print_md('- **ERROR** loading existing yaml in `{}`: `{}`'.format(rel, ex))
             continue
 
-    merged, changed = merge_yaml(existing, incoming, policy, rel)
+    merged, changed, skipped = merge_yaml(
+        existing, incoming, policy, rel, dry_run=dry_run,
+    )
+    if skipped:
+        skipped_no_change += 1
+        continue
     if not changed:
         skipped_no_change += 1
         continue
 
-    if op.isfile(bundle_yaml):
-        try:
-            shutil.copy2(bundle_yaml, bundle_yaml + '.bak')
-        except Exception as ex:
-            output.print_md('- WARN backup failed for `{}`: `{}`'.format(rel, ex))
+    key_list = ', '.join('`{}`'.format(k) for k in incoming.keys())
+    if dry_run:
+        migrated += 1
+        output.print_md(
+            '- Would migrate `{}` ({} key(s): {})'.format(rel, len(incoming), key_list)
+        )
+        continue
 
     try:
         pyryaml.dump_dict(merged, bundle_yaml)
@@ -268,11 +538,15 @@ for bundle_dir, script_path in iter_bundles(target):
         output.print_md('- **ERROR** writing yaml in `{}`: `{}`'.format(rel, ex))
         continue
 
-    if strip_after:
+    if cleanup_mode:
         try:
-            comment_out_dunders(script_path)
+            ok, warn = apply_script_cleanup(script_path, cleanup_mode)
+            if warn:
+                output.print_md('- WARN cleanup for `{}`: {}'.format(rel, warn))
+            elif not ok:
+                output.print_md('- WARN cleanup made no changes for `{}`'.format(rel))
         except Exception as ex:
-            output.print_md('- WARN strip failed for `{}`: `{}`'.format(rel, ex))
+            output.print_md('- WARN cleanup failed for `{}`: `{}`'.format(rel, ex))
 
     migrated += 1
     output.print_md('- Migrated `{}` ({} key(s))'.format(rel, len(incoming)))
@@ -280,6 +554,9 @@ for bundle_dir, script_path in iter_bundles(target):
 output.print_md('')
 output.print_md('### Done')
 output.print_md('- Bundles scanned: **{}**'.format(total))
-output.print_md('- Migrated: **{}**'.format(migrated))
+if dry_run:
+    output.print_md('- Would migrate: **{}**'.format(migrated))
+else:
+    output.print_md('- Migrated: **{}**'.format(migrated))
 output.print_md('- No changes: **{}**'.format(skipped_no_change))
 output.print_md('- Errors: **{}**'.format(errored))

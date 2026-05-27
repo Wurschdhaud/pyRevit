@@ -2,9 +2,9 @@ title: |
     Migrate
     Bundle
 tooltip: |
-  Walk an .extension folder, read inline dunder metadata from each script.py
-  via the new pyRevitExtensionParser, and merge it into bundle.yaml.
-  Runs on IronPython. Offers settings for merge policy and script-cleanup.
+  Scan an extension folder and copy script metadata (__title__, __author__, etc.)
+  into each bundle's bundle.yaml so you can disable inline script metadata reads
+  for faster startup. Choose merge policy and optional script cleanup.
 context: zero-doc
 authors:
   - Roman Golev
