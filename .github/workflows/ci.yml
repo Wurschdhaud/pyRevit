@@ -118,7 +118,7 @@ jobs:
   wip:
     needs: build
     if: >
-      github.repository == env.MainRepo &&
+      github.repository == 'pyrevitlabs/pyRevit' &&
       github.ref == 'refs/heads/develop' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
@@ -133,7 +133,7 @@ jobs:
   notify:
     needs: wip
     if: >
-      github.repository == env.MainRepo &&
+      github.repository == 'pyrevitlabs/pyRevit' &&
       github.ref == 'refs/heads/develop' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
