@@ -268,6 +268,19 @@
         },
         {
             "builtin": "False",
+            "type": "extension",
+            "rocket_mode_compatible": "True",
+            "name": "P13",
+            "description": "BIM automation tools and extensions for Revit.",
+            "author": "Permpong Taweekul",
+            "author_profile": "https://github.com/permpong13",
+            "url": "https://github.com/permpong13/P13.git",
+            "website": "https://github.com/permpong13/P13",
+            "image": "",
+            "dependencies": []
+        },
+        {
+            "builtin": "False",
             "rocket_mode_compatible": "False",
             "type": "extension",
             "name": "Seed43",
