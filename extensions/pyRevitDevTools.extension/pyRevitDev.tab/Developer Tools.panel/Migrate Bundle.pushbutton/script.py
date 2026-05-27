@@ -1,12 +1,8 @@
-"""Migrate inline script dunders into bundle.yaml across an .extension folder.
+"""Migrate bundle metadata from scripts into bundle.yaml files.
 
-Uses pyRevitExtensionParser.ExtensionParser.ReadScriptMetadata to read raw
-dunder values from each bundle script, then writes/merges them into the
-bundle.yaml beside the script. Picks merge behaviour and optional script
-cleanup at runtime. Backs up any existing bundle.yaml as bundle.yaml.bak
-before overwriting.
-
-Runs on IronPython (pyrevit.forms.pick_folder is not available under CPython).
+Scans bundles in a selected .extension folder, merges discovered metadata into
+each bundle.yaml using a selected merge policy, and can optionally clean up
+metadata lines in scripts after migration.
 """
 # pylint: disable=import-error,invalid-name,broad-except,wrong-import-position
 from __future__ import absolute_import, print_function

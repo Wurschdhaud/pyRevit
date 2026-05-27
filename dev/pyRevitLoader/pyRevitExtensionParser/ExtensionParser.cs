@@ -527,13 +527,9 @@ namespace pyRevitExtensionParser
                 rocketModeCompatible = true;
             }
 
-            // FIXED — pass revitYear through:
             var children = ParseComponents(extDir, extName, null,
                 extensionTemplates.Count > 0 ? extensionTemplates : null,
                 revitYear);
-
-            // extConfig was already loaded at the top of this method for the early
-            // disabled-extension bail-out; reuse it here instead of re-fetching.
 
             var parsedExtension = new ParsedExtension
             {
