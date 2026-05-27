@@ -9,7 +9,6 @@ on:
 permissions:
   contents: read
   actions: read
-  issues: write
 
 concurrency:
   group: pyrevit-wip-${{ github.event.workflow_run.head_sha }}
@@ -22,6 +21,9 @@ jobs:
       github.event.workflow_run.event == 'push' &&
       github.repository == 'pyrevitlabs/pyRevit'
     runs-on: windows-2025
+    permissions:
+      contents: read
+      actions: read
     environment: production
 
     steps:
@@ -130,6 +132,9 @@ jobs:
       github.event.workflow_run.event == 'push' &&
       github.repository == 'pyrevitlabs/pyRevit'
     runs-on: windows-2025
+    permissions:
+      contents: read
+      issues: write
 
     steps:
       - name: Checkout Repository

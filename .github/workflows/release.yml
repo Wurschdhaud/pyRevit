@@ -7,9 +7,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   actions: read
-  issues: write
 
 concurrency:
   group: pyrevit-release-${{ github.ref }}
@@ -19,6 +18,9 @@ jobs:
   release:
     if: github.repository == 'pyrevitlabs/pyRevit' && github.ref_type == 'tag'
     runs-on: windows-2025
+    permissions:
+      contents: write
+      actions: read
     environment: production
     outputs:
       release_url: ${{ steps.publish_release.outputs.url }}
@@ -209,6 +211,14 @@ jobs:
         run: |
           pip install pipenv
           pipenv sync --dev
+
+      - name: Validate release URL
+        shell: bash
+        run: |
+          if [ -z "${{ needs.release.outputs.release_url }}" ]; then
+            echo "release_url output is empty; cannot notify issues" >&2
+            exit 1
+          fi
 
       - name: Notify Issue Threads (Release)
         env:
