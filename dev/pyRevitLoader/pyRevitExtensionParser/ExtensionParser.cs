@@ -932,6 +932,10 @@ namespace pyRevitExtensionParser
                     ? $"{extensionName}_{namePart}"
                     : $"{parentPath}_{namePart}";
 
+                // One directory listing per bundle; script, config, and content lookups
+                // filter this array in memory instead of issuing separate syscalls.
+                var bundleDirFiles = GetFilesInDirectory(dir, "*", SearchOption.TopDirectoryOnly);
+
                 string scriptPath = null;
 
                 if (componentType == CommandComponentType.UrlButton)
@@ -943,13 +947,6 @@ namespace pyRevitExtensionParser
 
                 if (scriptPath == null)
                 {
-                    // Pull the full file listing for this bundle dir once. The other
-                    // pattern lookups below (config script, content RFAs, ...) all
-                    // filter this same array in memory, so the per-bundle file-system
-                    // enumeration shrinks to a single syscall on cold start instead
-                    // of one per glob.
-                    var bundleDirFiles = GetFilesInDirectory(dir, "*", SearchOption.TopDirectoryOnly);
-
                     var validEndings = new[] { "script", "_script", "-script", ".script" };
                     var dirFiles = bundleDirFiles.Where(f =>
                     {
@@ -1002,12 +999,11 @@ namespace pyRevitExtensionParser
                 // e.g. both "config.py" and "name_config.py" will match
                 string configScriptPath = null;
                 var configExtensions = new[] { ".py", ".cs", ".vb", ".rb", ".dyn", ".gh", ".ghx" };
-                var allDirFiles = GetFilesInDirectory(dir, "*", SearchOption.TopDirectoryOnly);
                 // Prefer exact "config{ext}" match, then fall back to postfix "*config{ext}"
                 foreach (var configExt in configExtensions)
                 {
                     var configFile = $"config{configExt}";
-                    configScriptPath = allDirFiles.FirstOrDefault(f =>
+                    configScriptPath = bundleDirFiles.FirstOrDefault(f =>
                         Path.GetFileName(f).Equals(configFile, StringComparison.OrdinalIgnoreCase));
                     if (configScriptPath != null)
                         break;
@@ -1017,7 +1013,7 @@ namespace pyRevitExtensionParser
                     foreach (var configExt in configExtensions)
                     {
                         var configPostfix = $"config{configExt}";
-                        configScriptPath = allDirFiles.FirstOrDefault(f =>
+                        configScriptPath = bundleDirFiles.FirstOrDefault(f =>
                             Path.GetFileName(f).EndsWith(configPostfix, StringComparison.OrdinalIgnoreCase));
                         if (configScriptPath != null)
                             break;
@@ -1055,14 +1051,11 @@ namespace pyRevitExtensionParser
                     }
 
                     // If no content in metadata, use naming convention. All the
-                    // .rfa lookups below filter the already-cached "*" listing in
-                    // memory instead of opening one cache slot per glob.
-                    var bundleDirFilesForContent = GetFilesInDirectory(dir, "*", SearchOption.TopDirectoryOnly);
-
+                    // .rfa lookups below filter bundleDirFiles in memory.
                     if (scriptPath == null)
                     {
                         // Look for version-specific content first: content_{version}.rfa
-                        var versionedContent = bundleDirFilesForContent.FirstOrDefault(f =>
+                        var versionedContent = bundleDirFiles.FirstOrDefault(f =>
                         {
                             var name = Path.GetFileName(f);
                             return name.StartsWith("content_", StringComparison.OrdinalIgnoreCase)
@@ -1083,7 +1076,7 @@ namespace pyRevitExtensionParser
                             else
                             {
                                 // Look for any .rfa file in the directory
-                                var anyRfa = bundleDirFilesForContent.FirstOrDefault(f =>
+                                var anyRfa = bundleDirFiles.FirstOrDefault(f =>
                                     f.EndsWith(".rfa", StringComparison.OrdinalIgnoreCase));
                                 if (anyRfa != null)
                                 {
@@ -1101,7 +1094,7 @@ namespace pyRevitExtensionParser
                     else
                     {
                         // Look for version-specific alternative content: other_{version}.rfa
-                        var versionedAltContent = bundleDirFilesForContent.FirstOrDefault(f =>
+                        var versionedAltContent = bundleDirFiles.FirstOrDefault(f =>
                         {
                             var name = Path.GetFileName(f);
                             return name.StartsWith("other_", StringComparison.OrdinalIgnoreCase)
