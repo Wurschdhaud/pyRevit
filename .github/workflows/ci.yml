@@ -5,6 +5,7 @@ on:
     types: [opened, reopened]
     branches: [develop, master]
     paths:
+      - '.github/workflows/**'
       - 'bin/**'
       - 'dev/**'
       - 'extensions/**'
@@ -15,6 +16,7 @@ on:
     branches: [develop, master]
     tags: ['v*']
     paths:
+      - '.github/workflows/**'
       - 'bin/**'
       - 'dev/**'
       - 'extensions/**'
