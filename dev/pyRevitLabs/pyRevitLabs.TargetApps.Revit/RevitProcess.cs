@@ -52,7 +52,7 @@ namespace pyRevitLabs.TargetApps.Revit {
             try {
                 var modulePath = Module;
                 var fileInfo = FileVersionInfo.GetVersionInfo(modulePath);
-                return string.Format("PID: {0} | Path: \"{1}\" | ProductVersion: {2} | Note: not listed in pyrevit-hosts.json",
+                return string.Format("PID: {0} | Path: \"{1}\" | ProductVersion: {2} | Note: could not resolve product (not listed in pyrevit-hosts.json and/or failed to read binary version info)",
                                      _process.Id, modulePath, fileInfo.ProductVersion);
             }
             catch {
