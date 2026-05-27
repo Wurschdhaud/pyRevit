@@ -18,8 +18,8 @@ pyRevit's pipeline is split into three workflows in [`.github/workflows/`](https
 | Workflow | File | What it does |
 |----------|------|--------------|
 | **`pyRevit CI`** | [`ci.yml`](https://github.com/pyrevitlabs/pyRevit/blob/develop/.github/workflows/ci.yml) | Builds unsigned DLLs and uploads them as `unsigned-bin-<sha>`. Runs on every push to `develop` / `master` / `v*` tag (with a path filter), on PRs to those branches, and on manual dispatch. |
-| **`pyRevit WIP`** | [`wip.yml`](https://github.com/pyrevitlabs/pyRevit/blob/develop/.github/workflows/wip.yml) | Consumes the artifact from a successful CI run on **`develop`**. Signs DLLs, builds + signs Inno/MSI installers, builds + signs the Chocolatey package, uploads the WIP artifact, and notifies linked issues. |
-| **`pyRevit Release`** | [`release.yml`](https://github.com/pyrevitlabs/pyRevit/blob/develop/.github/workflows/release.yml) | Runs on `v*` tag pushes. Waits for the matching CI run, then signs DLLs, builds + signs installers, builds + signs the Chocolatey `.nupkg`, generates release notes, publishes a draft GitHub Release, notifies linked issues, and pushes to Chocolatey. |
+| **`pyRevit WIP`** | [`wip.yml`](https://github.com/pyrevitlabs/pyRevit/blob/develop/.github/workflows/wip.yml) | Consumes the artifact from a successful CI run on **`develop`**. Job `sign-wip` ( **`production`** environment) signs DLLs, builds + signs installers and the Chocolatey package, and uploads the WIP artifact. Job `notify` runs afterward with `issues: write` only — it does **not** use `production`. |
+| **`pyRevit Release`** | [`release.yml`](https://github.com/pyrevitlabs/pyRevit/blob/develop/.github/workflows/release.yml) | Runs on `v*` tag pushes. Job `release` (single **`production`** deployment) waits for CI, signs, builds installers and the `.nupkg`, publishes a draft GitHub Release, and pushes to Chocolatey. Job `notify` runs afterward (no `production` environment) and posts to linked issues. |
 
 This split guarantees that:
 
@@ -58,13 +58,10 @@ The stamping steps (`pyrevit set year`, `pyrevit set build wip|release`, `pyrevi
     - Runs `pipenv run pyrevit set year`, `pipenv run pyrevit set build wip` (refreshes the build segment and applies WIP versioning; see `dev/_props.py`), and `pipenv run pyrevit set products`.
     - Runs `pipenv run pyrevit build products`, verifies the LibGit2 native DLL is present, and uploads the unsigned `bin/` tree as `unsigned-bin-<sha>`.
 
-3. `wip.yml` is triggered automatically when that CI run finishes successfully on `develop`. On the main repo it:
+3. `wip.yml` is triggered automatically when that CI run finishes successfully on `develop`. On the main repo:
 
-    - Downloads `unsigned-bin-<sha>`, signs DLLs via Azure Trusted Signing.
-    - Runs `pipenv run pyrevit build installers` so the Inno + MSI installers pack signed DLLs, then signs the resulting `.exe`/`.msi`.
-    - Runs `pipenv run pyrevit build choco` so the `.nupkg` checksum is computed over the signed installer, then signs the `.nupkg` with a NuGet author signature.
-    - Uploads `pyrevit-wip-installers-<install-version>` as a workflow artifact.
-    - Runs `pipenv run pyrevit notify wip <run-url>` so linked issues can be updated for testers.
+    - **`sign-wip`** downloads `unsigned-bin-<sha>`, signs DLLs via Azure Trusted Signing, builds and signs installers and the Chocolatey `.nupkg`, and uploads `pyrevit-wip-installers-<install-version>` as a workflow artifact.
+    - **`notify`** (separate job, no `production` environment) runs `pipenv run pyrevit notify wip <run-url>` so linked issues can be updated for testers.
 
 **Push to `develop` ⇒ signed WIP installers and notification, not a public GitHub Release.**
 
@@ -111,7 +108,7 @@ Releases are no longer auto-triggered by merging into `master`. A maintainer run
 4. Pushing the tag triggers two workflows in parallel:
 
     - **`ci.yml`** rebuilds DLLs on the tagged commit and uploads `unsigned-bin-<sha>` (DLLs only; installers are no longer built in CI).
-    - **`release.yml`** starts immediately and polls for the matching CI run (via `gh run watch`). Once CI finishes it downloads `unsigned-bin-<sha>`, signs the DLLs, runs `pipenv run pyrevit build installers` so the Inno + MSI installers pack signed DLLs, signs the resulting installer `.exe`/`.msi`, runs `pipenv run pyrevit build choco` so the `.nupkg` checksum is computed over the signed installer, signs the `.nupkg` with a NuGet author signature, generates release notes via `pipenv run pyrevit report releasenotes`, publishes a draft GitHub Release, notifies linked issues (`pipenv run pyrevit notify release <release-url>`), and pushes to Chocolatey.
+    - **`release.yml`** starts immediately and polls for the matching CI run (via `gh run watch`). The **`release`** job downloads `unsigned-bin-<sha>`, signs DLLs and installers, builds and signs the `.nupkg`, generates release notes, publishes a **draft** GitHub Release, and pushes the signed `.nupkg` to Chocolatey (all under one **`production`** deployment). **`notify`** then posts `pipenv run pyrevit notify release <release-url>` to linked issues without using the `production` environment.
 
 5. Open the draft release on GitHub, review the auto-generated notes, then publish it.
 
@@ -197,7 +194,10 @@ CI invokes the `pyrevit` CLI from the repo root (via pipenv); relevant commands:
 - **Release fails on `Build Choco Package`**: `choco pack` failed, or the upstream signed installer was missing when the SHA was computed. Confirm `Sign installers` produced the expected `dist/*.exe`/`.msi` outputs before this step ran.
 - **Release fails on `Sign Choco Package`**: this step uses the `dotnet sign` CLI (installed via `dotnet tool install --global sign --prerelease`) and authenticates to Azure Trusted Signing via the `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` env vars (DefaultAzureCredential chain). Common causes: (a) the certificate profile lacks the `1.3.6.1.5.5.7.3.3` Code Signing EKU required for NuGet author signing; (b) the App Registration is missing the `Trusted Signing Certificate Profile Signer` role on the Signing Account; (c) the `--prerelease` flag was removed and `sign` is no longer marked prerelease (drop `--prerelease` once the tool has a stable GA release). The previous attempt used `Azure/artifact-signing-action`, but its v2.0.0 PowerShell module routes `.nupkg` to `signtool.exe`, which doesn't recognize the format. Don't switch back without verifying upstream support for NuGet via that action.
 - **Signing step fails (DLLs or installers)**: verify the `production` environment secrets above are present and not expired.
-- **Choco push fails**: check `CHOCO_TOKEN` and that `dist/pyrevit-cli.<version>.nupkg` was actually produced by `Build Choco Package`.
+- **Choco push fails**: check `CHOCO_TOKEN` and that `dist/pyrevit-cli.<version>.nupkg` was produced by `Build Choco Package` in the **`release`** job. Re-run the workflow without re-pushing the tag.
+- **Draft release exists but issues were not notified**: check the **`notify`** job log. If `notify` succeeded but no comments appeared, commits since the previous tag must include `#<issue>` in the message. If `notify` failed with 403, confirm the job has `issues: write` and is **not** assigned to the `production` environment (environment deployment tokens can block issue comments).
+- **Notify failed on empty `release_url`**: the `release` job did not produce a URL from `Publish GitHub Release`; fix that job and re-run `notify`.
+- **Draft release exists but `notify` did not run**: the **`release`** job must finish successfully (including Choco push) before **`notify`** starts. Fix or re-run **`release`**, then re-run **`notify`** if the draft release URL is already available.
 
 ## Related reading
 
