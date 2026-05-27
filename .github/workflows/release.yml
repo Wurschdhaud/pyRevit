@@ -181,7 +181,7 @@ jobs:
 
       - name: Notify Issue Threads (Release)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: pipenv run pyrevit notify release ${{ steps.publish_release.outputs.url }}
 
       - name: Publish Chocolatey
