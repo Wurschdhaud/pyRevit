@@ -130,22 +130,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .ci-stamped
-          mkdir -p .ci-stamped/release/choco
-          cp release/version .ci-stamped/release/version
-          cp release/pyrevit.iss .ci-stamped/release/pyrevit.iss
-          cp release/pyrevit-admin.iss .ci-stamped/release/pyrevit-admin.iss
-          cp release/pyrevit-cli.iss .ci-stamped/release/pyrevit-cli.iss
-          cp release/pyrevit-cli-admin.iss .ci-stamped/release/pyrevit-cli-admin.iss
-          cp release/pyrevit-common.props .ci-stamped/release/pyrevit-common.props
-          cp release/choco/pyrevit-cli.nuspec .ci-stamped/release/choco/pyrevit-cli.nuspec
+          rm -rf ci-stamped
+          mkdir -p ci-stamped/release/choco
+          cp release/version ci-stamped/release/version
+          cp release/pyrevit.iss ci-stamped/release/pyrevit.iss
+          cp release/pyrevit-admin.iss ci-stamped/release/pyrevit-admin.iss
+          cp release/pyrevit-cli.iss ci-stamped/release/pyrevit-cli.iss
+          cp release/pyrevit-cli-admin.iss ci-stamped/release/pyrevit-cli-admin.iss
+          cp release/pyrevit-common.props ci-stamped/release/pyrevit-common.props
+          cp release/choco/pyrevit-cli.nuspec ci-stamped/release/choco/pyrevit-cli.nuspec
 
       - name: Upload stamped release metadata
         if: github.repository == env.MainRepo
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: stamped-release-metadata-${{ github.sha }}
-          path: .ci-stamped/**
+          path: ci-stamped/**
 
   wip:
     needs: build
