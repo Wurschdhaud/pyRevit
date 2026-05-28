@@ -55,6 +55,14 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: bin/
 
+      - name: Download stamped release metadata
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: stamped-release-metadata-${{ inputs.head_sha }}
+          run-id: ${{ inputs.ci_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: .
+
       - name: Prepare Python 3.14
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
