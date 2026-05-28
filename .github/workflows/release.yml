@@ -16,7 +16,7 @@ jobs:
     runs-on: windows-2025
     permissions:
       contents: write
-      actions: read
+      actions: write
     environment: production
     outputs:
       release_url: ${{ steps.publish_release.outputs.url }}
@@ -64,6 +64,7 @@ jobs:
           path: pyrevitlib/pyrevit/version
 
       - name: Wait for CI to complete on tagged commit
+        id: wait_ci
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -80,6 +81,7 @@ jobs:
             if [ -n "${RUN_ID:-}" ] && [ "$RUN_ID" != "null" ]; then
               echo "Found CI run: $RUN_ID"
               gh run watch "$RUN_ID" --exit-status -R "$GITHUB_REPOSITORY"
+              echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             echo "CI run for $GITHUB_SHA not yet started; retry in 20s ($i/30)"
@@ -182,6 +184,29 @@ jobs:
         run: |
           choco apikey --key ${{ secrets.CHOCO_TOKEN }} --source https://push.chocolatey.org/
           choco push dist/pyrevit-cli.${{ steps.installversion.outputs.content }}.nupkg -s https://push.chocolatey.org/
+
+      - name: Delete unsigned CI artifact
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          $artifactName = "unsigned-bin-${{ github.sha }}"
+          $listUrl = "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ steps.wait_ci.outputs.run_id }}/artifacts?per_page=100"
+          $artifacts = (Invoke-RestMethod -Method Get -Uri $listUrl -Headers $headers).artifacts
+          $artifact = $artifacts | Where-Object { $_.name -eq $artifactName } | Select-Object -First 1
+          if (-not $artifact) {
+            Write-Host "No artifact named '$artifactName' found on run ${{ steps.wait_ci.outputs.run_id }}."
+            exit 0
+          }
+          $deleteUrl = "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$($artifact.id)"
+          Invoke-RestMethod -Method Delete -Uri $deleteUrl -Headers $headers | Out-Null
+          Write-Host "Deleted artifact '$artifactName' (id=$($artifact.id))."
 
   notify:
     needs: release

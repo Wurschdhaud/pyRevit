@@ -24,7 +24,7 @@ jobs:
     runs-on: windows-2025
     permissions:
       contents: read
-      actions: read
+      actions: write
     environment: production
     outputs:
       workflow_run_id: ${{ steps.runmeta.outputs.run_id }}
@@ -133,3 +133,26 @@ jobs:
           path: |
             dist/**
             !dist/**/*.wixpdb
+
+      - name: Delete unsigned CI artifact
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_TOKEN"
+            Accept = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          $artifactName = "unsigned-bin-${{ inputs.head_sha }}"
+          $listUrl = "https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ inputs.ci_run_id }}/artifacts?per_page=100"
+          $artifacts = (Invoke-RestMethod -Method Get -Uri $listUrl -Headers $headers).artifacts
+          $artifact = $artifacts | Where-Object { $_.name -eq $artifactName } | Select-Object -First 1
+          if (-not $artifact) {
+            Write-Host "No artifact named '$artifactName' found on run ${{ inputs.ci_run_id }}."
+            exit 0
+          }
+          $deleteUrl = "https://api.github.com/repos/${{ github.repository }}/actions/artifacts/$($artifact.id)"
+          Invoke-RestMethod -Method Delete -Uri $deleteUrl -Headers $headers | Out-Null
+          Write-Host "Deleted artifact '$artifactName' (id=$($artifact.id))."
