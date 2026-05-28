@@ -58,7 +58,7 @@ if __name__ == "__main__":
     if not my_config.get_option("enabled", False):
         forms.alert(
             "Tool disabled in config.",
-            title="Element Properties Pane",
+            title="Custom Properties",
             exitscript=True,
         )
     dockable = forms.get_dockable_panel(_PANEL_ID)

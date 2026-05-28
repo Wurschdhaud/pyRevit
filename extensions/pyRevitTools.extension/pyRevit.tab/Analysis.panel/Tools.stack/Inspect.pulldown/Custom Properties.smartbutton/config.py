@@ -31,7 +31,7 @@ class ConfigWindow(forms.WPFWindow):
         if startup_changed:
             forms.alert(
                 "Restart Revit for the startup change to take effect.",
-                title="Element Properties Pane",
+                title="Custom Properties",
             )
 
     def cancel_clicked(self, sender, args):

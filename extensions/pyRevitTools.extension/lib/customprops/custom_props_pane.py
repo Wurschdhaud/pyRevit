@@ -214,7 +214,7 @@ class CustomPropertiesPanel(forms.WPFPanel):
         "fr_fr": "Propriétés personnalisées",
         "es_es": "Propiedades personalizadas",
         "pt_br": "Propriedades personalizadas",
-        "ru": "Пользовательские свойства",
+        "ru": "Свойства элемента",
         "chinese_s": "自定义属性",
     })
     panel_id = "d3a7f2c1-8e45-4b9a-a312-0f6b7c8d9e10"
