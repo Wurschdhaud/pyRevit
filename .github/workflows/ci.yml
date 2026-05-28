@@ -125,6 +125,20 @@ jobs:
           name: unsigned-bin-${{ github.sha }}
           path: bin/**
 
+      - name: Upload stamped release metadata
+        if: github.repository == env.MainRepo
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stamped-release-metadata-${{ github.sha }}
+          path: |
+            release/version
+            release/pyrevit.iss
+            release/pyrevit-admin.iss
+            release/pyrevit-cli.iss
+            release/pyrevit-cli-admin.iss
+            release/pyrevit-common.props
+            release/choco/pyrevit-cli.nuspec
+
   wip:
     needs: build
     if: >

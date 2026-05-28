@@ -101,6 +101,14 @@ jobs:
           path: bin/
           if_no_artifact_found: fail
 
+      - name: Download stamped release metadata
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: stamped-release-metadata-${{ github.sha }}
+          run-id: ${{ steps.wait_ci.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: .
+
       - name: Sign binaries
         uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
