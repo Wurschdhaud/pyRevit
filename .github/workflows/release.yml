@@ -20,6 +20,8 @@ jobs:
     environment: production
     outputs:
       release_url: ${{ steps.publish_release.outputs.url }}
+      build_version: ${{ steps.buildversion.outputs.content }}
+      install_version: ${{ steps.installversion.outputs.content }}
 
     steps:
       - name: Checkout Repository
@@ -219,5 +221,6 @@ jobs:
     with:
       head_sha: ${{ github.sha }}
       build: release
+      build_version: ${{ needs.release.outputs.build_version }}
       notify_url: ${{ needs.release.outputs.release_url }}
     secrets: inherit

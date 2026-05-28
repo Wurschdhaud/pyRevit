@@ -10,6 +10,9 @@ on:
         required: true
         type: string
         description: "wip or release"
+      build_version:
+        required: false
+        type: string
       notify_url:
         required: true
         type: string
@@ -48,6 +51,21 @@ jobs:
             echo "notify_url is empty; cannot notify issues" >&2
             exit 1
           fi
+
+      - name: Validate build version input (wip)
+        if: inputs.build == 'wip'
+        shell: bash
+        run: |
+          if [ -z "${{ inputs.build_version }}" ]; then
+            echo "build_version is empty for wip notify" >&2
+            exit 1
+          fi
+
+      - name: Align build version (wip)
+        if: inputs.build == 'wip'
+        shell: bash
+        run: |
+          printf '%s' "${{ inputs.build_version }}" > pyrevitlib/pyrevit/version
 
       - name: Notify Issue Threads
         env:

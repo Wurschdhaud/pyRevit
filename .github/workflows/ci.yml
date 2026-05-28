@@ -38,6 +38,9 @@ concurrency:
 
 jobs:
   build:
+    outputs:
+      build_version: ${{ steps.versionmeta.outputs.build_version }}
+      install_version: ${{ steps.versionmeta.outputs.install_version }}
     runs-on: windows-2025
 
     steps:
@@ -101,6 +104,13 @@ jobs:
         if: github.repository == env.MainRepo
         run: pipenv run pyrevit set products
 
+      - name: Capture build versions
+        id: versionmeta
+        shell: bash
+        run: |
+          echo "build_version=$(tr -d '\r\n' < pyrevitlib/pyrevit/version)" >> "$GITHUB_OUTPUT"
+          echo "install_version=$(tr -d '\r\n' < release/version)" >> "$GITHUB_OUTPUT"
+
       - name: Build Products
         run: pipenv run pyrevit build products
 
@@ -128,10 +138,12 @@ jobs:
     with:
       head_sha: ${{ github.sha }}
       ci_run_id: ${{ github.run_id }}
+      build_version: ${{ needs.build.outputs.build_version }}
+      install_version: ${{ needs.build.outputs.install_version }}
     secrets: inherit
 
   notify:
-    needs: wip
+    needs: [build, wip]
     if: >
       github.repository == 'pyrevitlabs/pyRevit' &&
       github.ref == 'refs/heads/develop' &&
@@ -144,5 +156,6 @@ jobs:
     with:
       head_sha: ${{ github.sha }}
       build: wip
+      build_version: ${{ needs.build.outputs.build_version }}
       notify_url: https://github.com/${{ github.repository }}/actions/runs/${{ needs.wip.outputs.workflow_run_id }}
     secrets: inherit
