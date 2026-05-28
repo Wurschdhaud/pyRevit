@@ -51,4 +51,5 @@ tooltip:
     
     Reaplicar as propriedades igualadas anteriores
 author: '{{author}}'
-
+engine:
+  persistent: true
