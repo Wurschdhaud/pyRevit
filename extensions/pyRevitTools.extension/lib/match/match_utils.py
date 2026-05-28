@@ -33,8 +33,35 @@ class PropKeyValue(object):
         self.datatype = datatype
         self.value = value
         self.istype = istype
-        self.display_value = display_value or name
+        self.display_value = str(display_value or value)
         self.categories = categories if categories is not None else []
+
+    @staticmethod
+    def _cat_key(cat):
+        """Return a stable comparison key for a category."""
+        try:
+            return get_elementid_value(cat.Id)
+        except AttributeError:
+            return cat
+
+    def __eq__(self, other):
+        if not isinstance(other, PropKeyValue):
+            return False
+
+        self_cats = sorted(self._cat_key(c) for c in self.categories)
+        other_cats = sorted(self._cat_key(c) for c in other.categories)
+
+        return (
+            self.name == other.name and
+            self.datatype == other.datatype and
+            self.value == other.value and
+            self.istype == other.istype and
+            self_cats == other_cats
+        )
+
+    def __hash__(self):
+        cat_keys = tuple(sorted(self._cat_key(c) for c in self.categories))
+        return hash((self.name, self.datatype, self.value, self.istype, cat_keys))
 
     def __repr__(self):
         return str(self.__dict__)
@@ -76,7 +103,7 @@ def match_prop(dest_inst, dest_type, src_props):
             mlogger.debug('Parameter "%s"not found on target.', pkv.name)
 
 
-def get_source_properties(src_element, simple=False):
+def get_source_properties(src_element, simple=False, preselect=None):
     """Return info on selected properties."""
     mlogger = get_logger(__name__)
     props = []
@@ -90,6 +117,7 @@ def get_source_properties(src_element, simple=False):
             multiple=True,
             include_instance=True,
             include_type=True,
+            preselect=preselect,
         )
         or []
     )
@@ -116,7 +144,7 @@ def get_source_properties(src_element, simple=False):
                     datatype=tparam.StorageType,
                     value=value,
                     istype=sparam.istype,
-                    display_value=tparam.AsValueString() if not simple else None,
+                    display_value=tparam.AsValueString(),
                     categories=[src_element.Category] if not simple else [],
                 )
             )

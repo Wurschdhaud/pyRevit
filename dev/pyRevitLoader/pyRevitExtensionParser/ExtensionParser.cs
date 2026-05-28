@@ -428,6 +428,8 @@ namespace pyRevitExtensionParser
             }
             // Read extension.json for additional templates and rocket_mode_compatible
             bool rocketModeCompatible = false;
+            List<string> authUsers = null;
+            List<string> authGroups = null;
             var extensionJsonPath = Path.Combine(extDir, "extension.json");
             if (FileExists(extensionJsonPath))
             {
@@ -462,6 +464,36 @@ namespace pyRevitExtensionParser
                     if (!string.IsNullOrEmpty(rocketModeValue))
                     {
                         rocketModeCompatible = rocketModeValue.Equals("true", StringComparison.OrdinalIgnoreCase);
+                    }
+
+                    // Read authusers if present (list of authorized usernames)
+                    var authUsersArray = json["authusers"] as JArray;
+                    if (authUsersArray != null && authUsersArray.Count > 0)
+                    {
+                        authUsers = new List<string>();
+                        foreach (var item in authUsersArray)
+                        {
+                            var user = item?.ToString();
+                            if (!string.IsNullOrEmpty(user))
+                            {
+                                authUsers.Add(user);
+                            }
+                        }
+                    }
+
+                    // Read authgroups if present (list of authorized Windows security groups)
+                    var authGroupsArray = json["authgroups"] as JArray;
+                    if (authGroupsArray != null && authGroupsArray.Count > 0)
+                    {
+                        authGroups = new List<string>();
+                        foreach (var item in authGroupsArray)
+                        {
+                            var group = item?.ToString();
+                            if (!string.IsNullOrEmpty(group))
+                            {
+                                authGroups.Add(group);
+                            }
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -501,7 +533,9 @@ namespace pyRevitExtensionParser
                 Context = parsedBundle?.GetFormattedContext(),
                 Engine = parsedBundle?.Engine,
                 Config = extConfig,
-                RocketModeCompatible = rocketModeCompatible
+                RocketModeCompatible = rocketModeCompatible,
+                AuthorizedUsers = authUsers,
+                AuthorizedGroups = authGroups
             };
 
             ReorderByLayout(parsedExtension, parsedExtension, null);
@@ -1217,6 +1251,7 @@ namespace pyRevitExtensionParser
                 doc = SubstituteTemplates(doc, mergedTemplates);
                 author = SubstituteTemplates(author, mergedTemplates);
                 var hyperlink = SubstituteTemplates(bundleInComponent?.Hyperlink, mergedTemplates);
+                var bundleHelpUrl = SubstituteTemplates(bundleInComponent?.HelpUrl, mergedTemplates);
                 scriptHelpUrl = SubstituteTemplates(scriptHelpUrl, mergedTemplates);
 
                 // Apply template substitution to localized values
@@ -1254,8 +1289,8 @@ namespace pyRevitExtensionParser
                     : scriptHighlight;
 
                 // Determine final help URL: bundle helpurl takes precedence over script helpurl
-                string finalHelpUrl = !string.IsNullOrEmpty(bundleInComponent?.HelpUrl)
-                    ? bundleInComponent.HelpUrl
+                string finalHelpUrl = !string.IsNullOrEmpty(bundleHelpUrl)
+                    ? bundleHelpUrl
                     : scriptHelpUrl;
 
                 // Determine final help URL: bundle hyperlink takes precedence over script helpurl
@@ -1311,6 +1346,8 @@ namespace pyRevitExtensionParser
                     MaxRevitVersion = finalMaxRevitVersion,
                     IsBeta = finalIsBeta,
                     Collapsed = bundleInComponent?.Collapsed ?? false,
+                    InheritIcon = bundleInComponent?.InheritIcon ?? true,
+                    LargeIcon = bundleInComponent?.LargeIcon ?? false,
                     PanelBackground = bundleInComponent?.PanelBackground,
                     TitleBackground = bundleInComponent?.TitleBackground,
                     SlideoutBackground = bundleInComponent?.SlideoutBackground,
