@@ -14,6 +14,6 @@ if my_config.get_option("enabled", False):
     if not forms.is_registered_dockable_panel(CustomPropertiesPanel):
         forms.register_dockable_panel(CustomPropertiesPanel, default_visible=False)
     else:
-        logger.debug("Skipped registering Element Properties pane. Already exists.")
+        logger.debug("Skipped registering Custom Properties pane. Already exists.")
 else:
-    logger.debug("Element Properties pane disabled in config. Enable via Shift+Click the button.")
+    logger.debug("Custom Properties pane disabled in config. Enable via Shift+Click the button.")
