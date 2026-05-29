@@ -4,7 +4,7 @@ import pickle
 
 from pyrevit import forms, revit, op, script
 from pyrevit import DB, UI
-from pyrevit.revit.events import _GenericExternalEventHandler
+from pyrevit.revit.events import execute_in_revit_context
 from pyrevit.framework import ComponentModel, wpf, Controls, Uri, UriKind, ResourceDictionary
 from pyrevit.compat import get_elementid_value_func
 
@@ -153,8 +153,6 @@ class ClipboardContent(Controls.UserControl):
         self._recall_target_type = target_type
         self._memfile = memfile
         self._items = []
-        self._handler = _GenericExternalEventHandler()
-        self._ext_event = UI.ExternalEvent.Create(self._handler)
 
         _merge_resource_dict(self, _ICONS_XAML)
         _merge_locale(self)
@@ -175,15 +173,6 @@ class ClipboardContent(Controls.UserControl):
             item.IsSelected = all_selected
         self._refresh_list()
         self._update_ui_state()
-
-    # ── external-event plumbing ──────────────────────────────────────────────
-
-    def _run_in_revit(self, func, *args, **kwargs):
-        """Schedule func(*args, **kwargs) to run in the next Revit event loop."""
-        self._handler.func = func
-        self._handler.args = args
-        self._handler.kwargs = kwargs
-        self._ext_event.Raise()
 
     # ── history management (panel mode) ─────────────────────────────────────
 
@@ -269,7 +258,7 @@ class ClipboardContent(Controls.UserControl):
 
     # ── load-source handlers ─────────────────────────────────────────────────
     # NOTE: pick_element / get_source_properties are called directly here
-    # (not via _run_in_revit) because pyrevit's WPFPanel allows Revit picks
+    # (not via execute_in_revit_context) because pyrevit's WPFPanel allows Revit picks
     # from WPF event handlers.  Only write-operations (Transactions) require
     # the ExternalEvent mechanism.
 
@@ -363,7 +352,7 @@ class ClipboardContent(Controls.UserControl):
                 bg = get_most_common_ogs_brush(ogs)
                 fg = get_contrasting_brush(bg)
         if props:
-            self._run_in_revit(
+            execute_in_revit_context(
                 paste_props, props, "single",
                 bool(self.categoryFilterCheck.IsChecked),
                 background=bg, foreground=fg,
@@ -378,7 +367,7 @@ class ClipboardContent(Controls.UserControl):
                 bg = get_most_common_ogs_brush(ogs)
                 fg = get_contrasting_brush(bg)
         if props:
-            self._run_in_revit(
+            execute_in_revit_context(
                 paste_props, props, "rectangle",
                 bool(self.categoryFilterCheck.IsChecked),
                 background=bg, foreground=fg,
@@ -387,7 +376,7 @@ class ClipboardContent(Controls.UserControl):
     def paste_selection(self, sender, args):
         props = self._selected_props()
         if props:
-            self._run_in_revit(
+            execute_in_revit_context(
                 paste_props, props, "selection",
                 bool(self.categoryFilterCheck.IsChecked),
             )
