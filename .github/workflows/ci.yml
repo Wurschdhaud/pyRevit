@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/**'
       - 'bin/**'
+      - 'build/**'
       - 'dev/**'
       - 'extensions/**'
       - 'pyrevitlib/**'
@@ -18,6 +19,7 @@ on:
     paths:
       - '.github/workflows/**'
       - 'bin/**'
+      - 'build/**'
       - 'dev/**'
       - 'extensions/**'
       - 'pyrevitlib/**'
@@ -45,7 +47,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
           submodules: false
@@ -62,47 +64,20 @@ jobs:
           git submodule sync --recursive
           git submodule update --init --recursive
 
-      - name: Prepare Python 3.14
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.14'
-          cache: 'pipenv'
-
-      - name: Prepare pipenv
-        run: |
-          pip install pipenv
-          pipenv sync --dev
-
       - name: Cache NuGet packages
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@v5.0.5
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Build.props') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Build.props', 'build/Build.csproj') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Prepare msbuild
-        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
-
-      - name: Check Build Environment
-        if: github.repository == env.MainRepo
-        run: pipenv run pyrevit check
-
-      - name: Update Copyright Info
-        if: github.repository == env.MainRepo
-        run: pipenv run pyrevit set year
-
-      - name: Update Build Info (WIP)
-        if: github.repository == env.MainRepo && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/develop'
-        run: pipenv run pyrevit set build wip
-
-      - name: Update Build Info (Release)
-        if: github.repository == env.MainRepo && github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
-        run: pipenv run pyrevit set build release
-
-      - name: Publish Build Info
-        if: github.repository == env.MainRepo
-        run: pipenv run pyrevit set products
+      - name: Run CI pipeline
+        working-directory: build
+        env:
+          DOTNET_ENVIRONMENT: ${{ github.repository == env.MainRepo && 'Production' || 'Development' }}
+          Build__Channel: ${{ github.ref == 'refs/heads/develop' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && 'wip' || ((github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) && 'release') || 'none' }}
+        run: dotnet run -c Release -- ci
 
       - name: Capture build versions
         id: versionmeta
@@ -111,38 +86,15 @@ jobs:
           echo "build_version=$(tr -d '\r\n' < pyrevitlib/pyrevit/version)" >> "$GITHUB_OUTPUT"
           echo "install_version=$(tr -d '\r\n' < release/version)" >> "$GITHUB_OUTPUT"
 
-      - name: Build Products
-        run: pipenv run pyrevit build products
-
-      - name: Verify LibGit2 native DLL in bin
-        shell: pwsh
-        run: |
-          & "${{ github.workspace }}/release/Verify-LibGit2NativeDll.ps1"
-
       - name: Upload unsigned bin artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: unsigned-bin-${{ github.sha }}
           path: bin/**
 
-      - name: Stage stamped release metadata
-        if: github.repository == env.MainRepo
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf ci-stamped
-          mkdir -p ci-stamped/release/choco
-          cp release/version ci-stamped/release/version
-          cp release/pyrevit.iss ci-stamped/release/pyrevit.iss
-          cp release/pyrevit-admin.iss ci-stamped/release/pyrevit-admin.iss
-          cp release/pyrevit-cli.iss ci-stamped/release/pyrevit-cli.iss
-          cp release/pyrevit-cli-admin.iss ci-stamped/release/pyrevit-cli-admin.iss
-          cp release/pyrevit-common.props ci-stamped/release/pyrevit-common.props
-          cp release/choco/pyrevit-cli.nuspec ci-stamped/release/choco/pyrevit-cli.nuspec
-
       - name: Upload stamped release metadata
         if: github.repository == env.MainRepo
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: stamped-release-metadata-${{ github.sha }}
           path: ci-stamped/**
@@ -170,14 +122,23 @@ jobs:
       github.repository == 'pyrevitlabs/pyRevit' &&
       github.ref == 'refs/heads/develop' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: windows-2025
     permissions:
       contents: read
       issues: write
       pull-requests: write
-    uses: ./.github/workflows/notify.yml
-    with:
-      head_sha: ${{ github.sha }}
-      build: wip
-      build_version: ${{ needs.build.outputs.build_version }}
-      notify_url: https://github.com/${{ github.repository }}/actions/runs/${{ needs.wip.outputs.workflow_run_id }}
-    secrets: inherit
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Notify linked issues
+        working-directory: build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          Build__Channel: wip
+          Build__NotifyUrl: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: dotnet run -c Release -- notify

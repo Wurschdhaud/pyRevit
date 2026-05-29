@@ -69,3 +69,6 @@ bin/**/*.xml
 # claude
 .claude
 .vscode/settings.json
+
+# build bin (modular pipelines)
+build/bin/*
