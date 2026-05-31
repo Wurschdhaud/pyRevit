@@ -408,9 +408,7 @@ namespace pyRevitExtensionParser
         {
             var extName = Path.GetFileNameWithoutExtension(extDir);
 
-            // Skip the component tree recursion if the extension is disabled in
-            // pyRevit_config.ini. extConfig is reused below so ParseExtensionByName
-            // runs once, not twice.
+            // skip disabled extensions before walking the component tree
             var extConfig = GetConfig().ParseExtensionByName(extName);
             if (extConfig != null && extConfig.Disabled)
                 return null;
@@ -899,6 +897,22 @@ namespace pyRevitExtensionParser
             return result;
         }
 
+        /// <summary>
+        /// Merges bundle-level localized values over script-level ones; bundle wins on key collision.
+        /// </summary>
+        private static Dictionary<string, string> MergeLocalized(
+            Dictionary<string, string> scriptLocalized,
+            Dictionary<string, string> bundleLocalized)
+        {
+            if (bundleLocalized == null || bundleLocalized.Count == 0)
+                return scriptLocalized;
+
+            var result = scriptLocalized ?? new Dictionary<string, string>(bundleLocalized.Count);
+            foreach (var kvp in bundleLocalized)
+                result[kvp.Key] = kvp.Value;
+            return result;
+        }
+
         private static List<ParsedComponent> ParseComponents(
             string baseDir,
             string extensionName,
@@ -932,8 +946,6 @@ namespace pyRevitExtensionParser
                     ? $"{extensionName}_{namePart}"
                     : $"{parentPath}_{namePart}";
 
-                // One directory listing per bundle; script, config, and content lookups
-                // filter this array in memory instead of issuing separate syscalls.
                 var bundleDirFiles = GetFilesInDirectory(dir, "*", SearchOption.TopDirectoryOnly);
 
                 string scriptPath = null;
@@ -1023,8 +1035,6 @@ namespace pyRevitExtensionParser
                 if (configScriptPath == null)
                     configScriptPath = scriptPath;
 
-                // Parse bundle.yaml once up front. ContentButton reuses the same parsed
-                // bundle below instead of re-parsing into a separate tempBundle.
                 var bundleFile = Path.Combine(dir, "bundle.yaml");
                 ParsedBundle bundleInComponent = null;
                 if (FileExists(bundleFile))
@@ -1050,8 +1060,7 @@ namespace pyRevitExtensionParser
                         scriptPath = ResolveContentPath(dir, bundleInComponent.Content);
                     }
 
-                    // If no content in metadata, use naming convention. All the
-                    // .rfa lookups below filter bundleDirFiles in memory.
+                    // If no content in metadata, use naming convention
                     if (scriptPath == null)
                     {
                         // Look for version-specific content first: content_{version}.rfa
@@ -1225,37 +1234,9 @@ namespace pyRevitExtensionParser
                         author = bundleInComponent.Author;
                 }
 
-                // Merge localized values: bundle takes precedence over script. Keep
-                // the locals null until there's actually something to store so the
-                // common case (no localized dunders, no localized yaml keys) does
-                // not allocate three empty dictionaries per component.
-                var finalLocalizedTitles = scriptLocalizedTitles;
-                var finalLocalizedTooltips = scriptLocalizedTooltips;
-                var finalLocalizedHelpUrls = scriptLocalizedHelpUrls;
-
-                if (bundleInComponent?.Titles != null && bundleInComponent.Titles.Count > 0)
-                {
-                    if (finalLocalizedTitles == null)
-                        finalLocalizedTitles = new Dictionary<string, string>(bundleInComponent.Titles.Count);
-                    foreach (var kvp in bundleInComponent.Titles)
-                        finalLocalizedTitles[kvp.Key] = kvp.Value;
-                }
-
-                if (bundleInComponent?.Tooltips != null && bundleInComponent.Tooltips.Count > 0)
-                {
-                    if (finalLocalizedTooltips == null)
-                        finalLocalizedTooltips = new Dictionary<string, string>(bundleInComponent.Tooltips.Count);
-                    foreach (var kvp in bundleInComponent.Tooltips)
-                        finalLocalizedTooltips[kvp.Key] = kvp.Value;
-                }
-
-                if (bundleInComponent?.HelpUrls != null && bundleInComponent.HelpUrls.Count > 0)
-                {
-                    if (finalLocalizedHelpUrls == null)
-                        finalLocalizedHelpUrls = new Dictionary<string, string>(bundleInComponent.HelpUrls.Count);
-                    foreach (var kvp in bundleInComponent.HelpUrls)
-                        finalLocalizedHelpUrls[kvp.Key] = kvp.Value;
-                }
+                var finalLocalizedTitles = MergeLocalized(scriptLocalizedTitles, bundleInComponent?.Titles);
+                var finalLocalizedTooltips = MergeLocalized(scriptLocalizedTooltips, bundleInComponent?.Tooltips);
+                var finalLocalizedHelpUrls = MergeLocalized(scriptLocalizedHelpUrls, bundleInComponent?.HelpUrls);
 
                 // Apply template substitution to string values
                 title = SubstituteTemplates(title, mergedTemplates);

@@ -11,7 +11,6 @@ import ast
 import codecs
 import os
 import os.path as op
-import re
 from collections import OrderedDict
 
 import clr
@@ -32,13 +31,6 @@ DUNDER_NAMES = frozenset((
     '__context__', '__highlight__', '__min_revit_ver__', '__max_revit_ver__',
     '__beta__', '__cleanengine__', '__fullframeengine__', '__persistentengine__',
 ))
-
-# Module-level dunder at column 0 (optional UTF-8 BOM already stripped from line).
-_MODULE_DUNDER_RE = re.compile(
-    r'^([ \t]*)({names})\s*[=:]'.format(
-        names='|'.join(re.escape(n) for n in sorted(DUNDER_NAMES, key=len, reverse=True))
-    )
-)
 
 output = script.get_output()
 
@@ -261,13 +253,6 @@ def _line_range_for_assignment_block(source_lines, start_idx):
     return indices
 
 
-def _is_module_level_line(line):
-    """True when the line belongs to module scope (no indentation)."""
-    if not line or not line.strip():
-        return False
-    return line[0] not in (' ', '\t')
-
-
 def _dunder_used_as_load(tree, dunder_name):
     """True if dunder_name is read anywhere in the module."""
     for node in ast.walk(tree):
@@ -287,12 +272,23 @@ def _assign_target_names(target):
                 yield name
 
 
-def _find_cleanup_indices_ast(source, source_lines):
-    """Return (indices, warning) using ast; warning is None on success."""
+def find_cleanup_line_indices(script_path):
+    """Return (sorted 0-based line indices, warning_message).
+
+    Skips the script with a clear warning when ast.parse fails so a broken
+    source is fixed before this tool touches it.
+    """
+    source = _read_script_source(script_path)
+    if source is None:
+        return None, 'could not read script'
+
+    source_lines = source.splitlines(True)
     try:
         tree = ast.parse(source)
-    except SyntaxError:
-        return None, 'syntax_error'
+    except SyntaxError as ex:
+        return None, 'syntax error at line {}: {}'.format(
+            ex.lineno or '?', ex.msg or ex
+        )
 
     indices = set()
     for node in tree.body:
@@ -316,57 +312,6 @@ def _find_cleanup_indices_ast(source, source_lines):
             for idx in _line_range_for_assignment_block(source_lines, start):
                 indices.add(idx)
     return sorted(indices), None
-
-
-def _find_cleanup_indices_regex(source_lines):
-    """Conservative fallback: module-level dunder lines only (column 0)."""
-    indices = set()
-    i = 0
-    n = len(source_lines)
-    while i < n:
-        line = source_lines[i]
-        if not _is_module_level_line(line):
-            i += 1
-            continue
-        match = _MODULE_DUNDER_RE.match(line)
-        if not match:
-            i += 1
-            continue
-        if match.group(1):
-            i += 1
-            continue
-        for idx in _line_range_for_assignment_block(source_lines, i):
-            indices.add(idx)
-        i += 1
-        while i < n and not _is_module_level_line(source_lines[i]):
-            i += 1
-    return sorted(indices)
-
-
-def find_cleanup_line_indices(script_path):
-    """Return (sorted 0-based line indices, warning_message).
-
-    Uses ast.parse when possible; falls back to line-based matching when the
-    script has syntax errors. warning_message is non-None for fallback paths.
-    """
-    source = _read_script_source(script_path)
-    if source is None:
-        return None, 'could not read script'
-
-    source_lines = source.splitlines(True)
-    indices, ast_err = _find_cleanup_indices_ast(source, source_lines)
-    if ast_err == 'syntax_error':
-        regex_indices = _find_cleanup_indices_regex(source_lines)
-        if not regex_indices:
-            return None, (
-                'ast parse failed and line-based fallback found no safe lines'
-            )
-        return regex_indices, (
-            'used line-based fallback (script has syntax errors)'
-        )
-    if indices is None:
-        return None, 'could not analyze script'
-    return indices, None
 
 
 def apply_script_cleanup(script_path, cleanup_mode):

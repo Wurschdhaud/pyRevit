@@ -157,12 +157,9 @@ class SettingsWindow(forms.WPFWindow):
         self.minhostdrivefreespace_tb.Text = str(user_config.min_host_drivefreespace)
 
         self.loadbetatools_cb.IsChecked = user_config.load_beta
-        
-        self.new_loader.IsChecked = user_config.new_loader
-        self._initial_new_loader = user_config.new_loader
 
+        self.new_loader.IsChecked = user_config.new_loader
         self.read_script_metadata_cb.IsChecked = user_config.read_script_metadata
-        self._initial_read_script_metadata = user_config.read_script_metadata
 
         self.minimize_consoles_cb.IsChecked = user_config.output_close_others
 
@@ -835,8 +832,6 @@ class SettingsWindow(forms.WPFWindow):
 
     # save configs
     def _save_core_options(self):
-        request_reload = False
-
         # update the logging system changes first and update.
         user_config.bin_cache = self.bincache_rb.IsChecked
 
@@ -869,31 +864,13 @@ class SettingsWindow(forms.WPFWindow):
 
         user_config.load_beta = self.loadbetatools_cb.IsChecked
 
-        if (
-            self.new_loader.IsChecked != self._initial_new_loader
-            and not self.reload_requested
-            and not request_reload
-        ):
-            request_reload = forms.alert(
-                self.get_locale_string("CoreSettings.Loader.NewLoader.Changed"),
-                yes=True,
-                no=True,
-            )
+        new_loader_changed = (
+            self.new_loader.IsChecked != user_config.new_loader
+        )
+        read_metadata_changed = (
+            self.read_script_metadata_cb.IsChecked != user_config.read_script_metadata
+        )
         user_config.new_loader = self.new_loader.IsChecked
-
-        if (
-            self.read_script_metadata_cb.IsChecked
-            != self._initial_read_script_metadata
-            and not self.reload_requested
-            and not request_reload
-        ):
-            request_reload = forms.alert(
-                self.get_locale_string(
-                    "CoreSettings.Loader.ReadScriptMetadata.Changed"
-                ),
-                yes=True,
-                no=True,
-            )
         user_config.read_script_metadata = self.read_script_metadata_cb.IsChecked
 
         user_config.output_close_others = self.minimize_consoles_cb.IsChecked
@@ -902,7 +879,21 @@ class SettingsWindow(forms.WPFWindow):
         else:
             user_config.output_close_mode_enum = PyRevit.OutputCloseMode.CloseAll
 
-        return request_reload
+        if self.reload_requested:
+            return False
+        if new_loader_changed:
+            return forms.alert(
+                self.get_locale_string("CoreSettings.Loader.NewLoader.Changed"),
+                yes=True,
+                no=True,
+            )
+        if read_metadata_changed:
+            return forms.alert(
+                self.get_locale_string("CoreSettings.Loader.ReadScriptMetadata.Changed"),
+                yes=True,
+                no=True,
+            )
+        return False
 
     def _save_engines(self):
         # set active cpython engine
