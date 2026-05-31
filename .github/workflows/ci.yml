@@ -5,6 +5,7 @@ on:
     types: [opened, reopened]
     branches: [develop, master]
     paths:
+      - '.github/workflows/**'
       - 'bin/**'
       - 'dev/**'
       - 'extensions/**'
@@ -15,6 +16,7 @@ on:
     branches: [develop, master]
     tags: ['v*']
     paths:
+      - '.github/workflows/**'
       - 'bin/**'
       - 'dev/**'
       - 'extensions/**'
@@ -36,6 +38,9 @@ concurrency:
 
 jobs:
   build:
+    outputs:
+      build_version: ${{ steps.versionmeta.outputs.build_version }}
+      install_version: ${{ steps.versionmeta.outputs.install_version }}
     runs-on: windows-2025
 
     steps:
@@ -88,7 +93,7 @@ jobs:
         run: pipenv run pyrevit set year
 
       - name: Update Build Info (WIP)
-        if: github.repository == env.MainRepo && github.event_name == 'push' && github.ref == 'refs/heads/develop'
+        if: github.repository == env.MainRepo && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/develop'
         run: pipenv run pyrevit set build wip
 
       - name: Update Build Info (Release)
@@ -98,6 +103,13 @@ jobs:
       - name: Publish Build Info
         if: github.repository == env.MainRepo
         run: pipenv run pyrevit set products
+
+      - name: Capture build versions
+        id: versionmeta
+        shell: bash
+        run: |
+          echo "build_version=$(tr -d '\r\n' < pyrevitlib/pyrevit/version)" >> "$GITHUB_OUTPUT"
+          echo "install_version=$(tr -d '\r\n' < release/version)" >> "$GITHUB_OUTPUT"
 
       - name: Build Products
         run: pipenv run pyrevit build products
@@ -112,3 +124,60 @@ jobs:
         with:
           name: unsigned-bin-${{ github.sha }}
           path: bin/**
+
+      - name: Stage stamped release metadata
+        if: github.repository == env.MainRepo
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf ci-stamped
+          mkdir -p ci-stamped/release/choco
+          cp release/version ci-stamped/release/version
+          cp release/pyrevit.iss ci-stamped/release/pyrevit.iss
+          cp release/pyrevit-admin.iss ci-stamped/release/pyrevit-admin.iss
+          cp release/pyrevit-cli.iss ci-stamped/release/pyrevit-cli.iss
+          cp release/pyrevit-cli-admin.iss ci-stamped/release/pyrevit-cli-admin.iss
+          cp release/pyrevit-common.props ci-stamped/release/pyrevit-common.props
+          cp release/choco/pyrevit-cli.nuspec ci-stamped/release/choco/pyrevit-cli.nuspec
+
+      - name: Upload stamped release metadata
+        if: github.repository == env.MainRepo
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stamped-release-metadata-${{ github.sha }}
+          path: ci-stamped/**
+
+  wip:
+    needs: build
+    if: >
+      github.repository == 'pyrevitlabs/pyRevit' &&
+      github.ref == 'refs/heads/develop' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      actions: write
+    uses: ./.github/workflows/wip.yml
+    with:
+      head_sha: ${{ github.sha }}
+      ci_run_id: ${{ github.run_id }}
+      build_version: ${{ needs.build.outputs.build_version }}
+      install_version: ${{ needs.build.outputs.install_version }}
+    secrets: inherit
+
+  notify:
+    needs: [build, wip]
+    if: >
+      github.repository == 'pyrevitlabs/pyRevit' &&
+      github.ref == 'refs/heads/develop' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/notify.yml
+    with:
+      head_sha: ${{ github.sha }}
+      build: wip
+      build_version: ${{ needs.build.outputs.build_version }}
+      notify_url: https://github.com/${{ github.repository }}/actions/runs/${{ needs.wip.outputs.workflow_run_id }}
+    secrets: inherit

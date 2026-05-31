@@ -864,10 +864,10 @@ class SettingsWindow(forms.WPFWindow):
 
         user_config.load_beta = self.loadbetatools_cb.IsChecked
 
-        new_loader_changed = (
+        loader_setting_changed = (
             self.new_loader.IsChecked != user_config.new_loader
         )
-        read_metadata_changed = (
+        metadata_setting_changed = (
             self.read_script_metadata_cb.IsChecked != user_config.read_script_metadata
         )
         user_config.new_loader = self.new_loader.IsChecked
@@ -881,13 +881,13 @@ class SettingsWindow(forms.WPFWindow):
 
         if self.reload_requested:
             return False
-        if new_loader_changed:
+        if loader_setting_changed:
             return forms.alert(
                 self.get_locale_string("CoreSettings.Loader.NewLoader.Changed"),
                 yes=True,
                 no=True,
             )
-        if read_metadata_changed:
+        if metadata_setting_changed:
             return forms.alert(
                 self.get_locale_string("CoreSettings.Loader.ReadScriptMetadata.Changed"),
                 yes=True,
