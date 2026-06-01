@@ -208,6 +208,15 @@ namespace pyRevitExtensionParser
 
                 var keyPart = trimmed.Substring(0, idx).Trim();
                 var valuePart = trimmed.Substring(idx + 1).Trim();
+
+                // Mirror Win32 GetPrivateProfileString behaviour: strip a single layer of surrounding quotes.
+                if (valuePart.Length >= 2 &&
+                    ((valuePart[0] == '"' && valuePart[valuePart.Length - 1] == '"') ||
+                     (valuePart[0] == '\'' && valuePart[valuePart.Length - 1] == '\'')))
+                {
+                    valuePart = valuePart.Substring(1, valuePart.Length - 2);
+                }
+
                 yield return IniEntry.KeyValue(currentSection, keyPart, valuePart);
             }
         }
