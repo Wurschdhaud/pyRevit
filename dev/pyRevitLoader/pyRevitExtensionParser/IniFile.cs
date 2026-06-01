@@ -61,15 +61,30 @@ namespace pyRevitExtensionParser
         /// <returns>The value associated with the key, or an empty string if not found.</returns>
         public string IniReadValue(string section, string key)
         {
+            string raw;
             if (TryReadValueManaged(section, key, out var managedValue))
             {
-                return managedValue ?? string.Empty;
+                raw = managedValue ?? string.Empty;
+            }
+            else
+            {
+                // Increased capacity for larger ini values (like Python lists)
+                var sb = new StringBuilder(2048);
+                GetPrivateProfileString(section, key, "", sb, sb.Capacity, _path);
+                raw = sb.ToString();
             }
 
-            // Increased capacity for larger ini values (like Python lists)
-            var sb = new StringBuilder(2048);
-            GetPrivateProfileString(section, key, "", sb, sb.Capacity, _path);
-            return sb.ToString();
+            return StripSurroundingQuotes(raw);
+        }
+
+        private static string StripSurroundingQuotes(string value)
+        {
+            if (value == null || value.Length < 2)
+                return value;
+            if ((value[0] == '"' && value[value.Length - 1] == '"') ||
+                (value[0] == '\'' && value[value.Length - 1] == '\''))
+                return value.Substring(1, value.Length - 2);
+            return value;
         }
 
         /// <summary>
@@ -208,15 +223,6 @@ namespace pyRevitExtensionParser
 
                 var keyPart = trimmed.Substring(0, idx).Trim();
                 var valuePart = trimmed.Substring(idx + 1).Trim();
-
-                // Mirror Win32 GetPrivateProfileString behaviour: strip a single layer of surrounding quotes.
-                if (valuePart.Length >= 2 &&
-                    ((valuePart[0] == '"' && valuePart[valuePart.Length - 1] == '"') ||
-                     (valuePart[0] == '\'' && valuePart[valuePart.Length - 1] == '\'')))
-                {
-                    valuePart = valuePart.Substring(1, valuePart.Length - 2);
-                }
-
                 yield return IniEntry.KeyValue(currentSection, keyPart, valuePart);
             }
         }
