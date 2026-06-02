@@ -541,6 +541,12 @@ namespace PyRevitLabs.PyRevit.Runtime {
             }
         }
 
+        private static string TrimTrailingReturn(string line) {
+            if (!string.IsNullOrEmpty(line) && line[line.Length - 1] == '\r')
+                return line.Substring(0, line.Length - 1);
+            return line;
+        }
+
         public void AppendHtmlFragment(string OutputText, string HtmlElementType) {
             if (string.IsNullOrEmpty(OutputText))
                 return;
@@ -561,19 +567,19 @@ namespace PyRevitLabs.PyRevit.Runtime {
                     continue;
                 var lineLen = i - lineStart;
                 if (lineLen > 0) {
-                    var line = OutputText.Substring(lineStart, lineLen);
+                    var line = TrimTrailingReturn(OutputText.Substring(lineStart, lineLen));
                     body.AppendChild(ComposeEntry(line, HtmlElementType));
                 }
                 lineStart = i + 1;
             }
             if (lineStart <= lastIdx) {
-                var tail = OutputText.Substring(lineStart);
+                var tail = TrimTrailingReturn(OutputText.Substring(lineStart));
                 if (tail.Length > 0)
                     body.AppendChild(ComposeEntry(tail, HtmlElementType));
             }
 
-            if (_lastLine.Length == 0 || !_lastLine.EndsWith("\n"))
-                _lastLine = OutputText.Substring(OutputText.LastIndexOf('\n') + 1);
+            // track the latest (possibly incomplete) line so input-prompt detection stays accurate
+            _lastLine = TrimTrailingReturn(OutputText.Substring(OutputText.LastIndexOf('\n') + 1));
 
             if (!_frozen && IsScrolledNearBottom())
                 ScrollToBottom();

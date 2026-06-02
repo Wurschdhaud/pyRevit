@@ -75,6 +75,9 @@ def _clear_running_engines():
 
 
 def _setup_output():
+    # route NLog messages to the output window (runtime-owned, replaces the
+    # python-side NLog target that used to live in pyrevit.labs)
+    runtime_types.ScriptOutput.ConfigureLogging()
     # create the runtime-owned singleton output window and assign handle
     out = runtime_types.ScriptOutput.GetDefault()
     out_window = out.window
@@ -434,8 +437,8 @@ def load_session():
     try:
         timeout = user_config.startuplog_timeout
         if timeout > 0 and not logger.loggers_have_errors():
-            if not EXEC_PARAMS.first_load:
-                output_window.self_destruct(timeout)
+            # auto-close the startup window on both first and subsequent loads
+            runtime_types.ScriptOutput.GetDefault().self_destruct(timeout)
     except Exception as imp_err:
         mlogger.error("Error setting up self_destruct on output window | %s", imp_err)
 

@@ -23,6 +23,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private UIApplication _uiApp;
         private bool _debugMode;
         private bool _hasErrors;
+        private bool _isSessionOutput;
         private int _tableCounter;
 
         private ScriptOutput(UIApplication uiApp = null, bool debugMode = false) {
@@ -32,7 +33,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         public static ScriptOutput GetDefault(UIApplication uiApp = null, bool debugMode = false) {
             lock (SyncRoot) {
-                if (_default == null || _default.IsWindowClosed)
+                if (_default == null)
                     _default = new ScriptOutput(uiApp, debugMode);
 
                 if (uiApp != null)
@@ -93,11 +94,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         }
 
         internal static bool IsStartupRuntime(ScriptRuntime runtime) {
-            var scriptData = runtime?.ScriptData;
-            return scriptData != null
-                && string.IsNullOrEmpty(scriptData.CommandUniqueId)
-                && !string.IsNullOrEmpty(scriptData.CommandName)
-                && scriptData.CommandName.StartsWith("Starting ", StringComparison.Ordinal);
+            return runtime?.ScriptData?.IsStartupScript ?? false;
         }
 
         internal static string GetStartupOutputPrefix(ScriptRuntime runtime) {
@@ -105,9 +102,6 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 return null;
 
             var extensionName = runtime.ScriptData.CommandExtension;
-            if (string.IsNullOrEmpty(extensionName))
-                extensionName = runtime.ScriptData.CommandName.Substring("Starting ".Length);
-
             return string.IsNullOrEmpty(extensionName)
                 ? null
                 : string.Format("[{0}] ", extensionName);
@@ -132,8 +126,10 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 outWindow.OutputId = outputId;
             if (!string.IsNullOrEmpty(appVersion))
                 outWindow.AppVersion = appVersion;
-            if (isSessionOutput)
+            if (isSessionOutput) {
+                _isSessionOutput = true;
                 outWindow.IsSessionOutput = true;
+            }
         }
 
         public ScriptConsole window {
@@ -142,6 +138,9 @@ namespace PyRevitLabs.PyRevit.Runtime {
                     _window = new ScriptConsole(_debugMode, _uiApp);
                     if (string.IsNullOrEmpty(_window.OutputId))
                         _window.OutputId = "pyrevit-output";
+                    // re-apply session state so a window reopened mid-session is still
+                    // protected from close_other_outputs
+                    _window.IsSessionOutput = _isSessionOutput;
                     _outputStream = null;
                 }
                 return _window;
@@ -225,7 +224,10 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 window.SelfDestructTimer(seconds);
         }
 
-        public void set_session_output(bool isSessionOutput) { window.IsSessionOutput = isSessionOutput; }
+        public void set_session_output(bool isSessionOutput) {
+            _isSessionOutput = isSessionOutput;
+            window.IsSessionOutput = isSessionOutput;
+        }
 
         public void close() { window.Close(); }
         public void hide() { window.Hide(); }

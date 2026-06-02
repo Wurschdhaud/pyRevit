@@ -170,7 +170,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 }
 
                 if (_outputBuffer.Length > MaxPendingChars) {
-                    _outputBuffer = _outputBuffer.Substring(MaxPendingChars);
+                    _outputBuffer = _outputBuffer.Substring(_outputBuffer.Length - MaxPendingChars);
                 }
             }
 
@@ -300,6 +300,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
         }
 
         public override void Flush() {
+            // stop the background tick so the synchronous drain doesn't race it
+            StopFlushTimer();
             while (true) {
                 lock (this) {
                     if (_outputBuffer.Length == 0)
