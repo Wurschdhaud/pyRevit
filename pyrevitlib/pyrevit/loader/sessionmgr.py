@@ -306,7 +306,7 @@ def _new_session_csharp():
         # Call the LoadSession method with logger and build strategy
         mlogger.info("Loading session using C# LoadSession method...")
         result = load_session_method.Invoke(
-            None, framework.Array[object]([mlogger, build_strategy])
+            None, framework.Array[object]([None, build_strategy])
         )
 
         # Check if the result indicates success (Result.Succeeded = 0)

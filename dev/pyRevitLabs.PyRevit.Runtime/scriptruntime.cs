@@ -34,6 +34,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
         public IDictionary<string, object> Variables { get; set; }
         public string LogFilePath { get; set; }
         public bool SuppressOutput { get; set; }
+        public ScriptConsole OutputWindowOverride { get; set; }
+        public ScriptIO OutputStreamOverride { get; set; }
 
         public object EventSender {
             get { return _eventSender; }
@@ -68,6 +70,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
             Variables = null;
             LogFilePath = null;
             SuppressOutput = false;
+            OutputWindowOverride = null;
+            OutputStreamOverride = null;
             EventSender = null;
             EventArgs = null;
         }
@@ -360,6 +364,9 @@ namespace PyRevitLabs.PyRevit.Runtime {
         // output
         public ScriptConsole OutputWindow {
             get {
+                if (ScriptRuntimeConfigs?.OutputWindowOverride != null)
+                    return ScriptRuntimeConfigs.OutputWindowOverride;
+
                 // get ScriptOutput from the weak reference
                 ScriptConsole output;
                 var re = _scriptOutput.TryGetTarget(out output);
@@ -391,6 +398,9 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         public ScriptIO OutputStream {
             get {
+                if (ScriptRuntimeConfigs?.OutputStreamOverride != null)
+                    return ScriptRuntimeConfigs.OutputStreamOverride;
+
                 // get ScriptOutputStream from the weak reference
                 ScriptIO outputStream;
                 var re = _outputStream.TryGetTarget(out outputStream);
@@ -398,7 +408,9 @@ namespace PyRevitLabs.PyRevit.Runtime {
                     return outputStream;
                 else {
                     // Setup the output stream
-                    ScriptIO newStream = new ScriptIO(this);
+                    ScriptIO newStream = ScriptRuntimeConfigs?.OutputWindowOverride != null
+                        ? new ScriptIO(ScriptRuntimeConfigs.OutputWindowOverride)
+                        : new ScriptIO(this);
                     _outputStream = new WeakReference<ScriptIO>(newStream);
                     return newStream;
                 }

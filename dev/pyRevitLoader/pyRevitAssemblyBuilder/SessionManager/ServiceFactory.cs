@@ -293,7 +293,8 @@ namespace pyRevitAssemblyBuilder.SessionManager
                 hookManager,
                 uiManager,
                 ribbonScanner,
-                logger);
+                logger,
+                useSessionOutput: pythonLogger == null);
         }
         
         /// <summary>
@@ -313,7 +314,8 @@ namespace pyRevitAssemblyBuilder.SessionManager
             IHookManager hookManager,
             IUIManagerService uiManager,
             IUIRibbonScanner ribbonScanner,
-            ILogger logger)
+            ILogger logger,
+            bool useSessionOutput = false)
         {
             ExtensionParser.SetLogger(new ExtensionParserLoggerAdapter(logger));
             return new SessionManagerService(
@@ -322,7 +324,8 @@ namespace pyRevitAssemblyBuilder.SessionManager
                 hookManager,
                 uiManager,
                 ribbonScanner,
-                logger);
+                logger,
+                useSessionOutput);
         }
     }
 }
