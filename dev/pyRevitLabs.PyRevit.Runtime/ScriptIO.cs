@@ -15,6 +15,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private bool _inputReceived = false;
         private bool _errored = false;
         private ScriptEngineType _erroredEngine;
+        private bool _prefixAtLineStart = true;
 
         public bool PrintDebugInfo = false;
 
@@ -66,6 +67,27 @@ namespace PyRevitLabs.PyRevit.Runtime {
                     }
                 }
             }
+        }
+
+        private string PrefixStartupOutput(string outputText) {
+            var prefix = ScriptOutput.GetStartupOutputPrefix(GetRuntime());
+            if (string.IsNullOrEmpty(prefix) || string.IsNullOrEmpty(outputText))
+                return outputText;
+
+            var output = new StringBuilder();
+            foreach (var chr in outputText) {
+                if (_prefixAtLineStart && chr != '\r' && chr != '\n') {
+                    output.Append(prefix);
+                    _prefixAtLineStart = false;
+                }
+
+                output.Append(chr);
+
+                if (chr == '\r' || chr == '\n')
+                    _prefixAtLineStart = true;
+            }
+
+            return output.ToString();
         }
 
         public ScriptConsole GetOutput() {
@@ -139,11 +161,12 @@ namespace PyRevitLabs.PyRevit.Runtime {
                             ScriptConsoleConfigs.DefaultBlock);
 
                     if (count < 1024) {
+                        var outputBuffer = PrefixStartupOutput(_outputBuffer);
                         // write to output window
                         if (!_errored)
-                            output.AppendText(_outputBuffer, ScriptConsoleConfigs.DefaultBlock);
+                            output.AppendText(outputBuffer, ScriptConsoleConfigs.DefaultBlock);
                         else
-                            output.AppendError(_outputBuffer, _erroredEngine);
+                            output.AppendError(outputBuffer, _erroredEngine);
 
                         // reset buffer and flush state for next time
                         _outputBuffer = string.Empty;

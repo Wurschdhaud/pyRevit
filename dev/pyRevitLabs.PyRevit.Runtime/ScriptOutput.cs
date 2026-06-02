@@ -76,9 +76,10 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 return;
 
             var output = GetDefault(runtime.UIApp, runtime.ScriptRuntimeConfigs?.DebugMode ?? false);
+            var isStartupRuntime = IsStartupRuntime(runtime);
             output.Configure(
                 runtime.UIApp,
-                runtime.ScriptData?.CommandName,
+                isStartupRuntime ? null : runtime.ScriptData?.CommandName,
                 runtime.ScriptData?.CommandUniqueId,
                 string.Format(
                     "{0}:{1}:{2}",
@@ -89,6 +90,27 @@ namespace PyRevitLabs.PyRevit.Runtime {
                     runtime.EnvDict.RevitVersion),
                 runtime.ScriptRuntimeConfigs?.DebugMode ?? false,
                 false);
+        }
+
+        internal static bool IsStartupRuntime(ScriptRuntime runtime) {
+            var scriptData = runtime?.ScriptData;
+            return scriptData != null
+                && string.IsNullOrEmpty(scriptData.CommandUniqueId)
+                && !string.IsNullOrEmpty(scriptData.CommandName)
+                && scriptData.CommandName.StartsWith("Starting ", StringComparison.Ordinal);
+        }
+
+        internal static string GetStartupOutputPrefix(ScriptRuntime runtime) {
+            if (!IsStartupRuntime(runtime))
+                return null;
+
+            var extensionName = runtime.ScriptData.CommandExtension;
+            if (string.IsNullOrEmpty(extensionName))
+                extensionName = runtime.ScriptData.CommandName.Substring("Starting ".Length);
+
+            return string.IsNullOrEmpty(extensionName)
+                ? null
+                : string.Format("[{0}] ", extensionName);
         }
 
         public void Configure(
