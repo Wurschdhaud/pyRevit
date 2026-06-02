@@ -428,6 +428,10 @@ namespace PyRevitLabs.PyRevit.Runtime {
             System.Windows.Forms.Application.DoEvents();
         }
 
+        internal void WaitReadyBrowserLite() {
+            System.Windows.Forms.Application.DoEvents();
+        }
+
         public string OutputTitle {
             get {
                 return Title;
@@ -469,6 +473,36 @@ namespace PyRevitLabs.PyRevit.Runtime {
             }
         }
 
+        private bool IsScrolledNearBottom() {
+            if (ActiveDocument == null || ActiveDocument.Body == null)
+                return true;
+            try {
+                var body = ActiveDocument.Body;
+                var docHeight = body.ScrollRectangle.Height;
+                var view = ActiveDocument.Window;
+                if (docHeight <= 0)
+                    return true;
+                if (view.Size.Height >= docHeight)
+                    return true;
+                return (body.ScrollTop + view.Size.Height) >= (docHeight - 50);
+            }
+            catch {
+                return true;
+            }
+        }
+
+        internal void ForceRenderFrame() {
+            try {
+                if (Dispatcher != null
+                        && !Dispatcher.HasShutdownStarted
+                        && !Dispatcher.HasShutdownFinished) {
+                    Dispatcher.Invoke(() => { }, DispatcherPriority.Render);
+                }
+            }
+            catch {
+            }
+        }
+
         public void FocusOutput() {
             renderer.Focus();
         }
@@ -496,13 +530,53 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 _lastLine = OutputText;
 
             if (!_frozen) {
-                WaitReadyBrowser();
-                ActiveDocument.Body.AppendChild(ComposeEntry(OutputText, HtmlElementType));
-                ScrollToBottom();
+                if (ActiveDocument != null) {
+                    ActiveDocument.Body.AppendChild(ComposeEntry(OutputText, HtmlElementType));
+                    if (IsScrolledNearBottom())
+                        ScrollToBottom();
+                }
             }
             else if (_lastDocumentBody != null) {
                 _lastDocumentBody.AppendChild(ComposeEntry(OutputText, HtmlElementType));
             }
+        }
+
+        public void AppendHtmlFragment(string OutputText, string HtmlElementType) {
+            if (string.IsNullOrEmpty(OutputText))
+                return;
+
+            var lastIdx = OutputText.Length - 1;
+            if (lastIdx < 0 || ActiveDocument == null)
+                return;
+
+            var body = _frozen && _lastDocumentBody != null
+                ? _lastDocumentBody
+                : ActiveDocument.Body;
+            if (body == null)
+                return;
+
+            var lineStart = 0;
+            for (var i = 0; i <= lastIdx; i++) {
+                if (OutputText[i] != '\n')
+                    continue;
+                var lineLen = i - lineStart;
+                if (lineLen > 0) {
+                    var line = OutputText.Substring(lineStart, lineLen);
+                    body.AppendChild(ComposeEntry(line, HtmlElementType));
+                }
+                lineStart = i + 1;
+            }
+            if (lineStart <= lastIdx) {
+                var tail = OutputText.Substring(lineStart);
+                if (tail.Length > 0)
+                    body.AppendChild(ComposeEntry(tail, HtmlElementType));
+            }
+
+            if (_lastLine.Length == 0 || !_lastLine.EndsWith("\n"))
+                _lastLine = OutputText.Substring(OutputText.LastIndexOf('\n') + 1);
+
+            if (!_frozen && IsScrolledNearBottom())
+                ScrollToBottom();
         }
 
         public void AppendError(string OutputText, ScriptEngineType engineType) {

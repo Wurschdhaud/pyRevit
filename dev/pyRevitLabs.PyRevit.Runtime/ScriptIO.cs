@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Windows.Threading;
 using pyRevitLabs.Common.Extensions;
 
 namespace PyRevitLabs.PyRevit.Runtime {
@@ -16,6 +17,16 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private bool _errored = false;
         private ScriptEngineType _erroredEngine;
         private bool _prefixAtLineStart = true;
+
+        private const int SoftFlushCharLimit = 16384;
+        private const int HardFlushCharLimit = 65536;
+        private const int MaxPendingChars = 1048576;
+        private const int FlushChunkCharLimit = 16384;
+        private const int FlushMaxCharsPerTick = 65536;
+        private static readonly TimeSpan FlushInterval = TimeSpan.FromMilliseconds(16);
+
+        private DispatcherTimer _flushTimer;
+        private bool _firstShowPending = true;
 
         public bool PrintDebugInfo = false;
 
@@ -59,7 +70,6 @@ namespace PyRevitLabs.PyRevit.Runtime {
                     File.AppendAllText(logFilePath, outputText, OutputEncoding);
                 }
                 catch (Exception ex) {
-                    // Best-effort logging: do not throw from IO during output writes.
                     if (PrintDebugInfo) {
                         System.Diagnostics.Debug.WriteLine(
                             string.Format("[ScriptIO] Failed to append to log file '{0}': {1}", logFilePath, ex)
@@ -111,7 +121,6 @@ namespace PyRevitLabs.PyRevit.Runtime {
             }
         }
 
-        // this is for python stream compatibility
         public void write(string content) {
             var buffer = OutputEncoding.GetBytes(content);
             Write(buffer, 0, buffer.Length);
@@ -133,49 +142,171 @@ namespace PyRevitLabs.PyRevit.Runtime {
             AppendLog(outputText);
 
             var output = GetOutput();
-            if (output != null) {
-                if (output.ClosedByUser) {
-                    _gui = null;
-                    _outputBuffer = string.Empty;
+            if (output == null) {
+                return;
+            }
+
+            if (output.ClosedByUser) {
+                _gui = null;
+                _outputBuffer = string.Empty;
+                StopFlushTimer();
+                return;
+            }
+
+            bool needShow = false;
+            if (outputText.Length > 0 && !output.IsVisible) {
+                needShow = true;
+            }
+
+            lock (this) {
+                if (PrintDebugInfo) {
+                    output.AppendText(
+                        string.Format("<---- W offset: {0} count: {1} ---->", offset, count),
+                        ScriptConsoleConfigs.DefaultBlock);
+                }
+
+                if (outputText.Length > 0) {
+                    _outputBuffer += outputText;
+                }
+
+                if (_outputBuffer.Length > MaxPendingChars) {
+                    _outputBuffer = _outputBuffer.Substring(MaxPendingChars);
+                }
+            }
+
+            if (needShow) {
+                try {
+                    output.Show();
+                }
+                catch {
                     return;
                 }
-
-                if (!output.IsVisible) {
+                if (_firstShowPending) {
+                    _firstShowPending = false;
+                    var pendingOut = output;
                     try {
-                        output.Show();
-                        output.Focus();
+                        if (pendingOut.Dispatcher != null
+                                && !pendingOut.Dispatcher.HasShutdownStarted
+                                && !pendingOut.Dispatcher.HasShutdownFinished) {
+                            pendingOut.Dispatcher.BeginInvoke(
+                                new Action(pendingOut.ForceRenderFrame),
+                                DispatcherPriority.Render);
+                        }
                     }
                     catch {
-                        return;
-                    }
-                }
-
-                lock (this) {
-                    // append output to the buffer
-                    _outputBuffer += outputText;
-
-                    // log buffer information in debug mode
-                    if (PrintDebugInfo)
-                        output.AppendText(
-                            string.Format("<---- W offset: {0} count: {1} ---->", offset, count),
-                            ScriptConsoleConfigs.DefaultBlock);
-
-                    if (count < 1024) {
-                        var outputBuffer = PrefixStartupOutput(_outputBuffer);
-                        // write to output window
-                        if (!_errored)
-                            output.AppendText(outputBuffer, ScriptConsoleConfigs.DefaultBlock);
-                        else
-                            output.AppendError(outputBuffer, _erroredEngine);
-
-                        // reset buffer and flush state for next time
-                        _outputBuffer = string.Empty;
                     }
                 }
             }
+
+            EnsureFlushTimer(output);
+        }
+
+        private void EnsureFlushTimer(ScriptConsole output) {
+            if (_flushTimer != null)
+                return;
+
+            var dispatcher = output.Dispatcher;
+            if (dispatcher == null || dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+                return;
+
+            _flushTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher);
+            _flushTimer.Interval = FlushInterval;
+            _flushTimer.Tick += OnFlushTick;
+            _flushTimer.Start();
+        }
+
+        private void StopFlushTimer() {
+            if (_flushTimer == null)
+                return;
+            _flushTimer.Stop();
+            _flushTimer.Tick -= OnFlushTick;
+            _flushTimer = null;
+        }
+
+        private void OnFlushTick(object sender, EventArgs e) {
+            FlushUpToBudget();
+        }
+
+        private void FlushUpToBudget() {
+            int budget = FlushMaxCharsPerTick;
+            int i = 0;
+            while (i < 8) {
+                if (!FlushOneChunk())
+                    return;
+                budget -= _lastChunkChars;
+                if (budget <= 0)
+                    return;
+                i++;
+            }
+        }
+
+        private int _lastChunkChars;
+
+        private bool FlushOneChunk() {
+            ScriptConsole output;
+            string chunk;
+            bool morePending;
+
+            lock (this) {
+                if (_outputBuffer.Length == 0) {
+                    StopFlushTimer();
+                    return false;
+                }
+
+                output = GetOutput();
+                if (output == null || output.ClosedByUser) {
+                    _outputBuffer = string.Empty;
+                    StopFlushTimer();
+                    return false;
+                }
+
+                int take = Math.Min(_outputBuffer.Length, FlushChunkCharLimit);
+                int splitAt = -1;
+                if (take < _outputBuffer.Length) {
+                    splitAt = _outputBuffer.LastIndexOf('\n', take - 1);
+                    if (splitAt < 0)
+                        splitAt = take;
+                    else
+                        splitAt += 1;
+                }
+                else {
+                    splitAt = take;
+                }
+
+                chunk = _outputBuffer.Substring(0, splitAt);
+                _outputBuffer = _outputBuffer.Substring(splitAt);
+                _lastChunkChars = chunk.Length;
+                morePending = _outputBuffer.Length > 0;
+            }
+
+            DrainOutput(output, chunk);
+
+            if (!morePending) {
+                StopFlushTimer();
+                return false;
+            }
+            return true;
+        }
+
+        private void DrainOutput(ScriptConsole output, string pending) {
+            if (string.IsNullOrEmpty(pending))
+                return;
+
+            var prefixed = PrefixStartupOutput(pending);
+            if (_errored)
+                output.AppendError(prefixed, _erroredEngine);
+            else
+                output.AppendHtmlFragment(prefixed, ScriptConsoleConfigs.DefaultBlock);
         }
 
         public override void Flush() {
+            while (true) {
+                lock (this) {
+                    if (_outputBuffer.Length == 0)
+                        return;
+                }
+                FlushOneChunk();
+            }
         }
 
         public override long Seek(long offset, SeekOrigin origin) {
@@ -192,10 +323,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         public string readline(int size=-1) {
             var buffer = new byte[1024];
-            // we know how read works so don't need to read size until
-            // zero and make multiple calls
             Read(buffer, 0, 1024);
-            // second call to clear the flag
             Read(buffer, 0, 1024);
             return OutputEncoding.GetString(buffer);
         }
@@ -213,6 +341,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 if (output.ClosedByUser) {
                     _gui = null;
                     _outputBuffer = string.Empty;
+                    StopFlushTimer();
                     return 0;
                 }
 
@@ -229,19 +358,14 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 lock (this) {
                     string input = string.Empty;
 
-                    // called will call .Read until it gets a 0
-                    // we don't buffer the input as will copy the complete
-                    // input data on the first call. so we need a way to
-                    // return 0 when caller calls .Read again
                     if (_inputReceived) {
                         _inputReceived = false;
                         return 0;
                     }
-                    
+
                     input = output.GetInput();
                     _inputReceived = true;
 
-                    // log buffer information in debug mode
                     if (PrintDebugInfo)
                         output.AppendText(
                             string.Format("<---- R offset: {0} count: {1} ---->", offset, count),
@@ -257,7 +381,6 @@ namespace PyRevitLabs.PyRevit.Runtime {
                                 ScriptConsoleConfigs.DefaultBlock);
                     }
 
-                    // return the size of copied data
                     return inputBytes.Length;
                 }
             }
@@ -287,6 +410,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         }
 
         new public void Dispose() {
+            StopFlushTimer();
             _runtime = null;
             _gui = null;
             Dispose(true);
