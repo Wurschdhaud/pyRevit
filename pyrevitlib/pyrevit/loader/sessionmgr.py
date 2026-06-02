@@ -75,11 +75,12 @@ def _clear_running_engines():
 
 
 def _setup_output():
-    # create output window and assign handle
-    out_window = runtime.types.ScriptConsole()
+    # create the runtime-owned singleton output window and assign handle
+    out = runtime_types.ScriptOutput.GetDefault()
+    out_window = out.window
     # protect from close_other_outputs triggered by startup-script windows
     try:
-        out_window.IsSessionOutput = True
+        out.set_session_output(True)
     except Exception:
         pass
     runtime_info = sessioninfo.get_runtime_info()
@@ -92,7 +93,7 @@ def _setup_output():
     # create output stream and set stdout to it
     # we're not opening the output window here.
     # The output stream will open the window if anything is being printed.
-    outstr = runtime.types.ScriptIO(out_window)
+    outstr = out.output_stream
     sys.stdout = outstr
     # sys.stderr = outstr
     stdout_hndlr = logger.get_stdout_hndlr()
@@ -102,6 +103,10 @@ def _setup_output():
 
 
 def _cleanup_output():
+    try:
+        runtime_types.ScriptOutput.GetDefault().set_session_output(False)
+    except Exception:
+        pass
     sys.stdout = None
     stdout_hndlr = logger.get_stdout_hndlr()
     stdout_hndlr.stream = None
@@ -306,7 +311,7 @@ def _new_session_csharp():
         # Call the LoadSession method with logger and build strategy
         mlogger.info("Loading session using C# LoadSession method...")
         result = load_session_method.Invoke(
-            None, framework.Array[object]([None, build_strategy])
+            None, framework.Array[object]([build_strategy])
         )
 
         # Check if the result indicates success (Result.Succeeded = 0)
@@ -429,11 +434,7 @@ def load_session():
     try:
         timeout = user_config.startuplog_timeout
         if timeout > 0 and not logger.loggers_have_errors():
-            if EXEC_PARAMS.first_load:
-                # output_window is of type ScriptConsole
-                output_window.SelfDestructTimer(timeout)
-            else:
-                # output_window is of type PyRevitOutputWindow
+            if not EXEC_PARAMS.first_load:
                 output_window.self_destruct(timeout)
     except Exception as imp_err:
         mlogger.error("Error setting up self_destruct on output window | %s", imp_err)

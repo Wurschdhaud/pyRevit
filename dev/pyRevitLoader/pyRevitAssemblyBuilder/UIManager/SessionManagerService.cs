@@ -23,8 +23,6 @@ namespace pyRevitAssemblyBuilder.SessionManager
         private readonly IUIRibbonScanner _ribbonScanner;
         private readonly UIApplication _uiApp;
         private readonly ILogger _logger;
-        private readonly bool _useSessionOutput;
-        private SessionOutput? _sessionOutput;
         
         // These fields are initialized in InitializeScriptExecutor(), not the constructor
         private Assembly? _runtimeAssembly;
@@ -60,8 +58,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
             IHookManager hookManager,
             IUIManagerService uiManager,
             IUIRibbonScanner ribbonScanner,
-            ILogger logger,
-            bool useSessionOutput = false)
+            ILogger logger)
         {
             _assemblyBuilder = assemblyBuilder ?? throw new ArgumentNullException(nameof(assemblyBuilder));
             _extensionManager = extensionManager ?? throw new ArgumentNullException(nameof(extensionManager));
@@ -69,7 +66,6 @@ namespace pyRevitAssemblyBuilder.SessionManager
             _uiManager = uiManager ?? throw new ArgumentNullException(nameof(uiManager));
             _ribbonScanner = ribbonScanner ?? throw new ArgumentNullException(nameof(ribbonScanner));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _useSessionOutput = useSessionOutput;
             
             // Get UIApplication from UIManagerService via public property
             _uiApp = uiManager.UIApplication 
@@ -123,8 +119,6 @@ namespace pyRevitAssemblyBuilder.SessionManager
             stepStopwatch.Restart();
             SeedEnvironmentDictionary();
             _logger.Debug($"[PERF] SeedEnvironmentDictionary: {stepStopwatch.ElapsedMilliseconds}ms");
-
-            InitializeSessionOutput();
 
             // Get all library extensions first - they need to be available to all UI extensions
             stepStopwatch.Restart();
@@ -270,37 +264,6 @@ namespace pyRevitAssemblyBuilder.SessionManager
 
             totalStopwatch.Stop();
             _logger.Info($"Session loaded in {totalStopwatch.ElapsedMilliseconds}ms");
-            FinalizeSessionOutput();
-        }
-
-        private void InitializeSessionOutput()
-        {
-            if (!_useSessionOutput || _sessionOutput != null)
-                return;
-
-            _sessionOutput = SessionOutput.TryCreate(
-                _uiApp,
-                "pyRevit Session",
-                "pyrevit-session");
-
-            if (_sessionOutput != null && _logger is LoggingHelper outputLogger)
-                outputLogger.AttachSessionOutput(_sessionOutput);
-        }
-
-        private void FinalizeSessionOutput()
-        {
-            if (_sessionOutput == null || _sessionOutput.HasErrors)
-                return;
-
-            try
-            {
-                var timeout = PyRevitConfig.Load().StartupLogTimeout;
-                _sessionOutput.SelfDestructTimer(timeout);
-            }
-            catch (Exception ex)
-            {
-                _logger.Debug($"Failed to finalize session output: {ex.Message}");
-            }
         }
 
         private void SeedEnvironmentDictionary()
@@ -558,12 +521,6 @@ namespace pyRevitAssemblyBuilder.SessionManager
             SetMemberValue(_scriptRuntimeConfigsType, scriptRuntimeConfigs, "ConfigMode", false);
             SetMemberValue(_scriptRuntimeConfigsType, scriptRuntimeConfigs, "DebugMode", false);
             SetMemberValue(_scriptRuntimeConfigsType, scriptRuntimeConfigs, "ExecutedFromUI", false);
-
-            if (_sessionOutput != null)
-            {
-                TrySetMemberValue(_scriptRuntimeConfigsType, scriptRuntimeConfigs, "OutputWindowOverride", _sessionOutput.OutputWindow);
-                TrySetMemberValue(_scriptRuntimeConfigsType, scriptRuntimeConfigs, "OutputStreamOverride", _sessionOutput.OutputStream);
-            }
             
             return scriptRuntimeConfigs;
         }
@@ -588,28 +545,6 @@ namespace pyRevitAssemblyBuilder.SessionManager
             }
 
             throw new Exception($"Could not find member '{memberName}' on type {targetType.FullName}");
-        }
-
-        private static bool TrySetMemberValue(Type targetType, object? instance, string memberName, object? value)
-        {
-            if (instance == null)
-                return false;
-
-            var property = targetType.GetProperty(memberName, BindingFlags.Public | BindingFlags.Instance);
-            if (property != null)
-            {
-                property.SetValue(instance, value);
-                return true;
-            }
-
-            var field = targetType.GetField(memberName, BindingFlags.Public | BindingFlags.Instance);
-            if (field != null)
-            {
-                field.SetValue(instance, value);
-                return true;
-            }
-
-            return false;
         }
 
         private bool DirectoryExistsCached(string path)
