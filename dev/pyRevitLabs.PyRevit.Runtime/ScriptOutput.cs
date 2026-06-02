@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Windows.Threading;
 using Autodesk.Revit.UI;
 using pyRevitLabs.NLog;
 using pyRevitLabs.NLog.Config;
@@ -146,6 +147,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 return _window;
             }
         }
+
+        internal Dispatcher WindowDispatcher => _window?.Dispatcher;
 
         public ScriptIO output_stream {
             get {
@@ -685,11 +688,38 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 if (output == null)
                     return;
 
-                if (logEvent.Level >= LogLevel.Error)
-                    output.mark_error();
-                output.write_line(Layout.Render(logEvent));
+                var dispatcher = output.WindowDispatcher;
+                if (dispatcher == null || dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+                    return;
+
+                var rendered = Layout.Render(logEvent);
+                var markError = logEvent.Level >= LogLevel.Error;
+
+                if (dispatcher.CheckAccess()) {
+                    DoWrite(output, markError, rendered);
+                    return;
+                }
+
+                // NLog can emit from background work during startup; WPF output must
+                // only be touched on its dispatcher thread.
+                dispatcher.BeginInvoke(
+                    new Action(() => {
+                        try {
+                            DoWrite(ScriptOutput.GetDefaultIfWindowReady(), markError, rendered);
+                        }
+                        catch { }
+                    }),
+                    DispatcherPriority.Background);
             }
             catch { }
+        }
+
+        private static void DoWrite(ScriptOutput output, bool markError, string rendered) {
+            if (output == null || rendered == null)
+                return;
+            if (markError)
+                output.mark_error();
+            output.write_line(rendered);
         }
 
         private static bool ShouldWrite(LogLevel level) {
