@@ -440,15 +440,6 @@ namespace pyRevitExtensionParser
                 return null;
 
             var value = rawValue.Trim();
-            if (value.Length >= 2)
-            {
-                var first = value[0];
-                var last = value[value.Length - 1];
-                if ((first == '"' && last == '"') || (first == '\'' && last == '\''))
-                {
-                    value = value.Substring(1, value.Length - 2).Trim();
-                }
-            }
 
             if (string.IsNullOrEmpty(value))
                 return null;
