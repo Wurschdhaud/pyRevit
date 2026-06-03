@@ -37,6 +37,16 @@ namespace PyRevitLabs.PyRevit.Runtime {
             }
         }
 
+        public static Tuple<Stream, System.Text.Encoding> DefaultErrorStreamConfig {
+            get {
+                return (Tuple<Stream, System.Text.Encoding>)AppDomain.CurrentDomain.GetData(DomainStorageKeys.IronPythonEngineDefaultErrorStreamCfgKey);
+            }
+
+            set {
+                AppDomain.CurrentDomain.SetData(DomainStorageKeys.IronPythonEngineDefaultErrorStreamCfgKey, value);
+            }
+        }
+
         public static Tuple<Stream, System.Text.Encoding> DefaultInputStreamConfig {
             get {
                 return (Tuple<Stream, System.Text.Encoding>)AppDomain.CurrentDomain.GetData(DomainStorageKeys.IronPythonEngineDefaultInputStreamCfgKey);
@@ -88,6 +98,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
                 // save the default stream for later resetting the streams
                 DefaultOutputStreamConfig = new Tuple<Stream, System.Text.Encoding>(Engine.Runtime.IO.OutputStream, Engine.Runtime.IO.OutputEncoding);
+                DefaultErrorStreamConfig = new Tuple<Stream, System.Text.Encoding>(Engine.Runtime.IO.ErrorStream, Engine.Runtime.IO.ErrorEncoding);
                 DefaultInputStreamConfig = new Tuple<Stream, System.Text.Encoding>(Engine.Runtime.IO.InputStream, Engine.Runtime.IO.InputEncoding);
 
                 // setup stdlib
@@ -188,6 +199,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         private void SetupStreams(ref ScriptRuntime runtime) {
             Engine.Runtime.IO.SetOutput(runtime.OutputStream, System.Text.Encoding.UTF8);
+            Engine.Runtime.IO.SetErrorOutput(runtime.OutputStream, System.Text.Encoding.UTF8);
             Engine.Runtime.IO.SetInput(runtime.OutputStream, System.Text.Encoding.UTF8);
         }
 
@@ -336,6 +348,11 @@ namespace PyRevitLabs.PyRevit.Runtime {
             if (outStream != null) {
                 Engine.Runtime.IO.SetOutput(outStream.Item1, outStream.Item2);
                 outStream.Item1.Dispose();
+            }
+            Tuple<Stream, System.Text.Encoding> errStream = DefaultErrorStreamConfig;
+            if (errStream != null) {
+                Engine.Runtime.IO.SetErrorOutput(errStream.Item1, errStream.Item2);
+                errStream.Item1.Dispose();
             }
             Tuple<Stream, System.Text.Encoding> inStream = DefaultInputStreamConfig;
             if (inStream != null) {

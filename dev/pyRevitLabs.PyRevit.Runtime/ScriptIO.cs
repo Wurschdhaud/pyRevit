@@ -17,6 +17,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private bool _errored = false;
         private ScriptEngineType _erroredEngine;
         private bool _prefixAtLineStart = true;
+        private bool _pendingCarriageReturn = false;
 
         private const int SoftFlushCharLimit = 16384;
         private const int HardFlushCharLimit = 65536;
@@ -86,15 +87,35 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
             var output = new StringBuilder();
             foreach (var chr in outputText) {
-                if (_prefixAtLineStart && chr != '\r' && chr != '\n') {
+                if (_pendingCarriageReturn) {
+                    if (chr == '\n') {
+                        output.Append(chr);
+                        _pendingCarriageReturn = false;
+                        _prefixAtLineStart = true;
+                        continue;
+                    }
+                    _pendingCarriageReturn = false;
+                }
+
+                if (chr == '\r') {
+                    output.Append(chr);
+                    _pendingCarriageReturn = true;
+                    _prefixAtLineStart = true;
+                    continue;
+                }
+
+                if (chr == '\n') {
+                    output.Append(chr);
+                    _prefixAtLineStart = true;
+                    continue;
+                }
+
+                if (_prefixAtLineStart) {
                     output.Append(prefix);
                     _prefixAtLineStart = false;
                 }
 
                 output.Append(chr);
-
-                if (chr == '\r' || chr == '\n')
-                    _prefixAtLineStart = true;
             }
 
             return output.ToString();
@@ -139,6 +160,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
             var tempBuffer = new byte[count];
             Array.Copy(buffer, offset, tempBuffer, 0, count);
             var outputText = OutputEncoding.GetString(tempBuffer);
+            if (outputText.IndexOf('\0') >= 0)
+                outputText = outputText.Replace("\0", string.Empty);
             AppendLog(outputText);
 
             var output = GetOutput();
