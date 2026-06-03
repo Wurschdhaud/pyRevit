@@ -42,7 +42,6 @@ from pyrevit.interop import adc
 
 import keynotesdb as kdb
 
-__persistentengine__ = True
 
 logger = script.get_logger()
 output = script.get_output()
