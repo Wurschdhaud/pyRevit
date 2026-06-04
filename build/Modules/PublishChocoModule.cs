@@ -1,5 +1,4 @@
 using Build.Helpers;
-using Build.Models;
 using Build.Options;
 using Microsoft.Extensions.Options;
 using ModularPipelines.Attributes;
@@ -20,7 +19,7 @@ public sealed class PublishChocoModule(IOptions<PublishOptions> publishOptions) 
             return;
         }
 
-        var versionInfo = await GetVersionInfoAsync(context);
+        var versionInfo = VersionHelper.ReadVersionInfo();
         var packagePath = Path.Combine(
             PyRevitPaths.DistPath,
             string.Format(PyRevitPaths.PyRevitChocoNupkgName, versionInfo.InstallVersion));
@@ -58,14 +57,4 @@ public sealed class PublishChocoModule(IOptions<PublishOptions> publishOptions) 
             cancellationToken: cancellationToken);
     }
 
-    private static async Task<VersionInfo> GetVersionInfoAsync(IModuleContext context)
-    {
-        var stampResult = await context.GetModule<StampVersionModule>();
-        if (stampResult.ValueOrDefault is not null)
-        {
-            return stampResult.ValueOrDefault;
-        }
-
-        return VersionHelper.CreateVersionInfo(VersionHelper.ReadBuildVersion());
-    }
 }

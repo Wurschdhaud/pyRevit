@@ -56,15 +56,49 @@ public static class ToolResolutionHelper
             return onPath;
         }
 
-        var vswhere = ResolveOnPath("vswhere");
+        var vswhere = ResolveVsWhereExecutable();
         if (string.IsNullOrWhiteSpace(vswhere))
         {
             return null;
         }
 
+        foreach (var arguments in new[]
+        {
+            "-latest -requires Microsoft.Component.MSBuild -find MSBuild\\**\\Bin\\MSBuild.exe",
+            "-latest -prerelease -requires Microsoft.Component.MSBuild -find MSBuild\\**\\Bin\\MSBuild.exe",
+        })
+        {
+            var msbuild = ResolveMsBuildWithVsWhere(vswhere, arguments);
+            if (!string.IsNullOrWhiteSpace(msbuild))
+            {
+                return msbuild;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ResolveVsWhereExecutable()
+    {
+        var candidates = new[]
+        {
+            ResolveOnPath("vswhere"),
+            OperatingSystem.IsWindows()
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft Visual Studio", "Installer", "vswhere.exe")
+                : null,
+            OperatingSystem.IsWindows()
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft Visual Studio", "Installer", "vswhere.exe")
+                : null,
+        };
+
+        return candidates.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate));
+    }
+
+    private static string? ResolveMsBuildWithVsWhere(string vswhere, string arguments)
+    {
         var startInfo = new ProcessStartInfo(vswhere)
         {
-            Arguments = "-latest -requires Microsoft.Component.MSBuild -find MSBuild\\**\\Bin\\MSBuild.exe",
+            Arguments = arguments,
             RedirectStandardOutput = true,
             UseShellExecute = false,
             CreateNoWindow = true,

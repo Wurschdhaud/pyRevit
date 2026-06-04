@@ -1,5 +1,4 @@
 using Build.Helpers;
-using Build.Models;
 using Build.Options;
 using EnumerableAsyncProcessor.Extensions;
 using Microsoft.Extensions.Options;
@@ -20,7 +19,7 @@ public sealed class PublishGithubReleaseModule(IOptions<PublishOptions> publishO
 {
     protected override async Task<string?> ExecuteAsync(IModuleContext context, CancellationToken cancellationToken)
     {
-        var versionInfo = await GetVersionInfoAsync(context);
+        var versionInfo = VersionHelper.ReadVersionInfo();
         var notesResult = await context.GetModule<GenerateReleaseNotesModule>();
         var releaseNotes = notesResult.ValueOrDefault ?? string.Empty;
 
@@ -66,14 +65,4 @@ public sealed class PublishGithubReleaseModule(IOptions<PublishOptions> publishO
         return release.HtmlUrl;
     }
 
-    private static async Task<VersionInfo> GetVersionInfoAsync(IModuleContext context)
-    {
-        var stampResult = await context.GetModule<StampVersionModule>();
-        if (stampResult.ValueOrDefault is not null)
-        {
-            return stampResult.ValueOrDefault;
-        }
-
-        return VersionHelper.CreateVersionInfo(VersionHelper.ReadBuildVersion());
-    }
 }

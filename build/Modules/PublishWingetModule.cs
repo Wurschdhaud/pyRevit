@@ -1,8 +1,6 @@
-using System.Text.RegularExpressions;
 using Build.Helpers;
 using Build.Models;
 using Build.Options;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ModularPipelines.Attributes;
 using ModularPipelines.Context;
@@ -23,7 +21,7 @@ public sealed class PublishWingetModule(IOptions<PublishOptions> publishOptions)
             return;
         }
 
-        var versionInfo = await GetVersionInfoAsync(context);
+        var versionInfo = VersionHelper.ReadVersionInfo();
         if (versionInfo.IsWip)
         {
             return;
@@ -95,7 +93,6 @@ public sealed class PublishWingetModule(IOptions<PublishOptions> publishOptions)
 
     private static IEnumerable<string> BuildPyRevitUrls(VersionInfo versionInfo, string releaseTag)
     {
-        var versionPattern = Regex.Escape(versionInfo.InstallVersion);
         var baseUrl = $"https://github.com/pyrevitlabs/pyRevit/releases/download/{releaseTag}/";
         yield return $"{baseUrl}pyRevit_{versionInfo.InstallVersion}_signed.exe|x86|user";
         yield return $"{baseUrl}pyRevit_{versionInfo.InstallVersion}_admin_signed.exe|x64|machine";
@@ -109,14 +106,4 @@ public sealed class PublishWingetModule(IOptions<PublishOptions> publishOptions)
         yield return $"{baseUrl}pyRevit_CLI_{versionInfo.InstallVersion}_admin_signed.msi|x64|machine";
     }
 
-    private static async Task<VersionInfo> GetVersionInfoAsync(IModuleContext context)
-    {
-        var stampResult = await context.GetModule<StampVersionModule>();
-        if (stampResult.ValueOrDefault is not null)
-        {
-            return stampResult.ValueOrDefault;
-        }
-
-        return VersionHelper.CreateVersionInfo(VersionHelper.ReadBuildVersion());
-    }
 }

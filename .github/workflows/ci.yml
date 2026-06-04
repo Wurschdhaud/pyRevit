@@ -47,25 +47,14 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-          submodules: false
-
-      - name: Checkout submodules
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.SUBMODULES_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ -n "${GH_TOKEN:-}" ]; then
-            git config --global url."https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
-          fi
-          git submodule sync --recursive
-          git submodule update --init --recursive
+          submodules: recursive
+          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}
 
       - name: Cache NuGet packages
-        uses: actions/cache@v5.0.5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Build.props', 'build/Build.csproj') }}
@@ -87,14 +76,14 @@ jobs:
           echo "install_version=$(tr -d '\r\n' < release/version)" >> "$GITHUB_OUTPUT"
 
       - name: Upload unsigned bin artifact
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: unsigned-bin-${{ github.sha }}
           path: bin/**
 
       - name: Upload stamped release metadata
         if: github.repository == env.MainRepo
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: stamped-release-metadata-${{ github.sha }}
           path: ci-stamped/**
@@ -130,7 +119,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           ref: ${{ github.sha }}

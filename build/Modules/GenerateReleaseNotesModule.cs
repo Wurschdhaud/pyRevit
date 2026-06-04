@@ -19,7 +19,7 @@ public sealed class GenerateReleaseNotesModule : Module<string>
 {
     protected override async Task<string?> ExecuteAsync(IModuleContext context, CancellationToken cancellationToken)
     {
-        var versionInfo = await GetVersionInfoAsync(context);
+        var versionInfo = GetVersionInfo();
         var previousTag = await FindPreviousTagAsync(context, cancellationToken);
         var repositoryInfo = context.GitHub().RepositoryInfo;
         var owner = repositoryInfo.Owner ?? "pyrevitlabs";
@@ -144,10 +144,10 @@ public sealed class GenerateReleaseNotesModule : Module<string>
                 Arguments = [$"{previousTag}..HEAD"],
             });
 
-        return ParseChanges(result.StandardOutput, gitHubClient, owner, repo);
+        return await ParseChangesAsync(result.StandardOutput, gitHubClient, owner, repo);
     }
 
-    internal static IReadOnlyList<ChangeEntry> ParseChanges(string gitLog, IGitHubClient? gitHubClient, string owner, string repo)
+    internal static async Task<IReadOnlyList<ChangeEntry>> ParseChangesAsync(string gitLog, IGitHubClient? gitHubClient, string owner, string repo)
     {
         var changes = new List<ChangeEntry>();
         var lines = gitLog.Split('\n');
@@ -184,21 +184,15 @@ public sealed class GenerateReleaseNotesModule : Module<string>
                 index++;
             }
 
-            changes.Add(ChangeEntry.Create(hash, message, comments.ToString(), gitHubClient, owner, repo));
+            changes.Add(await ChangeEntry.CreateAsync(hash, message, comments.ToString(), gitHubClient, owner, repo));
         }
 
         return changes;
     }
 
-    private static async Task<VersionInfo> GetVersionInfoAsync(IModuleContext context)
+    private static VersionInfo GetVersionInfo()
     {
-        var stampResult = await context.GetModule<StampVersionModule>();
-        if (stampResult.ValueOrDefault is not null)
-        {
-            return stampResult.ValueOrDefault;
-        }
-
-        return VersionHelper.CreateVersionInfo(VersionHelper.ReadBuildVersion());
+        return VersionHelper.ReadVersionInfo();
     }
 
     internal sealed class ChangeEntry
@@ -235,7 +229,7 @@ public sealed class GenerateReleaseNotesModule : Module<string>
 
         public bool IsNewFeature { get; }
 
-        public static ChangeEntry Create(
+        public static async Task<ChangeEntry> CreateAsync(
             string hash,
             string message,
             string comments,
@@ -255,7 +249,7 @@ public sealed class GenerateReleaseNotesModule : Module<string>
             {
                 try
                 {
-                    var issue = gitHubClient.Issue.Get(owner, repo, int.Parse(ticket, System.Globalization.CultureInfo.InvariantCulture)).Result;
+                    var issue = await gitHubClient.Issue.Get(owner, repo, int.Parse(ticket, System.Globalization.CultureInfo.InvariantCulture));
                     title = issue.Title;
                     url = issue.HtmlUrl;
                     foreach (var label in issue.Labels)

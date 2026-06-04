@@ -7,9 +7,12 @@ C# ModularPipelines project that replaces the YAML-heavy CI steps previously dri
 - .NET 10 SDK (preinstalled on `windows-2025` runners)
 - `dotnet`, `msbuild`, `go` on PATH
 - Inno Setup 6 (`ISCC.exe`) for installer builds
+- WiX Toolset v3.x build tools for the legacy CLI MSI project
 - `choco` for Chocolatey packaging/publish
 - `wingetcreate` for WinGet manifest updates (release publish workflow)
 - Azure Trusted Signing credentials for `sign` steps (production only)
+
+Open [`pyRevit.Build.slnx`](pyRevit.Build.slnx) in Visual Studio to inspect or debug the build project.
 
 ## Run locally
 

@@ -49,7 +49,6 @@ if (runCi)
     builder.Services.AddModule<BuildLabsModule>();
     builder.Services.AddModule<BuildEnginesModule>();
     builder.Services.AddModule<BuildRuntimeModule>();
-    builder.Services.AddModule<BuildTelemModule>();
     builder.Services.AddModule<BuildAutocompModule>();
     builder.Services.AddModule<VerifyLibGit2Module>();
     builder.Services.AddModule<StageReleaseMetadataModule>();

@@ -19,6 +19,6 @@ public sealed class BuildOptions
 
     public string? CiRunId { get; set; }
 
-  /// <summary>When true, validate installer tooling such as MSBuild (pack/sign/publish paths).</summary>
+    /// <summary>When true, validate installer tooling such as MSBuild (pack/sign/publish paths).</summary>
     public bool RequireInstallerTooling { get; set; }
 }

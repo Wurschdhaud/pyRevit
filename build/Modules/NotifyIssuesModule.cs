@@ -32,7 +32,7 @@ public sealed class NotifyIssuesModule(IOptions<BuildOptions> buildOptions) : Mo
             : await FindLatestTagAsync(context, cancellationToken);
 
         var comment = channel.Equals("release", StringComparison.OrdinalIgnoreCase)
-            ? $":package: New public release are available for [{versionInfo.BuildVersion}]({notifyUrl})"
+            ? $":package: New public release is available for [{versionInfo.BuildVersion}]({notifyUrl})"
             : $":package: New work-in-progress (wip) builds are available for [{versionInfo.BuildVersion}]({notifyUrl})";
 
         var changes = await CollectChangesAsync(context, previousTag, cancellationToken);

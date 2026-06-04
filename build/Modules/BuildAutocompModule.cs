@@ -7,8 +7,9 @@ using ModularPipelines.Options;
 
 namespace Build.Modules;
 
-[DependsOn<BuildTelemModule>]
-public sealed class BuildAutocompModule : Module{
+[DependsOn<BuildRuntimeModule>]
+public sealed class BuildAutocompModule : Module
+{
     protected override async Task ExecuteModuleAsync(IModuleContext context, CancellationToken cancellationToken)
     {
         await context.Shell.Command.ExecuteCommandLineTool(

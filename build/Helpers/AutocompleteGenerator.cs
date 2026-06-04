@@ -12,8 +12,8 @@ public static partial class AutocompleteGenerator
     {
         var lines = File.ReadAllLines(usagePatternsPath).Skip(1);
         var app = new GoCommand("pyrevit");
-        app.Flags.Add("--verbose");
-        app.Flags.Add("--debug");
+        app.Flags.Add("verbose");
+        app.Flags.Add("debug");
 
         foreach (var line in lines)
         {
@@ -27,7 +27,7 @@ public static partial class AutocompleteGenerator
         builder.AppendLine();
         builder.AppendLine("func main() {");
         builder.Append(app.WriteGo(indent: 1));
-        builder.AppendLine("    complete.New(\"pyrevit\", pyrevit).Run()");
+        builder.AppendLine("\tcomplete.New(\"pyrevit\", pyrevit).Run()");
         builder.AppendLine("}");
 
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
@@ -79,7 +79,13 @@ public static partial class AutocompleteGenerator
 
     private static List<string> ExtractBranch(string value)
     {
-        return WordPattern().Matches(value).Select(match => match.Value).ToList();
+        var words = WordPattern().Matches(value).Select(match => match.Value).ToList();
+        if (words.Count > 0 && string.Equals(words[0], "pyrevit", StringComparison.OrdinalIgnoreCase))
+        {
+            words.RemoveAt(0);
+        }
+
+        return words;
     }
 
     [GeneratedRegex(@"<[a-zA-Z_]+?>")]
@@ -111,7 +117,7 @@ public static partial class AutocompleteGenerator
             {
                 foreach (var flag in flags)
                 {
-                    Flags.Add(flag);
+                    Flags.Add(NormalizeFlag(flag));
                 }
 
                 return;
@@ -130,52 +136,61 @@ public static partial class AutocompleteGenerator
 
         public string WriteGo(int indent)
         {
-            var padding = new string(' ', indent * 4);
+            var padding = new string('\t', indent);
             var builder = new StringBuilder();
             builder.AppendLine($"{padding}{Token} := complete.Command{{");
-            builder.AppendLine($"{padding}    Sub: complete.Commands{{");
-
-            foreach (var node in Nodes)
-            {
-                builder.Append(node.WriteSubCommand(indent + 2));
-            }
-
-            builder.AppendLine($"{padding}    }},");
-            builder.AppendLine($"{padding}    Flags: complete.Flags{{");
-
-            foreach (var flag in Flags.OrderBy(flag => flag, StringComparer.Ordinal))
-            {
-                builder.AppendLine($"{padding}        \"--{flag}\": complete.PredictNothing,");
-            }
-
-            builder.AppendLine($"{padding}    }},");
+            WriteFields(builder, indent + 1);
             builder.AppendLine($"{padding}}}");
             return builder.ToString();
         }
 
         private string WriteSubCommand(int indent)
         {
-            var padding = new string(' ', indent * 4);
+            var padding = new string('\t', indent);
             var builder = new StringBuilder();
             builder.AppendLine($"{padding}\"{Token}\": complete.Command{{");
-            builder.AppendLine($"{padding}    Sub: complete.Commands{{");
-
-            foreach (var node in Nodes)
-            {
-                builder.Append(node.WriteSubCommand(indent + 2));
-            }
-
-            builder.AppendLine($"{padding}    }},");
-            builder.AppendLine($"{padding}    Flags: complete.Flags{{");
-
-            foreach (var flag in Flags.OrderBy(flag => flag, StringComparer.Ordinal))
-            {
-                builder.AppendLine($"{padding}        \"--{flag}\": complete.PredictNothing,");
-            }
-
-            builder.AppendLine($"{padding}    }},");
+            WriteFields(builder, indent + 1);
             builder.AppendLine($"{padding}}},");
             return builder.ToString();
+        }
+
+        private void WriteFields(StringBuilder builder, int indent)
+        {
+            var padding = new string('\t', indent);
+            if (Nodes.Count == 0)
+            {
+                builder.AppendLine($"{padding}Sub: complete.Commands{{}},");
+            }
+            else
+            {
+                builder.AppendLine($"{padding}Sub: complete.Commands{{");
+                foreach (var node in Nodes)
+                {
+                    builder.Append(node.WriteSubCommand(indent + 1));
+                }
+
+                builder.AppendLine($"{padding}}},");
+            }
+
+            if (Flags.Count == 0)
+            {
+                builder.AppendLine($"{padding}Flags: complete.Flags{{}},");
+            }
+            else
+            {
+                builder.AppendLine($"{padding}Flags: complete.Flags{{");
+                foreach (var flag in Flags.OrderBy(flag => flag, StringComparer.Ordinal))
+                {
+                    builder.AppendLine($"{padding}\t\"--{flag}\": complete.PredictNothing,");
+                }
+
+                builder.AppendLine($"{padding}}},");
+            }
+        }
+
+        private static string NormalizeFlag(string flag)
+        {
+            return flag.TrimStart('-');
         }
     }
 }

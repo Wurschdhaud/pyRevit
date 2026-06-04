@@ -22,6 +22,11 @@ public static partial class VersionHelper
         return ReadVersionFromFile(PyRevitPaths.InstallVersionFile, urlSafe);
     }
 
+    public static VersionInfo ReadVersionInfo()
+    {
+        return CreateVersionInfo(ReadBuildVersion());
+    }
+
     public static string ReadVersionFromFile(string path, bool urlSafe = false)
     {
         var content = File.ReadAllText(path);

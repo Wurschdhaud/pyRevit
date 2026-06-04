@@ -1,5 +1,4 @@
 using Build.Helpers;
-using Build.Models;
 using Build.Options;
 using Microsoft.Extensions.Options;
 using ModularPipelines.Attributes;
@@ -18,7 +17,7 @@ public sealed class SignDistInstallersModule(
         => ModuleConfiguration.Create().WithSigningGate(signingOptions).Build();
     protected override async Task ExecuteModuleAsync(IModuleContext context, CancellationToken cancellationToken)
     {
-        var versionInfo = await GetVersionInfoAsync(context);
+        var versionInfo = VersionHelper.ReadVersionInfo();
         var files = new List<string>();
 
         files.AddRange(GetInstallerFiles(
@@ -56,14 +55,4 @@ public sealed class SignDistInstallersModule(
         }
     }
 
-    private static async Task<VersionInfo> GetVersionInfoAsync(IModuleContext context)
-    {
-        var stampResult = await context.GetModule<StampVersionModule>();
-        if (stampResult.ValueOrDefault is not null)
-        {
-            return stampResult.ValueOrDefault;
-        }
-
-        return VersionHelper.CreateVersionInfo(VersionHelper.ReadBuildVersion());
-    }
 }

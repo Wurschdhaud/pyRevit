@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Build.Helpers;
-using Build.Models;
 using ModularPipelines.Attributes;
 using ModularPipelines.Context;
 using ModularPipelines.Models;
@@ -15,7 +14,7 @@ public sealed class BuildChocoModule : Module
 {
     protected override async Task ExecuteModuleAsync(IModuleContext context, CancellationToken cancellationToken)
     {
-        var versionInfo = await GetVersionInfoAsync(context);
+        var versionInfo = VersionHelper.ReadVersionInfo();
         var installerName = string.Format(PyRevitPaths.PyRevitCliAdminInstallerName, versionInfo.InstallVersion) + ".exe";
         var installerPath = Path.Combine(PyRevitPaths.DistPath, installerName);
         if (!File.Exists(installerPath))
@@ -40,17 +39,6 @@ public sealed class BuildChocoModule : Module
                 ],
             },
             cancellationToken: cancellationToken);
-    }
-
-    private static async Task<VersionInfo> GetVersionInfoAsync(IModuleContext context)
-    {
-        var stampResult = await context.GetModule<StampVersionModule>();
-        if (stampResult.ValueOrDefault is not null)
-        {
-            return stampResult.ValueOrDefault;
-        }
-
-        return VersionHelper.CreateVersionInfo(VersionHelper.ReadBuildVersion());
     }
 
     private static string ComputeSha256(string filePath)
