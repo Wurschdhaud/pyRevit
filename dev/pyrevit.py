@@ -12,8 +12,7 @@
     └── msbuild                 building msi installers using Wix Tools
     └── certutil                managing signing certificate
     └── signtool                digitally signing binaries
-    gcc                     for building sqlite package in telemetry server (http://mingw.org)
-    go                      for building telemetry server (https://golang.org)
+    go                      for building pyRevit autocomplete application (https://golang.org)
     Inno Setup Compiler     for buidling installers (https://jrsoftware.org/isinfo.php)
     └── iscc                    buidling installers from scripts
     choco                   for building and publishing choco packages (https://chocolatey.org)
@@ -23,7 +22,6 @@
     python 3                for the build tools (https://www.python.org/downloads/)
     pygount                 for counting code lines (https://pypi.org/project/pygount/)
     git                     for creating release reports (https://git-scm.com)
-    docker                  for telemetry server tests (https://www.docker.com/products/docker-desktop)
 
     Some of the commands call web APIs for necessary information.
     Access tokens must be set in env vars otherwise access will be
