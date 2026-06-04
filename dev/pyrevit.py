@@ -67,7 +67,6 @@ import _changelog as clog
 import _hostdata as hostdata
 import _release as release
 import _props as props
-import _telem as telem
 import _misc as misc
 
 
@@ -117,12 +116,9 @@ COMMANDS = [
     Command(name="build", target="labs", args=["[<config>]"], run=labs.build_labs),
     Command(name="build", target="engines", args=["[<config>]"], run=labs.build_engines),
     Command(name="build", target="autocmp", args=[], run=autoc.build_autocmp),
-    Command(name="build", target="telem", args=[], run=telem.build_telem),
     Command(name="build", target="installers", args=[], run=release.build_installers),
     Command(name="build", target="commit", args=[], run=release.commit_and_tag_build),
     Command(name="clean", target="labs", args=[], run=build.clean_build),
-    # unit testing
-    Command(name="test", target="telem", args=[], run=telem.start_telem),
     # manual data setters
     Command(name="set", target="year", args=[], run=props.set_year),
     Command(name="set", target="version", args=["<ver>"], run=props.set_ver),
