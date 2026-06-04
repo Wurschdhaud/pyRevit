@@ -3,7 +3,7 @@ import re
 import pickle
 
 from pyrevit import forms, revit, op, script
-from pyrevit import DB, UI
+from pyrevit import DB
 from pyrevit.revit.events import execute_in_revit_context
 from pyrevit.framework import ComponentModel, wpf, Controls, Uri, UriKind, ResourceDictionary
 from pyrevit.compat import get_elementid_value_func
@@ -476,8 +476,20 @@ class RecallWindow(forms.WPFWindow):
         selected = [i.source_prop for i in c._items if i.IsSelected]
         if not selected:
             return
+
+        serializable = []
+        for p in selected:
+            serializable.append(
+                PropKeyValue(
+                    name=p.name,
+                    datatype=p.datatype,
+                    value=p.value,
+                    istype=p.istype,
+                    display_value=p.display_value,
+                )
+            )
         try:
             with open(c._memfile, "wb") as f:
-                pickle.dump((c._recall_target_type, selected), f)
+                pickle.dump((c._recall_target_type, serializable), f)
         except Exception:
             pass
