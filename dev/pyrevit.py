@@ -111,10 +111,12 @@ COMMANDS = [
     Command(name="sign", target="installers", args=[], run=release.sign_installers),
     # build
     Command(name="build", target="products", args=["[<config>]"], run=build.build_binaries),
+    Command(name="build", target="deps", args=[], run=labs.build_deps),
     Command(name="build", target="labs", args=["[<config>]"], run=labs.build_labs),
     Command(name="build", target="engines", args=["[<config>]"], run=labs.build_engines),
     Command(name="build", target="autocmp", args=[], run=autoc.build_autocmp),
     Command(name="build", target="installers", args=[], run=release.build_installers),
+    Command(name="build", target="choco", args=[], run=release.build_choco),
     Command(name="build", target="commit", args=[], run=release.commit_and_tag_build),
     Command(name="clean", target="labs", args=[], run=build.clean_build),
     # manual data setters
