@@ -17,7 +17,6 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private bool _errored = false;
         private ScriptEngineType _erroredEngine;
         private bool _prefixAtLineStart = true;
-        private bool _pendingCarriageReturn = false;
 
         private const int SoftFlushCharLimit = 16384;
         private const int HardFlushCharLimit = 65536;
@@ -87,24 +86,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
             var output = new StringBuilder();
             foreach (var chr in outputText) {
-                if (_pendingCarriageReturn) {
-                    if (chr == '\n') {
-                        output.Append(chr);
-                        _pendingCarriageReturn = false;
-                        _prefixAtLineStart = true;
-                        continue;
-                    }
-                    _pendingCarriageReturn = false;
-                }
-
-                if (chr == '\r') {
-                    output.Append(chr);
-                    _pendingCarriageReturn = true;
-                    _prefixAtLineStart = true;
-                    continue;
-                }
-
-                if (chr == '\n') {
+                if (chr == '\r' || chr == '\n') {
                     output.Append(chr);
                     _prefixAtLineStart = true;
                     continue;
@@ -225,29 +207,25 @@ namespace PyRevitLabs.PyRevit.Runtime {
         }
 
         private void EnsureFlushTimer(ScriptConsole output) {
+            if (_flushTimer != null)
+                return;
+
             var dispatcher = output.Dispatcher;
             if (!IsDispatcherReady(dispatcher))
                 return;
 
-            lock (this) {
-                if (_flushTimer != null)
-                    return;
-
-                _flushTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher);
-                _flushTimer.Interval = FlushInterval;
-                _flushTimer.Tick += OnFlushTick;
-                _flushTimer.Start();
-            }
+            _flushTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher);
+            _flushTimer.Interval = FlushInterval;
+            _flushTimer.Tick += OnFlushTick;
+            _flushTimer.Start();
         }
 
         private void StopFlushTimer() {
-            lock (this) {
-                if (_flushTimer == null)
-                    return;
-                _flushTimer.Stop();
-                _flushTimer.Tick -= OnFlushTick;
-                _flushTimer = null;
-            }
+            if (_flushTimer == null)
+                return;
+            _flushTimer.Stop();
+            _flushTimer.Tick -= OnFlushTick;
+            _flushTimer = null;
         }
 
         private void OnFlushTick(object sender, EventArgs e) {

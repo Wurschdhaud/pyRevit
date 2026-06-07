@@ -78,11 +78,6 @@ def _setup_output():
     # create the runtime-owned singleton output window and assign handle
     out = runtime_types.ScriptOutput.GetDefault()
     out_window = out.window
-    # route NLog messages into the session output window
-    try:
-        runtime_types.ScriptOutput.ConfigureLogging()
-    except Exception:
-        pass
     # protect from close_other_outputs triggered by startup-script windows
     try:
         out.set_session_output(True)
