@@ -176,10 +176,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 return;
             }
 
-            bool needShow = false;
-            if (outputText.Length > 0 && !output.IsVisible) {
-                needShow = true;
-            }
+            bool needShow = outputText.Length > 0 && !output.IsVisible;
 
             lock (this) {
                 if (PrintDebugInfo) {
@@ -206,13 +203,10 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 }
                 if (_firstShowPending) {
                     _firstShowPending = false;
-                    var pendingOut = output;
                     try {
-                        if (pendingOut.Dispatcher != null
-                                && !pendingOut.Dispatcher.HasShutdownStarted
-                                && !pendingOut.Dispatcher.HasShutdownFinished) {
-                            pendingOut.Dispatcher.BeginInvoke(
-                                new Action(pendingOut.ForceRenderFrame),
+                        if (IsDispatcherReady(output.Dispatcher)) {
+                            output.Dispatcher.BeginInvoke(
+                                new Action(output.ForceRenderFrame),
                                 DispatcherPriority.Render);
                         }
                     }
@@ -224,12 +218,18 @@ namespace PyRevitLabs.PyRevit.Runtime {
             EnsureFlushTimer(output);
         }
 
+        private static bool IsDispatcherReady(Dispatcher dispatcher) {
+            return dispatcher != null
+                && !dispatcher.HasShutdownStarted
+                && !dispatcher.HasShutdownFinished;
+        }
+
         private void EnsureFlushTimer(ScriptConsole output) {
             if (_flushTimer != null)
                 return;
 
             var dispatcher = output.Dispatcher;
-            if (dispatcher == null || dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
+            if (!IsDispatcherReady(dispatcher))
                 return;
 
             _flushTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher);

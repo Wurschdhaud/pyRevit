@@ -78,6 +78,11 @@ def _setup_output():
     # create the runtime-owned singleton output window and assign handle
     out = runtime_types.ScriptOutput.GetDefault()
     out_window = out.window
+    # route NLog messages into the session output window
+    try:
+        runtime_types.ScriptOutput.ConfigureLogging()
+    except Exception:
+        pass
     # protect from close_other_outputs triggered by startup-script windows
     try:
         out.set_session_output(True)
@@ -99,7 +104,8 @@ def _setup_output():
     stdout_hndlr = logger.get_stdout_hndlr()
     stdout_hndlr.stream = outstr
 
-    return out_window
+    # return the runtime wrapper so self_destruct works on first load too
+    return out
 
 
 def _cleanup_output():
@@ -434,8 +440,7 @@ def load_session():
     try:
         timeout = user_config.startuplog_timeout
         if timeout > 0 and not logger.loggers_have_errors():
-            if not EXEC_PARAMS.first_load:
-                output_window.self_destruct(timeout)
+            output_window.self_destruct(timeout)
     except Exception as imp_err:
         mlogger.error("Error setting up self_destruct on output window | %s", imp_err)
 
