@@ -225,25 +225,29 @@ namespace PyRevitLabs.PyRevit.Runtime {
         }
 
         private void EnsureFlushTimer(ScriptConsole output) {
-            if (_flushTimer != null)
-                return;
-
             var dispatcher = output.Dispatcher;
             if (!IsDispatcherReady(dispatcher))
                 return;
 
-            _flushTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher);
-            _flushTimer.Interval = FlushInterval;
-            _flushTimer.Tick += OnFlushTick;
-            _flushTimer.Start();
+            lock (this) {
+                if (_flushTimer != null)
+                    return;
+
+                _flushTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher);
+                _flushTimer.Interval = FlushInterval;
+                _flushTimer.Tick += OnFlushTick;
+                _flushTimer.Start();
+            }
         }
 
         private void StopFlushTimer() {
-            if (_flushTimer == null)
-                return;
-            _flushTimer.Stop();
-            _flushTimer.Tick -= OnFlushTick;
-            _flushTimer = null;
+            lock (this) {
+                if (_flushTimer == null)
+                    return;
+                _flushTimer.Stop();
+                _flushTimer.Tick -= OnFlushTick;
+                _flushTimer = null;
+            }
         }
 
         private void OnFlushTick(object sender, EventArgs e) {
