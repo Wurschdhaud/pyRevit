@@ -437,9 +437,7 @@ class ExtensionsWindow(forms.WPFWindow):
             # Installed custom extension: let the user edit URL and token, then Update.
             self.custom_git_url_tb.IsReadOnly = False
             if getattr(self, "custom_ext_name_tb", None):
-                self.custom_ext_name_tb.IsReadOnly = (
-                    True  # name is structural, keep fixed
-                )
+                self.custom_ext_name_tb.IsReadOnly = True  # name is structural, keep fixed
             self.custom_ext_install_path_tb.Text = ext_pkg_item.ext_pkg.is_installed
             self.path_custom_ext_b.IsEnabled = False
             # Pre-fill token from stored config if available
@@ -578,8 +576,8 @@ class ExtensionsWindow(forms.WPFWindow):
                 pkg.url = new_url
                 try:
                     pkg.config.url = new_url
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Could not set config.url for pkg: %s", e)
                 if token:
                     pkg.config.private_repo = True
                     pkg.config.token = token
@@ -590,7 +588,7 @@ class ExtensionsWindow(forms.WPFWindow):
                         pkg.config.token = ""
                     except Exception:
                         pass
-                from pyrevit.userconfig import user_config
+                from pyrevit.userconfig import user_config  # why is this reimport necessary?
                 user_config.save_changes()
                 forms.alert(
                     "Extension settings updated. Revit will reload to apply changes.",
