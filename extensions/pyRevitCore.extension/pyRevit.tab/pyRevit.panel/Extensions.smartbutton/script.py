@@ -16,8 +16,8 @@ from pyrevit.userconfig import user_config, CONSTS
 
 import pyrevitcore_globals
 
-
 logger = script.get_logger()
+
 
 def _ensure_path_registered(dest_path):
     """Add dest_path to the Custom Extension Directories list if not already there.
@@ -58,10 +58,16 @@ def _ensure_path_registered(dest_path):
     # get_thirdparty_ext_root_dirs() filters by op.exists(), which would
     # remove temporarily-offline network shares when writing back.
     try:
-        raw_dirs = [os.path.expandvars(d) for d in user_config.core.get_option(
-            CONSTS.ConfigsUserExtensionsKey, default_value=[])]
+        raw_dirs = [
+            os.path.expandvars(d)
+            for d in user_config.core.get_option(
+                CONSTS.ConfigsUserExtensionsKey, default_value=[]
+            )
+        ]
     except Exception as read_err:
-        logger.debug('Error reading raw extension dirs, falling back to helper. | %s', read_err)
+        logger.debug(
+            "Error reading raw extension dirs, falling back to helper. | %s", read_err
+        )
         raw_dirs = user_config.get_thirdparty_ext_root_dirs(include_default=False)
 
     normalized_existing = [os.path.normcase(os.path.normpath(d)) for d in raw_dirs]
@@ -71,12 +77,12 @@ def _ensure_path_registered(dest_path):
         # would reject any path that doesn't currently exist on disk.
         try:
             user_config.core.set_option(
-                CONSTS.ConfigsUserExtensionsKey,
-                [os.path.normpath(x) for x in raw_dirs]
+                CONSTS.ConfigsUserExtensionsKey, [os.path.normpath(x) for x in raw_dirs]
             )
             user_config.save_changes()
         except Exception as write_err:
-            logger.error('Error saving extension path. | %s', write_err)
+            logger.error("Error saving extension path. | %s", write_err)
+
 
 def _get_default_ext_dir():
     """Return the best default extension installation directory."""
@@ -84,7 +90,9 @@ def _get_default_ext_dir():
     if dirs:
         return dirs[0]
     from pyrevit import THIRDPARTY_EXTENSIONS_DEFAULT_DIR
+
     return THIRDPARTY_EXTENSIONS_DEFAULT_DIR
+
 
 def _repo_name_from_git_url(git_url):
     """Derive repo/folder name from a Git URL (e.g. .../owner/repo.git -> repo)."""
@@ -180,6 +188,9 @@ class ExtensionsWindow(forms.WPFWindow):
 
     def __init__(self, xaml_file_name):
         forms.WPFWindow.__init__(self, xaml_file_name)
+        # Tracks whether install_custom_ext_b is acting as "Update" for an
+        # already-installed custom extension.
+        self._update_mode = False
         self._setup_ext_pkg_ui(extpkgs.get_ext_packages())
         self.custom_ext_install_path_tb.Text = _get_default_ext_dir()
         if self.selected_pkg:
@@ -308,12 +319,12 @@ class ExtensionsWindow(forms.WPFWindow):
     def _update_toggle_button(self, enable=True, multiple=False):
         self.show_element(self.ext_toggle_b)
         if enable:
-            self.ext_toggle_b.Content = (
-                self.get_locale_string("Buttons.ToggleButton.Enable")
+            self.ext_toggle_b.Content = self.get_locale_string(
+                "Buttons.ToggleButton.Enable"
             )
         else:
-            self.ext_toggle_b.Content = (
-                self.get_locale_string("Buttons.ToggleButton.Disable")
+            self.ext_toggle_b.Content = self.get_locale_string(
+                "Buttons.ToggleButton.Disable"
             )
 
         if multiple:
@@ -387,6 +398,18 @@ class ExtensionsWindow(forms.WPFWindow):
         self.search_tb.Clear()
         self.extpkgs_lb.ItemsSource = self._exts_list
 
+    def reveal_token_mousedown(self, sender, args):
+        """Show plain-text token while the reveal button is held down."""
+        self.custom_token_tb.Text = self.custom_token_pb.Password
+        self.custom_token_pb.Visibility = framework.Windows.Visibility.Collapsed
+        self.custom_token_tb.Visibility = framework.Windows.Visibility.Visible
+
+    def reveal_token_mouseup(self, sender, args):
+        """Restore PasswordBox and clear the plain-text mirror when button is released."""
+        self.custom_token_tb.Visibility = framework.Windows.Visibility.Collapsed
+        self.custom_token_pb.Visibility = framework.Windows.Visibility.Visible
+        self.custom_token_tb.Text = ""
+
     def update_ext_info(self, sender, args):
         """Callback for updating info panel on package selection change"""
         if self.selected_pkg:
@@ -410,26 +433,53 @@ class ExtensionsWindow(forms.WPFWindow):
         self.custom_git_url_tb.Text = ext_pkg_item.GitURL or ""
         if getattr(self, "custom_ext_name_tb", None):
             self.custom_ext_name_tb.Text = ext_pkg_item.Name or ""
-        # Git URL and name come from the catalog — make read-only
-        self.custom_git_url_tb.IsReadOnly = True
-        if getattr(self, "custom_ext_name_tb", None):
-            self.custom_ext_name_tb.IsReadOnly = True
-        if ext_pkg_item.ext_pkg.is_installed:
-            # Already installed — show where it lives, disable path change
+        if ext_pkg_item.ext_pkg.is_installed and not ext_pkg_item.ext_pkg.builtin:
+            # Installed custom extension: let the user edit URL and token, then Update.
+            self.custom_git_url_tb.IsReadOnly = False
+            if getattr(self, "custom_ext_name_tb", None):
+                self.custom_ext_name_tb.IsReadOnly = (
+                    True  # name is structural, keep fixed
+                )
+            self.custom_ext_install_path_tb.Text = ext_pkg_item.ext_pkg.is_installed
+            self.path_custom_ext_b.IsEnabled = False
+            # Pre-fill token from stored config if available
+            stored_token = ""
+            try:
+                stored_token = ext_pkg_item.ext_pkg.config.token or ""
+            except Exception:
+                pass
+            self.custom_token_pb.Password = stored_token
+            self.show_element(self.install_custom_ext_b)
+            self.install_custom_ext_b.Content = self.get_locale_string(
+                "Buttons.UpdateExtension"
+            )
+            self._update_mode = True
+        elif ext_pkg_item.ext_pkg.is_installed:
+            # Installed builtin/catalog extension — read-only, no action button
+            self.custom_git_url_tb.IsReadOnly = True
+            if getattr(self, "custom_ext_name_tb", None):
+                self.custom_ext_name_tb.IsReadOnly = True
             self.custom_ext_install_path_tb.Text = ext_pkg_item.ext_pkg.is_installed
             self.path_custom_ext_b.IsEnabled = False
             self.hide_element(self.install_custom_ext_b)
+            self._update_mode = False
         else:
             # Not yet installed — let user pick where to install
-            # Fix for #3193: Keep "Pick installation path" enabled so user can choose
+            self.custom_git_url_tb.IsReadOnly = True
+            if getattr(self, "custom_ext_name_tb", None):
+                self.custom_ext_name_tb.IsReadOnly = True
             self.path_custom_ext_b.IsEnabled = True
             default_path = _get_default_ext_dir()
             self.custom_ext_install_path_tb.Text = default_path
             self.show_element(self.install_custom_ext_b)
-            self.install_custom_ext_b.Content = self.get_locale_string("Buttons.InstallExtension")
+            self.install_custom_ext_b.Content = self.get_locale_string(
+                "Buttons.InstallExtension"
+            )
+            self._update_mode = False
 
     def _update_add_custom_section_for_new(self):
         """Reset Add Custom section for adding a new extension; enable Pick, show Add and install."""
+        self._update_mode = False
         self.custom_git_url_tb.Text = ""
         if getattr(self, "custom_ext_name_tb", None):
             self.custom_ext_name_tb.Text = ""
@@ -439,6 +489,9 @@ class ExtensionsWindow(forms.WPFWindow):
         self.path_custom_ext_b.IsEnabled = True
         self.custom_ext_install_path_tb.Text = _get_default_ext_dir()
         self.show_element(self.install_custom_ext_b)
+        self.install_custom_ext_b.Content = self.get_locale_string(
+            "AddCustomExtension.AddAndInstall"
+        )
         self._update_ext_info_from_git_fields()
 
     def _update_ext_info_from_git_fields(self):
@@ -452,7 +505,11 @@ class ExtensionsWindow(forms.WPFWindow):
         path = self.custom_ext_install_path_tb.Text.strip()
         if name or url or path:
             self.show_element(self.ext_infostack)
-            display_name = name or (_repo_name_from_git_url(url) if url else "") or "(enter Git URL)"
+            display_name = (
+                name
+                or (_repo_name_from_git_url(url) if url else "")
+                or "(enter Git URL)"
+            )
             self.ext_name_l.Content = display_name
             self.ext_desc_l.Text = (url + "  ") if url else ""
             if url and (url.startswith("http://") or url.startswith("https://")):
@@ -479,7 +536,9 @@ class ExtensionsWindow(forms.WPFWindow):
         if self.custom_git_url_tb.IsReadOnly:
             return
         self._update_ext_info_from_git_fields()
-        self.install_custom_ext_b.Content = self.get_locale_string("AddCustomExtension.AddAndInstall")
+        self.install_custom_ext_b.Content = self.get_locale_string(
+            "AddCustomExtension.AddAndInstall"
+        )
 
     def custom_extension_path(self, sender, args):
         "Picks a folder to install to"
@@ -493,6 +552,54 @@ class ExtensionsWindow(forms.WPFWindow):
         """Installs a custom extension from a Git URL or the selected catalog extension."""
 
         try:
+            # Update: selected installed custom extension — write new URL/token to config and reload
+            if (
+                self._update_mode
+                and self.selected_pkg
+                and self.selected_pkg.ext_pkg.is_installed
+            ):
+                new_url = self.custom_git_url_tb.Text.strip()
+                token = self.custom_token_pb.Password.strip()
+                pkg = self.selected_pkg.ext_pkg
+                if not new_url:
+                    forms.alert("Please enter a Git URL.", exitscript=False)
+                    return
+                if not (
+                    new_url.startswith("http://")
+                    or new_url.startswith("https://")
+                    or new_url.startswith("git@")
+                ):
+                    forms.alert(
+                        "Git URL must start with https://, http://, or git@",
+                        exitscript=False,
+                    )
+                    return
+                # Write updated values to the extension config
+                pkg.url = new_url
+                try:
+                    pkg.config.url = new_url
+                except Exception:
+                    pass
+                if token:
+                    pkg.config.private_repo = True
+                    pkg.config.token = token
+                else:
+                    # Clear stored token if field is empty
+                    try:
+                        pkg.config.private_repo = False
+                        pkg.config.token = ""
+                    except Exception:
+                        pass
+                from pyrevit.userconfig import user_config
+                user_config.save_changes()
+                forms.alert(
+                    "Extension settings updated. Revit will reload to apply changes.",
+                    exitscript=False,
+                )
+                self.Close()
+                call_reload()
+                return
+
             # Catalog install: selected extension from list, not yet installed
             if self.selected_pkg and not self.selected_pkg.ext_pkg.is_installed:
                 dest_path = self.custom_ext_install_path_tb.Text
@@ -512,7 +619,9 @@ class ExtensionsWindow(forms.WPFWindow):
             # Add new extension from Git URL
             git_url = self.custom_git_url_tb.Text.strip()
             _name_tb = getattr(self, "custom_ext_name_tb", None)
-            ext_name = (_name_tb.Text.strip() if _name_tb else "") or _repo_name_from_git_url(git_url)
+            ext_name = (
+                _name_tb.Text.strip() if _name_tb else ""
+            ) or _repo_name_from_git_url(git_url)
             token = self.custom_token_pb.Password.strip()
 
             # Validation
@@ -521,7 +630,11 @@ class ExtensionsWindow(forms.WPFWindow):
                 return
 
             if not ext_name:
-                forms.alert("Could not derive extension name from URL. Please enter a Git URL with a repo path (e.g. .../owner/repo.git).", exitscript=False)
+                forms.alert(
+                    "Could not derive extension name from URL. "
+                    "Please enter a Git URL with a repo path (e.g. .../owner/repo.git).",
+                    exitscript=False,
+                )
                 return
 
             # Check if URL is valid git URL
@@ -559,10 +672,10 @@ class ExtensionsWindow(forms.WPFWindow):
             from pyrevit.userconfig import user_config
 
             temp_info = {
-                'type': exts.ExtensionTypes.UI_EXTENSION.ID,
-                'name': ext_name,
-                'description': 'Custom extension installed from ' + git_url,
-                'url': git_url,
+                "type": exts.ExtensionTypes.UI_EXTENSION.ID,
+                "name": ext_name,
+                "description": "Custom extension installed from " + git_url,
+                "url": git_url,
             }
 
             temp_pkg = ExtensionPackage(temp_info)
@@ -574,7 +687,7 @@ class ExtensionsWindow(forms.WPFWindow):
             if token:
                 temp_pkg.config.private_repo = True
                 temp_pkg.config.token = token
-                temp_pkg.config.username = 'oauth2'  # for backwards compat - drop later
+                temp_pkg.config.username = "oauth2"  # for backwards compat - drop later
                 temp_pkg.config.password = token  # for backwards compat - drop later
                 user_config.save_changes()  # i don't like it - drop this later
 
