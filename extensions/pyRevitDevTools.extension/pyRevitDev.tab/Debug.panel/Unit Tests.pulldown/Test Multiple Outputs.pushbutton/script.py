@@ -3,7 +3,7 @@
 from pyrevit.loader import sessionmgr
 
 
-for cmd in ["pyrevitdevtools-pyrevitdev-debug-misctests-testrpw",
+for cmd in ["pyrevitdevtools-pyrevitdev-debug-unittests-testprojectparameters",
             "pyrevittools-pyrevit-selection-select-select-listselectionasclickablelinks"]:
     for i in range(5):
         sessionmgr.execute_command(cmd)

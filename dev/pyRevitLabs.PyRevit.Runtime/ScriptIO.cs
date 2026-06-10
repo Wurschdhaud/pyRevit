@@ -16,12 +16,15 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private WeakReference<ScriptConsole> _gui;
         private readonly Queue<string> _pending = new Queue<string>();
         private int _pendingChars;
+        private readonly StringBuilder _partial = new StringBuilder();
         private readonly object _logLock = new object();
         private bool _inputReceived = false;
         private bool _errored = false;
         private ScriptEngineType _erroredEngine;
         private bool _prefixAtLineStart = true;
 
+        private const int StreamChunkSize = 1024;
+        private const int MaxStreamEntryChars = 8192;
         private const int SoftFlushCharLimit = 16384;
         private const int MaxPendingChars = 1048576;
         private const int FlushMaxEntriesPerTick = 256;
@@ -31,6 +34,13 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         private readonly object _timerLock = new object();
         private DispatcherTimer _flushTimer;
+
+        // Guards against re-entrant flushing. Rendering an entry pumps the message
+        // queue (DoEvents/render), which can fire the flush timer or another window's
+        // flush mid-drain and recurse until the stack overflows. A flush already in
+        // progress on this thread drains the queue, so re-entrant calls are skipped.
+        [ThreadStatic]
+        private static bool _flushingOnThread;
         private bool _firstShowPending = true;
         private bool _syncFlushedOnce = false;
         private readonly System.Diagnostics.Stopwatch _syncFlushClock = System.Diagnostics.Stopwatch.StartNew();
@@ -132,9 +142,53 @@ namespace PyRevitLabs.PyRevit.Runtime {
             }
         }
 
+        /// <summary>
+        /// Write stdout/stderr text. A large print arrives as a run of
+        /// full-size chunks and is reassembled (see <see cref="Write"/>) so
+        /// emoji tokens and html constructs are not split across entries.
+        /// </summary>
         public void write(string content) {
             var buffer = OutputEncoding.GetBytes(content);
             Write(buffer, 0, buffer.Length);
+        }
+
+        /// <summary>
+        /// Render a pre-composed html payload (print_html/md/code/table) as a
+        /// single entry regardless of size.
+        /// </summary>
+        public void WriteEntry(string content) {
+            if (string.IsNullOrEmpty(content))
+                return;
+            if (content.IndexOf('\0') >= 0)
+                content = content.Replace("\0", string.Empty);
+            AppendLog(content);
+
+            var output = GetOutput();
+            if (output == null)
+                return;
+
+            if (output.ClosedByUser) {
+                _gui = new WeakReference<ScriptConsole>(null);
+                ClearPending();
+                StopFlushTimer();
+                return;
+            }
+
+            bool needShow = !output.IsVisible;
+            int pendingChars;
+
+            lock (this) {
+                FinalizePendingEntry();
+                _partial.Append(content);
+                FinalizePendingEntry(splitLargeEntries: false);
+
+                while (_pendingChars > MaxPendingChars && _pending.Count > 1)
+                    _pendingChars -= _pending.Dequeue().Length;
+
+                pendingChars = _pendingChars;
+            }
+
+            PumpAfterWrite(output, needShow, pendingChars);
         }
 
         public void WriteError(string error_msg, ScriptEngineType engineType) {
@@ -176,10 +230,12 @@ namespace PyRevitLabs.PyRevit.Runtime {
                         ScriptConsoleConfigs.DefaultBlock);
                 }
 
-                if (outputText.Length > 0) {
-                    _pending.Enqueue(outputText);
-                    _pendingChars += outputText.Length;
-                }
+                if (outputText.Length > 0)
+                    _partial.Append(outputText);
+
+                // a full-size chunk signals more of this stream write is still coming
+                if (count < StreamChunkSize || _partial.Length >= MaxStreamEntryChars)
+                    FinalizePendingEntry();
 
                 while (_pendingChars > MaxPendingChars && _pending.Count > 1)
                     _pendingChars -= _pending.Dequeue().Length;
@@ -187,6 +243,10 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 pendingChars = _pendingChars;
             }
 
+            PumpAfterWrite(output, needShow, pendingChars);
+        }
+
+        private void PumpAfterWrite(ScriptConsole output, bool needShow, int pendingChars) {
             if (needShow) {
                 try {
                     output.Show();
@@ -283,18 +343,121 @@ namespace PyRevitLabs.PyRevit.Runtime {
             lock (this) {
                 _pending.Clear();
                 _pendingChars = 0;
+                _partial.Clear();
             }
         }
 
+        private void FinalizePendingEntry(bool splitLargeEntries = true, bool keepIncompleteShortcode = true) {
+            if (_partial.Length == 0)
+                return;
+
+            string heldShortcode = null;
+            var holdStart = keepIncompleteShortcode ? FindTrailingShortcodeStart(_partial) : -1;
+            if (holdStart >= 0) {
+                heldShortcode = _partial.ToString(holdStart, _partial.Length - holdStart);
+                _partial.Remove(holdStart, _partial.Length - holdStart);
+            }
+
+            if (splitLargeEntries) {
+                while (_partial.Length > MaxStreamEntryChars) {
+                    var splitIndex = FindSplitIndex(_partial, MaxStreamEntryChars);
+                    EnqueuePending(_partial.ToString(0, splitIndex));
+                    _partial.Remove(0, splitIndex);
+                }
+            }
+
+            var entry = _partial.ToString();
+            _partial.Clear();
+            EnqueuePending(entry);
+
+            if (heldShortcode != null)
+                _partial.Append(heldShortcode);
+        }
+
+        private void EnqueuePending(string entry) {
+            if (entry.Length == 0)
+                return;
+
+            _pending.Enqueue(entry);
+            _pendingChars += entry.Length;
+        }
+
+        private static int FindSplitIndex(StringBuilder text, int maxChars) {
+            var limit = Math.Min(maxChars, text.Length);
+            var shortcodeStart = -1;
+            var colonCount = 0;
+            for (var idx = limit - 1; idx >= 0; idx--) {
+                if (char.IsWhiteSpace(text[idx]))
+                    break;
+                if (text[idx] == ':') {
+                    colonCount++;
+                    shortcodeStart = idx;
+                }
+            }
+
+            if (colonCount == 1 && shortcodeStart > 0)
+                return shortcodeStart;
+
+            for (var idx = limit - 1; idx > 0; idx--) {
+                if (text[idx] == '\n' || text[idx] == '\r')
+                    return idx + 1;
+            }
+
+            for (var idx = limit - 1; idx > 0; idx--) {
+                if (char.IsWhiteSpace(text[idx]))
+                    return idx + 1;
+            }
+
+            if (limit < text.Length
+                    && limit > 0
+                    && char.IsHighSurrogate(text[limit - 1])
+                    && char.IsLowSurrogate(text[limit]))
+                return limit - 1;
+
+            return limit;
+        }
+
+        private static int FindTrailingShortcodeStart(StringBuilder text) {
+            var tokenStart = text.Length;
+            for (var idx = text.Length - 1; idx >= 0; idx--) {
+                if (char.IsWhiteSpace(text[idx]))
+                    break;
+                tokenStart = idx;
+            }
+
+            var colonCount = 0;
+            var firstColon = -1;
+            for (var idx = tokenStart; idx < text.Length; idx++) {
+                if (text[idx] == ':') {
+                    if (firstColon == -1)
+                        firstColon = idx;
+                    colonCount++;
+                }
+            }
+
+            if (colonCount == 1 && firstColon == tokenStart && firstColon < text.Length - 1)
+                return firstColon;
+
+            return -1;
+        }
+
         private void FlushUpToBudget() {
-            int charBudget = FlushMaxCharsPerTick;
-            int entryBudget = FlushMaxEntriesPerTick;
-            while (entryBudget-- > 0) {
-                if (!FlushOneEntry())
-                    return;
-                charBudget -= _lastEntryChars;
-                if (charBudget <= 0)
-                    return;
+            if (_flushingOnThread)
+                return;
+            _flushingOnThread = true;
+            try {
+                int charBudget = FlushMaxCharsPerTick;
+                int entryBudget = FlushMaxEntriesPerTick;
+                while (entryBudget-- > 0) {
+                    if (!FlushOneEntry())
+                        return;
+                    charBudget -= _lastEntryChars;
+                    if (charBudget <= 0)
+                        return;
+                }
+            }
+            finally {
+                _flushingOnThread = false;
             }
         }
 
@@ -351,7 +514,18 @@ namespace PyRevitLabs.PyRevit.Runtime {
         /// </summary>
         public override void Flush() {
             StopFlushTimer();
-            while (FlushOneEntry()) {
+            lock (this) {
+                FinalizePendingEntry(keepIncompleteShortcode: false);
+            }
+            if (_flushingOnThread)
+                return;
+            _flushingOnThread = true;
+            try {
+                while (FlushOneEntry()) {
+                }
+            }
+            finally {
+                _flushingOnThread = false;
             }
         }
 

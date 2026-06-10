@@ -167,6 +167,13 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private bool _contentLoaded;
         private bool _debugMode;
         private bool _frozen = false;
+
+        // Guards against re-entrant render pumping. All output windows share the
+        // main UI thread dispatcher, so a synchronous render pump triggered by one
+        // window can run another window's queued render and recurse until the stack
+        // overflows. Skipping a re-entrant call breaks that chain.
+        [ThreadStatic]
+        private static bool _renderingFrame;
         private string _lastLine = string.Empty;
         private DispatcherTimer _animationTimer;
         private System.Windows.Forms.HtmlElement _lastDocumentBody = null;
@@ -490,6 +497,9 @@ namespace PyRevitLabs.PyRevit.Runtime {
         }
 
         internal void ForceRenderFrame() {
+            if (_renderingFrame)
+                return;
+            _renderingFrame = true;
             try {
                 if (Dispatcher != null
                         && !Dispatcher.HasShutdownStarted
@@ -498,6 +508,9 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 }
             }
             catch {
+            }
+            finally {
+                _renderingFrame = false;
             }
         }
 
@@ -660,7 +673,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 }
                 else if (inputUrl.StartsWith("revit")) {
                     e.Cancel = true;
-                    ScriptConsoleUtils.ProcessUrl(_uiApp, inputUrl);
+                    ScriptConsoleUtils.ProcessUrl(_uiApp, inputUrl, this);
                     return;
                 }
                 else if (inputUrl.StartsWith("file")) {

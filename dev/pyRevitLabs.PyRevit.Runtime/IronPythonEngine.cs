@@ -103,6 +103,15 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
                 // setup stdlib
                 SetupStdlib(Engine);
+
+                // Bound recursion so runaway recursion (e.g. a circular import that
+                // IronPython 3 fails to break) raises a catchable RecursionError
+                // instead of overflowing the native stack and hard-crashing Revit.
+                // IronPython does not enforce a limit unless one is set explicitly.
+                try {
+                    Engine.Execute("import sys; sys.setrecursionlimit(1000)");
+                }
+                catch { }
             }
 
             SetupStreams(ref runtime);

@@ -255,6 +255,13 @@ namespace PyRevitLabs.PyRevit.Runtime {
             output_stream.write(content);
         }
 
+        private void write_html_entry(string content) {
+            if (content == null)
+                return;
+
+            output_stream.WriteEntry(content);
+        }
+
         public void write_line(string content) {
             write((content ?? string.Empty) + Environment.NewLine);
         }
@@ -347,7 +354,11 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         public void open_page(string dest_file) {
             show();
-            open_url("file:///" + dest_file);
+            if (string.IsNullOrEmpty(dest_file) || !File.Exists(dest_file)) {
+                print_md(string.Format("### :warning: Page not found: `{0}`", dest_file ?? string.Empty));
+                return;
+            }
+            open_url(new Uri(Path.GetFullPath(dest_file)).AbsoluteUri);
         }
 
         public void update_progress(float cur_value, float max_value) {
@@ -379,7 +390,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         }
 
         public void print_html(string html_str) {
-            write(ScriptConsoleConfigs.ToCustomHtmlTags(html_str ?? string.Empty));
+            write_html_entry(ScriptConsoleConfigs.ToCustomHtmlTags(html_str ?? string.Empty));
         }
 
         public void print_code(string code_str) {

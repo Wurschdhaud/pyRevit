@@ -10,6 +10,18 @@ from pyrevit import PYREVIT_VERSION_APP_DIR, PYREVIT_FILE_PREFIX_STAMPED
 from pyrevit import coreutils
 from pyrevit.coreutils import envvars
 
+
+def _emit_direct(handler, record):
+    msg = safe_strtype(handler.format(record))
+    stream = getattr(handler, 'stream', None)
+    if stream is None and hasattr(handler, '_open'):
+        stream = handler._open()
+        handler.stream = stream
+    terminator = getattr(handler, 'terminator', '\n')
+    stream.write(msg + terminator)
+    stream.flush()
+
+
 LOG_REC_FORMAT = "%(levelname)s [%(name)s] %(message)s"
 LOG_REC_FORMAT_HEADER = \
     coreutils.prepare_html_str(
@@ -126,13 +138,10 @@ class LoggerWrapper(logging.Logger):
 
         # any report other than logging.INFO level,
         # needs to cleanup < and > character to avoid html conflict
-        if not isinstance(msg, str):
-            msg_str = safe_strtype(msg)
-            # get rid of unicode characters
+        msg_str = safe_strtype(msg)
+        if not PY3:
             msg_str = msg_str.encode('ascii', 'ignore')
-            msg_str = msg_str.replace(op.sep, '/')
-        else:
-            msg_str = msg
+        msg_str = msg_str.replace(op.sep, '/')
         
         # IronPython 3 has issues with stack frame inspection in logging
         # Use a custom implementation that bypasses problematic code paths
@@ -161,9 +170,7 @@ class LoggerWrapper(logging.Logger):
                     if IRONPY3:
                         # Direct write for IronPython 3 to avoid handler internals
                         try:
-                            msg = hdlr.format(record)
-                            hdlr.stream.write(msg + '\n')
-                            hdlr.stream.flush()
+                            _emit_direct(hdlr, record)
                         except Exception:
                             pass
                     else:
@@ -174,9 +181,7 @@ class LoggerWrapper(logging.Logger):
                     if IRONPY3:
                         # Direct write for IronPython 3 to avoid handler internals
                         try:
-                            msg = hdlr.format(record)
-                            hdlr.stream.write(msg + '\n')
-                            hdlr.stream.flush()
+                            _emit_direct(hdlr, record)
                         except Exception:
                             pass
                     else:

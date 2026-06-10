@@ -16,12 +16,18 @@ import os.path as op
 
 from pyrevit import HOST_APP, EXEC_PARAMS, DB
 from pyrevit import framework
+from pyrevit.compat import PY3, safe_strtype
 from pyrevit.coreutils import envvars
 from pyrevit.coreutils import charts
 from pyrevit.runtime.types import ScriptConsoleManager, ScriptOutput
 from pyrevit.userconfig import user_config
 from pyrevit.output import linkmaker
 from pyrevit import coreutils
+
+if PY3:
+    from urllib.parse import quote as urlquote
+else:
+    from urllib import quote as urlquote
 
 
 DEFAULT_STYLESHEET_NAME = 'outputstyles.css'
@@ -424,23 +430,23 @@ class PyRevitOutputWindow(object):
 
     def log_debug(self, message):
         """Report DEBUG message into output logging panel."""
-        return self._runtime_output().log_debug(message)
+        return self._runtime_output().log_debug(safe_strtype(message))
 
     def log_success(self, message):
         """Report SUCCESS message into output logging panel."""
-        return self._runtime_output().log_success(message)
+        return self._runtime_output().log_success(safe_strtype(message))
 
     def log_info(self, message):
         """Report INFO message into output logging panel."""
-        return self._runtime_output().log_info(message)
+        return self._runtime_output().log_info(safe_strtype(message))
 
     def log_warning(self, message):
         """Report WARNING message into output logging panel."""
-        return self._runtime_output().log_warning(message)
+        return self._runtime_output().log_warning(safe_strtype(message))
 
     def log_error(self, message):
         """Report ERROR message into output logging panel."""
-        return self._runtime_output().log_error(message)
+        return self._runtime_output().log_error(safe_strtype(message))
 
     def set_icon(self, iconpath):
         """Sets icon on the output window."""
@@ -459,7 +465,7 @@ class PyRevitOutputWindow(object):
             output.print_html('<strong>Title</strong>')
             ```
         """
-        return self._runtime_output().print_html(html_str)
+        return self._runtime_output().print_html(safe_strtype(html_str))
 
     def print_code(self, code_str):
         """Print code to the output window with special formatting.
@@ -470,7 +476,7 @@ class PyRevitOutputWindow(object):
             output.print_code('value = 12')
             ```
         """
-        return self._runtime_output().print_code(code_str)
+        return self._runtime_output().print_code(safe_strtype(code_str))
 
     def print_md(self, md_str):
         """Process markdown code and print to output window.
@@ -481,7 +487,7 @@ class PyRevitOutputWindow(object):
             output.print_md('### Title')
             ```
         """
-        return self._runtime_output().print_md(md_str)
+        return self._runtime_output().print_md(safe_strtype(md_str))
 
     def print_table(self, table_data, columns=None, formats=None,
                     title='', last_line_style=''):
@@ -587,6 +593,34 @@ class PyRevitOutputWindow(object):
             ```
         """
         return self._runtime_output().print_image(image_path)
+
+    @staticmethod
+    def buttonify(uibutton, title=None):
+        """Create an output-safe html button for a Revit ribbon button."""
+        label = title \
+            or getattr(uibutton, 'Text', None) \
+            or getattr(uibutton, 'AutomationName', None) \
+            or getattr(uibutton, 'Name', None) \
+            or safe_strtype(uibutton)
+        control_id = getattr(uibutton, 'Id', None) \
+            or getattr(uibutton, 'Name', None) \
+            or EXEC_PARAMS.command_controlid
+        label = safe_strtype(label).replace('&', '&amp;') \
+                                  .replace('<', '&lt;') \
+                                  .replace('>', '&gt;')
+        quoted_control_id = urlquote(safe_strtype(control_id))
+
+        return coreutils.prepare_html_str(
+            '<a href="revit://outputhelpers?command=button&controlid={}" '
+            'style="display:inline-block;text-decoration:none;font:inherit;'
+            'padding:4px 10px;border:1px solid #8a8f94;'
+            'background:#f5f6f7;color:#233749;">{}</a>'
+            .format(quoted_control_id, label)
+            )
+
+    def print_button(self, uibutton, title=None):
+        """Print a Revit ribbon button as an embedded output button."""
+        self.print_html(coreutils.reverse_html(self.buttonify(uibutton, title)))
 
     def insert_divider(self, level=''):
         """Add horizontal rule to the output window."""
