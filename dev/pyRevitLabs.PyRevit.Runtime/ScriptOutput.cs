@@ -12,13 +12,21 @@ using pyRevitLabs.NLog.Targets;
 using pyRevitLabs.PyRevit;
 
 namespace PyRevitLabs.PyRevit.Runtime {
+    /// <summary>
+    /// Scripting-facing wrapper around an output window: rendering helpers
+    /// (text, html, tables, charts, progress) plus window management.
+    /// Commands get an instance bound to their runtime; session/startup
+    /// output goes through a shared default instance.
+    /// </summary>
     public sealed class ScriptOutput {
         private const string OutputTargetName = "pyrevit-runtime-output";
-        private const int WriteChunkSize = 900;
         private static readonly object SyncRoot = new object();
         private static ScriptOutput _default;
         private static bool _loggingConfigured;
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ScriptRuntime, ScriptOutput> _runtimeOutputs =
+            new System.Runtime.CompilerServices.ConditionalWeakTable<ScriptRuntime, ScriptOutput>();
 
+        private WeakReference<ScriptRuntime> _runtime;
         private ScriptConsole _window;
         private ScriptIO _outputStream;
         private UIApplication _uiApp;
@@ -32,6 +40,13 @@ namespace PyRevitLabs.PyRevit.Runtime {
             _debugMode = debugMode;
         }
 
+        private ScriptOutput(ScriptRuntime runtime) {
+            _runtime = new WeakReference<ScriptRuntime>(runtime);
+            _uiApp = runtime.UIApp;
+            _debugMode = runtime.ScriptRuntimeConfigs?.DebugMode ?? false;
+        }
+
+        /// <summary>Get the shared session output, creating it on first use.</summary>
         public static ScriptOutput GetDefault(UIApplication uiApp = null, bool debugMode = false) {
             lock (SyncRoot) {
                 if (_default == null)
@@ -46,6 +61,30 @@ namespace PyRevitLabs.PyRevit.Runtime {
             }
         }
 
+        /// <summary>
+        /// Get the output bound to a command runtime. Startup scripts and a
+        /// null runtime resolve to the shared session output.
+        /// </summary>
+        public static ScriptOutput GetForRuntime(ScriptRuntime runtime) {
+            if (runtime == null)
+                return GetDefault();
+
+            if (IsStartupRuntime(runtime))
+                return GetDefault(runtime.UIApp, runtime.ScriptRuntimeConfigs?.DebugMode ?? false);
+
+            return _runtimeOutputs.GetValue(runtime, r => new ScriptOutput(r));
+        }
+
+        private ScriptRuntime BoundRuntime {
+            get {
+                if (_runtime == null)
+                    return null;
+
+                ScriptRuntime runtime;
+                return _runtime.TryGetTarget(out runtime) ? runtime : null;
+            }
+        }
+
         internal static ScriptOutput GetDefaultIfWindowReady() {
             lock (SyncRoot) {
                 if (_default == null || _default._window == null || _default.IsWindowClosed)
@@ -55,10 +94,16 @@ namespace PyRevitLabs.PyRevit.Runtime {
             }
         }
 
+        /// <summary>
+        /// Route NLog messages into the session output window. Call once at
+        /// session setup; the logging level is resolved at that moment.
+        /// </summary>
         public static void ConfigureLogging() {
             lock (SyncRoot) {
                 if (_loggingConfigured)
                     return;
+
+                var minLevel = GetConfiguredMinLogLevel();
 
                 var target = new ScriptOutputTarget {
                     Name = OutputTargetName,
@@ -67,12 +112,26 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
                 var config = LogManager.Configuration ?? new LoggingConfiguration();
                 config.AddTarget(OutputTargetName, target);
-                config.AddRuleForAllLevels(target);
+                config.AddRule(minLevel, LogLevel.Fatal, target);
                 LogManager.Configuration = config;
                 _loggingConfigured = true;
             }
         }
 
+        private static LogLevel GetConfiguredMinLogLevel() {
+            try {
+                var configuredLevel = PyRevitConfigs.GetLoggingLevel();
+                if (configuredLevel == PyRevitLogLevels.Debug)
+                    return LogLevel.Trace;
+                if (configuredLevel == PyRevitLogLevels.Verbose)
+                    return LogLevel.Info;
+            }
+            catch { }
+
+            return LogLevel.Warn;
+        }
+
+        /// <summary>Apply a runtime's identity (title, id, version) to the session output window.</summary>
         public static void ConfigureForRuntime(ScriptRuntime runtime) {
             if (runtime == null)
                 return;
@@ -135,6 +194,10 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         public ScriptConsole window {
             get {
+                var runtime = BoundRuntime;
+                if (runtime != null)
+                    return runtime.OutputWindow;
+
                 if (_window == null || _window.ClosedByUser) {
                     _window = new ScriptConsole(_debugMode, _uiApp);
                     if (string.IsNullOrEmpty(_window.OutputId))
@@ -152,6 +215,10 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         public ScriptIO output_stream {
             get {
+                var runtime = BoundRuntime;
+                if (runtime != null)
+                    return runtime.OutputStream;
+
                 if (_outputStream == null) {
                     _outputStream = new ScriptIO(window);
                     _outputStream.PrintDebugInfo = _debugMode;
@@ -185,11 +252,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
             if (content == null)
                 return;
 
-            var text = content;
-            for (var idx = 0; idx < text.Length; idx += WriteChunkSize) {
-                var length = Math.Min(WriteChunkSize, text.Length - idx);
-                output_stream.write(text.Substring(idx, length));
-            }
+            output_stream.write(content);
         }
 
         public void write_line(string content) {
@@ -237,7 +300,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         public void show() { window.Show(); }
         public void lock_size() { window.LockSize(); }
         public void unlock_size() { window.UnlockSize(); }
-        public void freeze() { window.Freeze(); }
+        public void freeze() { output_stream.Flush(); window.Freeze(); }
         public void unfreeze() { window.Unfreeze(); }
         public void set_title(string title) { window.OutputTitle = title; }
         public string get_title() { return window.OutputTitle; }
@@ -274,6 +337,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         public void save_contents(string dest_file) {
             if (string.IsNullOrEmpty(dest_file))
                 return;
+            output_stream.Flush();
             File.WriteAllText(dest_file, window.GetFullHtml());
         }
 
@@ -456,6 +520,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         }
 
         public string get_head_html() {
+            window.WaitReadyBrowser();
             var head = renderer?.Document?.GetElementsByTagName("head");
             return head != null && head.Count > 0 ? head[0].InnerHtml : string.Empty;
         }
@@ -480,6 +545,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
         }
 
         private void InjectElement(string targetName, string elementTag, string contents, object attribs) {
+            output_stream.Flush();
+            window.WaitReadyBrowser();
             var document = renderer?.Document;
             if (document == null)
                 return;
@@ -679,11 +746,11 @@ namespace PyRevitLabs.PyRevit.Runtime {
     }
 
     public class ScriptOutputTarget : TargetWithLayout {
+        [ThreadStatic]
+        private static bool _emitting;
+
         protected override void Write(LogEventInfo logEvent) {
             try {
-                if (!ShouldWrite(logEvent.Level))
-                    return;
-
                 var output = ScriptOutput.GetDefaultIfWindowReady();
                 if (output == null)
                     return;
@@ -715,27 +782,18 @@ namespace PyRevitLabs.PyRevit.Runtime {
         }
 
         private static void DoWrite(ScriptOutput output, bool markError, string rendered) {
-            if (output == null || rendered == null)
+            if (output == null || rendered == null || _emitting)
                 return;
-            if (markError)
-                output.mark_error();
-            output.write_line(rendered);
-        }
 
-        private static bool ShouldWrite(LogLevel level) {
-            if (level >= LogLevel.Warn)
-                return true;
-
+            _emitting = true;
             try {
-                var configuredLevel = PyRevitConfigs.GetLoggingLevel();
-                if (level == LogLevel.Info)
-                    return configuredLevel == PyRevitLogLevels.Verbose || configuredLevel == PyRevitLogLevels.Debug;
-                if (level <= LogLevel.Debug)
-                    return configuredLevel == PyRevitLogLevels.Debug;
+                if (markError)
+                    output.mark_error();
+                output.write_line(rendered);
             }
-            catch { }
-
-            return false;
+            finally {
+                _emitting = false;
+            }
         }
     }
 }

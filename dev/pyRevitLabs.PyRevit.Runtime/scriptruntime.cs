@@ -81,6 +81,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private Application _app = null;
 
         // output stream
+        private WeakReference<ScriptConsole> _scriptOutput = new WeakReference<ScriptConsole>(null);
         private WeakReference<ScriptIO> _outputStream = new WeakReference<ScriptIO>(null);
 
         // dict for command result data
@@ -359,8 +360,28 @@ namespace PyRevitLabs.PyRevit.Runtime {
         // output
         public ScriptConsole OutputWindow {
             get {
-                ScriptOutput.ConfigureForRuntime(this);
-                return ScriptOutput.GetDefault(UIApp, ScriptRuntimeConfigs.DebugMode).window;
+                if (ScriptOutput.IsStartupRuntime(this)) {
+                    ScriptOutput.ConfigureForRuntime(this);
+                    return ScriptOutput.GetDefault(UIApp, ScriptRuntimeConfigs.DebugMode).window;
+                }
+
+                ScriptConsole output;
+                var re = _scriptOutput.TryGetTarget(out output);
+                if (re && output != null && !output.ClosedByUser)
+                    return output;
+
+                var newOutput = new ScriptConsole(ScriptRuntimeConfigs.DebugMode, UIApp);
+                newOutput.OutputTitle = ScriptData.CommandName;
+                newOutput.OutputId = ScriptData.CommandUniqueId;
+                newOutput.AppVersion = string.Format(
+                    "{0}:{1}:{2}",
+                    EnvDict.PyRevitVersion,
+                    EngineType == ScriptEngineType.CPython ? EnvDict.PyRevitCPYVersion : EnvDict.PyRevitIPYVersion,
+                    EnvDict.RevitVersion
+                    );
+
+                _scriptOutput = new WeakReference<ScriptConsole>(newOutput);
+                return newOutput;
             }
         }
 
@@ -402,7 +423,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
             ControlledApp = null;
             _uiApp = null;
             _app = null;
-            _outputStream = new WeakReference<ScriptIO>(null);;
+            _scriptOutput = new WeakReference<ScriptConsole>(null);
+            _outputStream = new WeakReference<ScriptIO>(null);
             _resultsDict = null;
         }
     }

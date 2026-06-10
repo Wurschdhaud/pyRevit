@@ -539,42 +539,22 @@ namespace PyRevitLabs.PyRevit.Runtime {
             }
         }
 
+        /// <summary>
+        /// Append one buffered stream payload as a single output entry,
+        /// keeping multi-line html constructs intact.
+        /// </summary>
         public void AppendHtmlFragment(string OutputText, string HtmlElementType) {
             if (string.IsNullOrEmpty(OutputText))
                 return;
 
-            var lastIdx = OutputText.Length - 1;
-            if (lastIdx < 0 || ActiveDocument == null)
+            OutputText = OutputText.Replace("\r\n", "\n");
+            if (OutputText.Length == 0)
                 return;
 
-            var body = _frozen && _lastDocumentBody != null
-                ? _lastDocumentBody
-                : ActiveDocument.Body;
-            if (body == null)
-                return;
-
-            var lineStart = 0;
-            for (var i = 0; i <= lastIdx; i++) {
-                if (OutputText[i] != '\n')
-                    continue;
-                var lineLen = i - lineStart;
-                if (lineLen > 0) {
-                    var line = OutputText.Substring(lineStart, lineLen).TrimEnd('\r');
-                    body.AppendChild(ComposeEntry(line, HtmlElementType));
-                }
-                lineStart = i + 1;
-            }
-            if (lineStart <= lastIdx) {
-                var tail = OutputText.Substring(lineStart).TrimEnd('\r');
-                if (tail.Length > 0)
-                    body.AppendChild(ComposeEntry(tail, HtmlElementType));
-            }
+            AppendText(OutputText, HtmlElementType, record: false);
 
             // track the latest (possibly incomplete) line so input-prompt detection stays accurate
             _lastLine = OutputText.Substring(OutputText.LastIndexOf('\n') + 1).TrimEnd('\r');
-
-            if (!_frozen && IsScrolledNearBottom())
-                ScrollToBottom();
         }
 
         public void AppendError(string OutputText, ScriptEngineType engineType) {

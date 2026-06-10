@@ -10,16 +10,11 @@ Examples:
     from pyrevit import script
     output = script.get_output()
     ```
-
-The window itself and most of its functionality is now owned by the runtime
-(``PyRevitLabs.PyRevit.Runtime.ScriptOutput``). The class below is a thin
-compatibility shim that forwards calls to that runtime object, while keeping
-the documented Python API that script authors rely on.
 """
 
 import os.path as op
 
-from pyrevit import HOST_APP, DB
+from pyrevit import HOST_APP, EXEC_PARAMS, DB
 from pyrevit import framework
 from pyrevit.coreutils import envvars
 from pyrevit.coreutils import charts
@@ -80,21 +75,57 @@ set_stylesheet(active_stylesheet)
 class PyRevitOutputWindow(object):
     """Wrapper to interact with the output window.
 
-    The output window, its html renderer, and all rendering helpers are owned by
-    the runtime ``ScriptOutput`` singleton. Each member below forwards to that
-    object; the documented signatures and examples remain the source of truth
-    for script authors. Any member not listed here is forwarded automatically
-    through ``__getattr__``/``__setattr__`` so newly added runtime members keep
-    working without a wrapper update.
+    The output window is an html-rendering console that scripts print to. This
+    wrapper exposes the documented Python API for it: printing (html, markdown,
+    code, tables, images), drawing charts, managing window geometry and icon,
+    driving the progress bar and log panel, and saving the rendered contents.
+
+    Each wrapper binds to one ``ScriptOutput``: the running command's own window,
+    or the shared session window when no command is running (e.g. session load).
+    The binding is resolved once and cached for the wrapper's lifetime.
+
+    Members not listed here are forwarded to the underlying ``ScriptOutput``
+    .NET object.
+
+    Examples:
+        ```python
+        from pyrevit import script
+        output = script.get_output()
+        output.set_title('My Report')
+        output.print_md('### Results')
+        for i in range(10):
+            output.update_progress(i + 1, 10)
+        ```
     """
 
     def _runtime_output(self):
-        return ScriptOutput.GetDefault()
+        """Return the runtime ``ScriptOutput`` this wrapper is bound to.
+
+        Resolved once per wrapper instance: the running command's output,
+        or the shared session output when no command is running.
+        """
+        out = self.__dict__.get('_rt_out')
+        if out is None:
+            # bind to the output of the running command; outside of a command
+            # (e.g. during session load) fall back to the session output
+            runtime = EXEC_PARAMS.script_runtime
+            if runtime:
+                out = ScriptOutput.GetForRuntime(runtime)
+            else:
+                out = ScriptOutput.GetDefault()
+            object.__setattr__(self, '_rt_out', out)
+        return out
 
     def __getattr__(self, name):
+        """Forward unknown attribute reads to the bound ``ScriptOutput``."""
         return getattr(self._runtime_output(), name)
 
     def __setattr__(self, name, value):
+        """Forward attribute writes to the bound ``ScriptOutput``.
+
+        Private (``_``-prefixed) names and anything the runtime object rejects
+        are stored on the wrapper instead.
+        """
         if name.startswith('_'):
             object.__setattr__(self, name, value)
             return

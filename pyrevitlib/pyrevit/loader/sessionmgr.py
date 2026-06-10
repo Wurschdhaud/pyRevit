@@ -75,6 +75,8 @@ def _clear_running_engines():
 
 
 def _setup_output():
+    # route C#-side NLog messages into the session output window
+    runtime_types.ScriptOutput.ConfigureLogging()
     # create the runtime-owned singleton output window and assign handle
     out = runtime_types.ScriptOutput.GetDefault()
     out_window = out.window
@@ -717,6 +719,8 @@ def execute_extension_startup_script(script_path, ext_name, sys_paths=None):
     script_data.CommandBundle = ""
     script_data.CommandExtension = ext_name
     script_data.HelpSource = ""
+    # route this script's output to the shared session output window
+    script_data.IsStartupScript = True
 
     script_runtime_cfg = runtime.types.ScriptRuntimeConfigs()
     script_runtime_cfg.CommandData = create_tmp_commanddata()
