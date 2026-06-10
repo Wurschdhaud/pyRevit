@@ -22,11 +22,6 @@ logger = script.get_logger()
 def _ensure_path_registered(dest_path):
     """Add dest_path to the Custom Extension Directories list if not already there.
 
-    The old 5.x Install dropdown only offered pre-registered directories, so this
-    was never needed. The new 'Pick' button allows arbitrary folders, so we must
-    register them or pyRevit won't discover the installed extension after reload.
-    Fix for #3193.
-
     Avoid explicitly registering the implicit default third-party extensions
     directory in the Custom Extension Directories list.
 
@@ -401,13 +396,13 @@ class ExtensionsWindow(forms.WPFWindow):
     def reveal_token_mousedown(self, sender, args):
         """Show plain-text token while the reveal button is held down."""
         self.custom_token_tb.Text = self.custom_token_pb.Password
-        self.custom_token_pb.Visibility = framework.Windows.Visibility.Collapsed
-        self.custom_token_tb.Visibility = framework.Windows.Visibility.Visible
+        self.custom_token_pb.Visibility = forms.WPF_COLLAPSED
+        self.custom_token_tb.Visibility = forms.WPF_VISIBLE
 
     def reveal_token_mouseup(self, sender, args):
         """Restore PasswordBox and clear the plain-text mirror when button is released."""
-        self.custom_token_tb.Visibility = framework.Windows.Visibility.Collapsed
-        self.custom_token_pb.Visibility = framework.Windows.Visibility.Visible
+        self.custom_token_tb.Visibility = forms.WPF_COLLAPSED
+        self.custom_token_pb.Visibility = forms.WPF_VISIBLE
         self.custom_token_tb.Text = ""
 
     def update_ext_info(self, sender, args):
@@ -460,6 +455,8 @@ class ExtensionsWindow(forms.WPFWindow):
             self.custom_ext_install_path_tb.Text = ext_pkg_item.ext_pkg.is_installed
             self.path_custom_ext_b.IsEnabled = False
             self.hide_element(self.install_custom_ext_b)
+            # Clear any token from a previously selected editable extension.
+            self._clear_token_ui()
             self._update_mode = False
         else:
             # Not yet installed — let user pick where to install
@@ -473,7 +470,20 @@ class ExtensionsWindow(forms.WPFWindow):
             self.install_custom_ext_b.Content = self.get_locale_string(
                 "Buttons.InstallExtension"
             )
+            # Clear any token from a previously selected editable extension.
+            self._clear_token_ui()
             self._update_mode = False
+
+    def _clear_token_ui(self):
+        """Clear the token PasswordBox and its plain-text mirror, restoring default visibility.
+
+        Call this whenever switching selection or mode to prevent a previously-loaded
+        token from leaking into an unrelated install/update flow.
+        """
+        self.custom_token_pb.Password = ""
+        self.custom_token_tb.Text = ""
+        self.custom_token_tb.Visibility = forms.WPF_COLLAPSED
+        self.custom_token_pb.Visibility = forms.WPF_VISIBLE
 
     def _update_add_custom_section_for_new(self):
         """Reset Add Custom section for adding a new extension; enable Pick, show Add and install."""
@@ -481,6 +491,8 @@ class ExtensionsWindow(forms.WPFWindow):
         self.custom_git_url_tb.Text = ""
         if getattr(self, "custom_ext_name_tb", None):
             self.custom_ext_name_tb.Text = ""
+        # Clear any token carried over from a previously selected extension.
+        self._clear_token_ui()
         self.custom_git_url_tb.IsReadOnly = False
         if getattr(self, "custom_ext_name_tb", None):
             self.custom_ext_name_tb.IsReadOnly = False
@@ -534,9 +546,12 @@ class ExtensionsWindow(forms.WPFWindow):
         if self.custom_git_url_tb.IsReadOnly:
             return
         self._update_ext_info_from_git_fields()
-        self.install_custom_ext_b.Content = self.get_locale_string(
-            "AddCustomExtension.AddAndInstall"
-        )
+        # Do not overwrite the "Update" button label when editing the URL for an
+        # already-installed extension; only reset the label in pure add-new mode.
+        if not self._update_mode:
+            self.install_custom_ext_b.Content = self.get_locale_string(
+                "AddCustomExtension.AddAndInstall"
+            )
 
     def custom_extension_path(self, sender, args):
         "Picks a folder to install to"
@@ -572,7 +587,15 @@ class ExtensionsWindow(forms.WPFWindow):
                         exitscript=False,
                     )
                     return
-                # Write updated values to the extension config
+                # Write updated URL and token to pyRevit's extension config.
+                # NOTE: this does NOT update the on-disk git remote for the cloned
+                # repository. The installed repo will still point at the original
+                # remote URL. To fully retarget the extension you would need to
+                # run `git remote set-url origin <new_url>` in the install directory.
+                # The reload below will pick up the new config values for future
+                # operations (e.g. auto-update), but the working copy itself is
+                # unchanged until a manual re-clone.
+                # TODO: improve this behaviour, review again
                 pkg.url = new_url
                 try:
                     pkg.config.url = new_url
@@ -588,10 +611,16 @@ class ExtensionsWindow(forms.WPFWindow):
                         pkg.config.token = ""
                     except Exception:
                         pass
-                from pyrevit.userconfig import user_config  # why is this reimport necessary?
+                # TODO this reimport is necessary, otherwise it crashes
+                # with 'referenced before assignment'. Investigate.
+                from pyrevit.userconfig import user_config
                 user_config.save_changes()
                 forms.alert(
-                    "Extension settings updated. Revit will reload to apply changes.",
+                    "Extension settings saved.\n\n"
+                    "Note: the installed repository's git remote has not been updated. "
+                    "If you changed the URL, run 'git remote set-url origin <new_url>' "
+                    "in the extension folder to retarget the working copy.\n\n"
+                    "Revit will reload to apply the config changes.",
                     exitscript=False,
                 )
                 self.Close()
