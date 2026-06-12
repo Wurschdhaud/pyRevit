@@ -33,7 +33,8 @@ namespace pyRevitExtensionParser
         /// </summary>
         public bool IsNot => RuleType?.StartsWith("not_") == true;
 
-        private string BaseRuleType => IsNot ? RuleType.Substring(4) : RuleType;
+        private string BaseRuleType =>
+            IsNot && RuleType.Length > 4 ? RuleType.Substring(4) : RuleType;
         
         /// <summary>
         /// Gets the separator character for this rule type
