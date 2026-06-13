@@ -26,6 +26,7 @@ from pyrevit.loader import sessioninfo
 from pyrevit.loader import asmmaker
 from pyrevit.loader import uimaker
 from pyrevit.loader import hooks
+from pyrevit import userconfig
 from pyrevit.userconfig import user_config
 from pyrevit.extensions import extensionmgr
 from pyrevit.versionmgr import updater
@@ -374,6 +375,11 @@ def load_session():
     Returns:
         (str): sesion uuid
     """
+    # clear the session-scoped attachment cache so a re-attached clone is
+    # picked up on reload. must run before setup_runtime_vars() which is
+    # the first attachment consumer
+    userconfig.clear_cached_attachment()
+
     # setup runtime environment variables
     sessioninfo.setup_runtime_vars()
 

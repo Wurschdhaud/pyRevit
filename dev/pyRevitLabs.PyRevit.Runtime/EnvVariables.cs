@@ -10,6 +10,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
         public static string keyPrefix = PyRevitLabsConsts.ProductName.ToUpperInvariant();
 
         public static string EnvVarsDictKey = keyPrefix + "EnvVarsDict";
+        // must match ATTACHMENT_CACHE_KEY in pyrevitlib/pyrevit/userconfig.py
+        public static string AttachmentCacheKey = keyPrefix + "CachedAttachment";
         public static string EnginesDictKey = keyPrefix + "CachedEngines";
         public static string IronPythonEngineDefaultOutputStreamCfgKey = keyPrefix + "CachedEngineDefaultOutputStreamCfg";
         public static string IronPythonEngineDefaultInputStreamCfgKey = keyPrefix + "CachedEngineDefaultInputStreamCfg";

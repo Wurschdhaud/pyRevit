@@ -123,11 +123,13 @@ namespace pyRevitLabs.PyRevit {
         // get all attachments for a revit version
         // @handled @logs
         public static List<PyRevitAttachment> GetAllAttached(int revitYear) {
-            var attachments = GetAttachments().Where(x => x.Product.ProductYear == revitYear);
-            if (attachments.Count() > 0)
-                return attachments.OrderBy(x => x.AllUsers).ToList();
-            return new List<PyRevitAttachment>();
-        }            
+            // enumerate once; GetAttachments() re-reads manifests and the clones
+            // registry from disk on every enumeration
+            return GetAttachments()
+                .Where(x => x.Product.ProductYear == revitYear)
+                .OrderBy(x => x.AllUsers)
+                .ToList();
+        }
 
         // get attachment for a revit version
         // @handled @logs

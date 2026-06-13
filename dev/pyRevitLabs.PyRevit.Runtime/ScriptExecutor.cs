@@ -56,6 +56,13 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private static ExternalEvent extExecEvent;
 
         public static void Initialize() {
+            // both the python session manager and the c# session manager call
+            // Initialize() during load; recreating the ExternalEvent orphans the
+            // previous registration and risks breaking an in-flight
+            // RequestExecuteScript waiting on the old event
+            if (extExecEvent != null)
+                return;
+
             mainThreadId = Thread.CurrentThread.ManagedThreadId;
             extExecEventHandler = new ScriptExecutorExternalEventHandler();
             extExecEvent = ExternalEvent.Create(extExecEventHandler);
