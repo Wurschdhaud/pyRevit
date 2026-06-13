@@ -78,6 +78,11 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 // default flags
                 flags["LightweightScopes"] = true;
 
+                // Bound recursion so a runaway circular import raises a catchable
+                // RecursionError instead of overflowing the native stack and crashing
+                // Revit. IronPython does not enforce a limit unless one is set.
+                flags["RecursionLimit"] = 1000;
+
                 if (ExecEngineConfigs.full_frame) {
                     flags["Frames"] = true;
                     flags["FullFrames"] = true;
@@ -103,15 +108,6 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
                 // setup stdlib
                 SetupStdlib(Engine);
-
-                // Bound recursion so runaway recursion (e.g. a circular import that
-                // IronPython 3 fails to break) raises a catchable RecursionError
-                // instead of overflowing the native stack and hard-crashing Revit.
-                // IronPython does not enforce a limit unless one is set explicitly.
-                try {
-                    Engine.Execute("import sys; sys.setrecursionlimit(1000)");
-                }
-                catch { }
             }
 
             SetupStreams(ref runtime);
