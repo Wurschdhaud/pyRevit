@@ -14,11 +14,45 @@ from pyrevit.coreutils import envvars
 def _emit_direct(handler, record):
     msg = safe_strtype(handler.format(record))
     stream = getattr(handler, 'stream', None)
+    if not isinstance(handler, logging.FileHandler):
+        current_stdout = getattr(sys, 'stdout', None)
+        if current_stdout is not None:
+            stream = current_stdout
+            handler.stream = current_stdout
     if stream is None and hasattr(handler, '_open'):
         stream = handler._open()
         handler.stream = stream
     terminator = getattr(handler, 'terminator', '\n')
-    stream.write(msg + terminator)
+    try:
+        stream.write(msg + terminator)
+    except UnicodeEncodeError:
+        # IronPython 3 hands us sys.stdout with an ASCII encoding by default.
+        # Any non-ASCII character (Cyrillic, emoji shortcode text, etc.) would
+        # raise UnicodeEncodeError, get caught by logging.Handler.handleError,
+        # and print "Logged from file logger.py, line 1" to stderr. Try to
+        # upgrade the stream to UTF-8; fall back to encoding the message with
+        # errors='replace' so the log line is still emitted lossily.
+        reconfigured = False
+        if hasattr(stream, 'reconfigure'):
+            try:
+                stream.reconfigure(encoding='utf-8')
+                reconfigured = True
+            except Exception:
+                pass
+        if reconfigured:
+            stream.write(msg + terminator)
+        else:
+            encoding = getattr(stream, 'encoding', None) or 'utf-8'
+            try:
+                stream.write(
+                    msg.encode(encoding, errors='replace').decode(encoding)
+                    + terminator
+                )
+            except (LookupError, UnicodeError):
+                stream.write(
+                    msg.encode('ascii', errors='replace').decode('ascii')
+                    + terminator
+                )
     stream.flush()
 
 

@@ -24,6 +24,11 @@ class mockLoggerWrapper():
 
 
 class LoggerWrapper():
+    # Patched at the bottom of the module to a unicode-safe
+    # logging.StreamHandler subclass. Falls back to the standard
+    # StreamHandler when the module is imported in a context without
+    # `logging` (Dynamo).
+    _STREAM_HANDLER_CLS = None
     """
     Logger Wrapper to extend loggers functionality.
     The logger is called in the same as the regular python logger,
@@ -55,8 +60,8 @@ class LoggerWrapper():
     """
 
     def __init__(self):
-
-        handler = logging.StreamHandler(sys.stdout)
+        handler_cls = LoggerWrapper._STREAM_HANDLER_CLS or logging.StreamHandler
+        handler = handler_cls(sys.stdout)
         formatter = logging.Formatter("[%(levelname)s] %(message)s")
         # TODO: Show Module
         # formatter = logging.Formatter("[%(levelname)s] %(message)s [%(module)s:%(lineno)s]")
@@ -66,7 +71,7 @@ class LoggerWrapper():
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)
 
-        handler_title = logging.StreamHandler(sys.stdout)
+        handler_title = handler_cls(sys.stdout)
         formatter_title = logging.Formatter("%(message)s")
         handler_title.setFormatter(formatter_title)
 
@@ -136,6 +141,30 @@ def deprecate_warning(depracated, replaced_by=None):
 
 try:
     import logging
+    class _UnicodeSafeStreamHandler(logging.StreamHandler):
+        """StreamHandler that resolves the current sys.stdout at emit time and
+        tolerates narrow-encoding streams."""
+
+        def emit(self, record):
+            try:
+                self.stream = sys.stdout
+            except Exception:
+                pass
+            try:
+                msg = self.format(record) + self.terminator
+                self.stream.write(msg)
+                self.flush()
+            except UnicodeEncodeError:
+                try:
+                    encoding = getattr(self.stream, 'encoding', None) or 'utf-8'
+                    self.stream.write(msg.encode(encoding, errors='replace').decode(encoding))
+                    self.flush()
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+    LoggerWrapper._STREAM_HANDLER_CLS = _UnicodeSafeStreamHandler
 except ImportError:
     # In Dynamo, Use Mock Logger
     logger = mockLoggerWrapper()
