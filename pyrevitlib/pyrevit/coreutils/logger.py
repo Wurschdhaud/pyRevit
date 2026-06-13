@@ -5,7 +5,7 @@ import logging
 
 #pylint: disable=W0703,C0302,C0103
 from pyrevit import EXEC_PARAMS, USER_DESKTOP
-from pyrevit.compat import safe_strtype, PY3, IRONPY3
+from pyrevit.compat import safe_strtype, PY3, IRONPY, IRONPY3
 from pyrevit import PYREVIT_VERSION_APP_DIR, PYREVIT_FILE_PREFIX_STAMPED
 from pyrevit import coreutils
 from pyrevit.coreutils import envvars
@@ -26,12 +26,9 @@ def _emit_direct(handler, record):
     try:
         stream.write(msg + terminator)
     except UnicodeEncodeError:
-        # IronPython 3 hands us sys.stdout with an ASCII encoding by default.
-        # Any non-ASCII character (Cyrillic, emoji shortcode text, etc.) would
-        # raise UnicodeEncodeError, get caught by logging.Handler.handleError,
-        # and print "Logged from file logger.py, line 1" to stderr. Try to
-        # upgrade the stream to UTF-8; fall back to encoding the message with
-        # errors='replace' so the log line is still emitted lossily.
+        # IronPython streams can report or apply an ASCII encoding even when
+        # the runtime output stream is configured for UTF-8. Avoid logging's
+        # recursive handleError path and preserve a readable fallback.
         reconfigured = False
         if hasattr(stream, 'reconfigure'):
             try:
@@ -201,8 +198,9 @@ class LoggerWrapper(logging.Logger):
                 # stream-handler only records based on current level
                 if isinstance(hdlr, logging.StreamHandler) \
                         and record.levelno >= self._curlevel:
-                    if IRONPY3:
-                        # Direct write for IronPython 3 to avoid handler internals
+                    if IRONPY:
+                        # IronPython's native handler can coerce unicode through
+                        # ASCII before writing to the configured UTF-8 stream.
                         try:
                             _emit_direct(hdlr, record)
                         except Exception:
@@ -212,8 +210,8 @@ class LoggerWrapper(logging.Logger):
                 # file-handler must record everything
                 elif isinstance(hdlr, logging.FileHandler) \
                         and self._filelogstate:
-                    if IRONPY3:
-                        # Direct write for IronPython 3 to avoid handler internals
+                    if IRONPY:
+                        # Keep file output on the same unicode-safe path.
                         try:
                             _emit_direct(hdlr, record)
                         except Exception:
@@ -221,8 +219,8 @@ class LoggerWrapper(logging.Logger):
                     else:
                         hdlr.handle(record)
             except Exception:
-                # Silently ignore handler errors for IronPython 3
-                if not IRONPY3:
+                # Avoid recursively logging handler failures on IronPython.
+                if not IRONPY:
                     raise
 
     def isEnabledFor(self, level):
