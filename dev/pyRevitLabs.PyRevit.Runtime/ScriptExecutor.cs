@@ -39,7 +39,11 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
                 // release the executed script's references; this handler lives
                 // for the whole process and would otherwise pin the previous
-                // session's runtime objects (UIApp, documents) across reloads
+                // session's runtime objects (UIApp, documents) across reloads.
+                // NOTE: these fields are a singleton and not thread-safe. A
+                // concurrent non-blocking RequestExecuteScript can overwrite a
+                // pending script before Execute() fires for it; this is a
+                // pre-existing limitation of the single-handler design.
                 ScriptData = null;
                 ScriptRuntimeConfigs = null;
             }
@@ -62,10 +66,19 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private static ExternalEvent extExecEvent;
 
         public static void Initialize() {
-            // both the python session manager and the c# session manager call
-            // Initialize() during load; recreating the ExternalEvent orphans the
-            // previous registration and risks breaking an in-flight
-            // RequestExecuteScript waiting on the old event
+            // Idempotent on purpose. The ExternalEvent is scoped to the add-in
+            // lifetime (the loader stays registered for the whole Revit process),
+            // not to a pyRevit session, so the same event remains valid across
+            // reloads and is reused instead of recreated. Reusing it avoids
+            // leaking an undisposed ExternalEvent + handler on every reload
+            // (Revit holds a strong reference to the handler) and avoids breaking
+            // an in-flight RequestExecuteScript. Both the python and c# session
+            // managers call Initialize() during a single load, so the early
+            // return also collapses that double call.
+            // NOTE: assemblies load into the default (non-collectible)
+            // AssemblyLoadContext, so there is no per-session context to pin or
+            // unload here; revisit this if pyRevit ever adopts collectible load
+            // contexts, where disposing the old event on reload would matter.
             if (extExecEvent != null)
                 return;
 
