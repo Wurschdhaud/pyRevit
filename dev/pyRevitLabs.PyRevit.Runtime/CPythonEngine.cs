@@ -310,7 +310,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
             var engineVersion = new PyRevitEngineVersion(int.Parse(runtime.EngineVersion));
             var attachment = PyRevitAttachments.GetAttachedCached(int.Parse(runtime.App.VersionNumber));
             if (attachment?.Clone is null)
-                throw new PyRevitException("pyRevit is not attached to this Revit version; can not resolve the CPython engine.");
+                throw new PyRevitException("pyRevit is not attached to this Revit version; cannot resolve the CPython engine.");
             var clone = attachment.Clone;
             var engine = clone.GetCPythonEngine(engineVersion);
             var dllPath = engine.AssemblyPath;

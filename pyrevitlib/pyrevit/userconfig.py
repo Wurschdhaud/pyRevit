@@ -782,7 +782,7 @@ class PyRevitConfig(configparser.PyRevitConfigParser):
         """Return current pyRevit attachment.
 
         The lookup re-reads the addin manifests and the clones registry from
-        disk, but the attachment can not change for the running session except
+        disk, but the attachment cannot change for the running session except
         through Attach/Detach (which invalidate the cache). The shared cache
         lets all script engines (startup scripts, smartbuttons, commands,
         hooks) reuse a single disk lookup. Cleared on reload by

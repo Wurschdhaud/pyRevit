@@ -471,7 +471,7 @@ class SettingsWindow(forms.WPFWindow):
         return str(version) == EXEC_PARAMS.engine_ver
 
     def update_addinfiles(self):
-        """Enables/Disables the adding files for different Revit versions."""
+        """Enables/Disables the addin files for different Revit versions."""
         # read fresh: this attachment is rewritten below, so a value cached
         # before an out-of-process change must not be written back
         attachment = user_config.get_current_attachment(cached=False)
