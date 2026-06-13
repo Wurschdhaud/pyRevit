@@ -36,6 +36,12 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
                 // request execution and set results
                 Result = ScriptExecutor.ExecuteScript(ScriptData, ScriptRuntimeConfigs);
+
+                // release the executed script's references; this handler lives
+                // for the whole process and would otherwise pin the previous
+                // session's runtime objects (UIApp, documents) across reloads
+                ScriptData = null;
+                ScriptRuntimeConfigs = null;
             }
         }
 

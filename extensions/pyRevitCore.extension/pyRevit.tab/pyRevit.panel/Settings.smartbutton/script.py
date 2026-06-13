@@ -472,8 +472,9 @@ class SettingsWindow(forms.WPFWindow):
 
     def update_addinfiles(self):
         """Enables/Disables the adding files for different Revit versions."""
-        # update active engine
-        attachment = user_config.get_current_attachment()
+        # read fresh: this attachment is rewritten below, so a value cached
+        # before an out-of-process change must not be written back
+        attachment = user_config.get_current_attachment(cached=False)
         if attachment:
             # if attachment is for all users dont attempt at making changes
             # user probably does not have write access and this fails
