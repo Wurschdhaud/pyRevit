@@ -79,6 +79,9 @@ namespace PyRevitLabs.PyRevit.Runtime {
             // AssemblyLoadContext, so there is no per-session context to pin or
             // unload here; revisit this if pyRevit ever adopts collectible load
             // contexts, where disposing the old event on reload would matter.
+            // The check-then-create below is intentionally unlocked: both call
+            // sites run on the Revit main thread during init, so there is no
+            // concurrent entry to guard against.
             if (extExecEvent != null)
                 return;
 
