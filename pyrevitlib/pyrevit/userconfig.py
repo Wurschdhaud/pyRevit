@@ -43,14 +43,12 @@ from pyrevit import PyRevitException
 from pyrevit import EXTENSIONS_DEFAULT_DIR, THIRDPARTY_EXTENSIONS_DEFAULT_DIR
 from pyrevit import PYREVIT_ALLUSER_APP_DIR, PYREVIT_APP_DIR
 from pyrevit.compat import winreg as wr
-from pyrevit.framework import AppDomain
 
 from pyrevit.labs import PyRevit
 
 from pyrevit import coreutils
 from pyrevit.coreutils import appdata
 from pyrevit.coreutils import configparser
-from pyrevit.coreutils import envvars
 from pyrevit.coreutils import logger
 from pyrevit.versionmgr import upgrade
 # pylint: disable=C0103,C0413,W0703
@@ -61,20 +59,6 @@ mlogger = logger.get_logger(__name__)
 
 
 CONSTS = PyRevit.PyRevitConsts
-
-# session-scoped cache for PyRevitAttachments.GetAttached() results.
-# must match DomainStorageKeys.AttachmentCacheKey in
-# dev/pyRevitLabs.PyRevit.Runtime/EnvVariables.cs
-ATTACHMENT_CACHE_KEY = envvars.PRODUCT_NAME + "CachedAttachment"
-
-
-def clear_cached_attachment():
-    """Clear the session-scoped attachment cache.
-
-    Called by sessionmgr.load_session() so a re-attached clone is picked
-    up on pyRevit reload without restarting Revit.
-    """
-    AppDomain.CurrentDomain.SetData(ATTACHMENT_CACHE_KEY, None)
 
 
 class PyRevitConfig(configparser.PyRevitConfigParser):
@@ -797,23 +781,16 @@ class PyRevitConfig(configparser.PyRevitConfigParser):
     def get_current_attachment(self):
         """Return current pyRevit attachment (cached per session).
 
-        PyRevitAttachments.GetAttached() re-reads the addin manifests and
-        the clones registry from disk on every call, but the attachment can
-        not change for the running session. The result is cached in AppDomain
-        data so all script engines (startup scripts, smartbuttons, commands,
-        hooks) share a single disk lookup. Cleared on session load/reload by
+        The lookup re-reads the addin manifests and the clones registry from
+        disk, but the attachment can not change for the running session except
+        through Attach/Detach (which invalidate the cache). The shared cache
+        lets all script engines (startup scripts, smartbuttons, commands,
+        hooks) reuse a single disk lookup. Cleared on reload by
         sessionmgr.load_session().
         """
         try:
-            cached = AppDomain.CurrentDomain.GetData(ATTACHMENT_CACHE_KEY)
-            if cached:
-                return cached
-            attachment = \
-                PyRevit.PyRevitAttachments.GetAttached(int(HOST_APP.version))
-            if attachment:
-                AppDomain.CurrentDomain.SetData(
-                    ATTACHMENT_CACHE_KEY, attachment)
-            return attachment
+            return PyRevit.PyRevitAttachments.GetAttachedCached(
+                int(HOST_APP.version))
         except PyRevitException as ex:
             mlogger.error('Error getting current attachment. | %s', ex)
 

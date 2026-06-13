@@ -307,7 +307,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         {
             // PyRevitConfigs.GetCPythonEngineVersion()
             var engineVersion = new PyRevitEngineVersion(int.Parse(runtime.EngineVersion));
-            var attachment = AttachmentCache.GetAttached(int.Parse(runtime.App.VersionNumber));
+            var attachment = PyRevitAttachments.GetAttachedCached(int.Parse(runtime.App.VersionNumber));
             var clone = attachment.Clone;
             var engine = clone.GetCPythonEngine(engineVersion);
             var dllPath = engine.AssemblyPath;
