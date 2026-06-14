@@ -142,7 +142,7 @@ def _get_collab_cache_root(version):
         str: Normalised absolute path to the collaboration cache root.
     """
     custom = _get_custom_cache_root(version)
-    if custom:
+    if custom and op.isdir(custom):
         return custom
 
     default = op.normpath(op.expandvars(
