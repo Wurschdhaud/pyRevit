@@ -115,9 +115,9 @@ class PyRevitOutputWindow(object):
             # bind to the output of the running command; outside of a command
             # (e.g. during session load) fall back to the session output
             runtime = EXEC_PARAMS.script_runtime
-            if runtime:
-                out = ScriptOutput.GetForRuntime(runtime)
-            else:
+            if runtime and not getattr(runtime, 'IsDisposed', False):
+                out = getattr(runtime, 'OutputService', None)
+            if out is None:
                 out = ScriptOutput.GetDefault()
             object.__setattr__(self, '_rt_out', out)
         return out

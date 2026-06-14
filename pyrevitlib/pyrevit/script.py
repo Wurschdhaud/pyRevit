@@ -141,10 +141,10 @@ def get_pyrevit_version():
 
 
 def get_logger():
-    """Create and return logger named for current script.
+    """Return the runtime-backed logging facade for the current script.
 
     Returns:
-        (pyrevit.coreutils.logger.LoggerWrapper): Logger object
+        (pyrevit.coreutils.logger.LoggerWrapper): Logging facade
     """
     return logger.get_logger(EXEC_PARAMS.command_name)
 

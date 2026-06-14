@@ -98,8 +98,6 @@ def _setup_output():
     outstr = out.output_stream
     sys.stdout = outstr
     # sys.stderr = outstr
-    stdout_hndlr = logger.get_stdout_hndlr()
-    stdout_hndlr.stream = outstr
 
     # return the runtime wrapper so self_destruct works on first load too
     return out
@@ -111,8 +109,6 @@ def _cleanup_output():
     except Exception:
         pass
     sys.stdout = None
-    stdout_hndlr = logger.get_stdout_hndlr()
-    stdout_hndlr.stream = None
 
 
 # -----------------------------------------------------------------------------
