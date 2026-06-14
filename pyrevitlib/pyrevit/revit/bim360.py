@@ -119,7 +119,7 @@ def _get_custom_cache_root(version):
         mlogger.debug('No %s key in [%s]', CLOUD_MODEL_CACHE_KEY, CLOUD_MODEL_CACHE_SECTION)
         return None
 
-    raw = cfg.get(CLOUD_MODEL_CACHE_SECTION, CLOUD_MODEL_CACHE_KEY).strip()
+    raw = cfg.get(CLOUD_MODEL_CACHE_SECTION, CLOUD_MODEL_CACHE_KEY, raw=True).strip()
     if not raw:
         mlogger.debug('Empty CacheLocation in Revit.ini')
         return None
