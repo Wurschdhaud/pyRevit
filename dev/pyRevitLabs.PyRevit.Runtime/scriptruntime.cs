@@ -130,6 +130,11 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         public ScriptData ScriptData { get; private set; }
         public ScriptRuntimeConfigs ScriptRuntimeConfigs { get; private set; }
+        public bool IsDisposed { get; private set; }
+        public ScriptLoggerService LoggerService =>
+            ScriptLoggerService.GetForRuntime(this);
+        public ScriptOutput OutputService =>
+            ScriptOutput.GetForRuntime(this);
 
         // target script
         public string ScriptSourceFile {
@@ -419,6 +424,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         // disposal
         public void Dispose() {
+            IsDisposed = true;
             UIControlledApp = null;
             ControlledApp = null;
             _uiApp = null;

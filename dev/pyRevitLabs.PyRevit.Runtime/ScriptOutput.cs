@@ -66,7 +66,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         /// null runtime resolve to the shared session output.
         /// </summary>
         public static ScriptOutput GetForRuntime(ScriptRuntime runtime) {
-            if (runtime == null)
+            if (runtime == null || runtime.IsDisposed)
                 return GetDefault();
 
             if (IsStartupRuntime(runtime))
@@ -266,30 +266,66 @@ namespace PyRevitLabs.PyRevit.Runtime {
             write((content ?? string.Empty) + Environment.NewLine);
         }
 
-        public void log_debug(string message) {
+        internal void write_log_record(string content, bool markError) {
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher != null
+                    && !dispatcher.HasShutdownStarted
+                    && !dispatcher.HasShutdownFinished
+                    && !dispatcher.CheckAccess()) {
+                dispatcher.BeginInvoke(
+                    new Action(() => write_log_record(content, markError)),
+                    DispatcherPriority.Background);
+                return;
+            }
+
+            if (markError)
+                mark_error();
+            write_line(content);
+        }
+
+        private void log_to_activity(Action<ScriptConsole> writeLog) {
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher != null
+                    && !dispatcher.HasShutdownStarted
+                    && !dispatcher.HasShutdownFinished
+                    && !dispatcher.CheckAccess()) {
+                dispatcher.BeginInvoke(
+                    new Action(() => log_to_activity(writeLog)),
+                    DispatcherPriority.Background);
+                return;
+            }
+
             show_logpanel();
-            window.activityBar.ConsoleLog(message);
+            writeLog(window);
+        }
+
+        public void log_debug(string message) {
+            log_to_activity(output => output.activityBar.ConsoleLog(message));
         }
 
         public void log_success(string message) {
-            show_logpanel();
-            window.activityBar.ConsoleLogOK(message);
+            log_to_activity(output => output.activityBar.ConsoleLogOK(message));
         }
 
         public void log_info(string message) {
-            show_logpanel();
-            window.activityBar.ConsoleLogInfo(message);
+            log_to_activity(output => output.activityBar.ConsoleLogInfo(message));
         }
 
         public void log_warning(string message) {
-            show_logpanel();
-            window.activityBar.ConsoleLogWarning(message);
+            log_to_activity(output => output.activityBar.ConsoleLogWarning(message));
+        }
+
+        public void log_deprecate(string message) {
+            log_to_activity(output => output.activityBar.ConsoleLogWarning(message));
         }
 
         public void log_error(string message) {
             mark_error();
-            show_logpanel();
-            window.activityBar.ConsoleLogError(message);
+            log_to_activity(output => output.activityBar.ConsoleLogError(message));
+        }
+
+        public void log_critical(string message) {
+            log_error(message);
         }
 
         public void self_destruct(int seconds) {
