@@ -6,16 +6,7 @@ import re
 from pathlib import Path
 
 from pyrevit import forms, EXEC_PARAMS
-from pyrevit.coreutils import applocales
-
-# ---------------------------------------------------------------------------
-# Locale helpers
-# ---------------------------------------------------------------------------
-
-
-def L(string_dict):
-    """Shorthand for applocales.get_locale_string."""
-    return applocales.get_locale_string(string_dict)
+from pyrevit.coreutils.applocales import get_locale_string
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +162,7 @@ def renamepdf(old_name):
 
 if EXEC_PARAMS.config_mode:
     basefolder = op.expandvars(r"%userprofile%\desktop")
-    print(L(STR["config_mode_notice"]).format(basefolder))
+    print(get_locale_string(STR["config_mode_notice"]).format(basefolder))
 else:
     basefolder = forms.pick_folder()
 
@@ -183,7 +174,7 @@ if not basefolder:
 # ---------------------------------------------------------------------------
 
 include_subfolders = forms.alert(
-    L(STR["include_subfolders"]),
+    get_locale_string(STR["include_subfolders"]),
     yes=True,
     no=True,
 )
@@ -207,7 +198,7 @@ for pdf_file in pdf_files:
         new_stem = renamepdf(pdf_file.stem)
     except (ValueError, re.error) as e:
         err_count += 1
-        print(L(STR["not_renamed_bad_name"]).format(pdf_file))
+        print(get_locale_string(STR["not_renamed_bad_name"]).format(pdf_file))
         print("  -> {}".format(e))
         continue
 
@@ -216,7 +207,7 @@ for pdf_file in pdf_files:
     # --- guard: target already exists ---
     if target.exists():
         err_count += 1
-        print(L(STR["not_renamed_exists"]).format(pdf_file))
+        print(get_locale_string(STR["not_renamed_exists"]).format(pdf_file))
         print("  -> {}".format(target))
         continue
 
@@ -225,16 +216,21 @@ for pdf_file in pdf_files:
         pdf_file.rename(target)
         rename_count += 1
     except OSError as e:
+        import errno as _errno
         err_count += 1
-        print(L(STR["not_renamed_locked"]).format(pdf_file))
-        print("  -> {}".format(e))
+        if e.errno == _errno.EEXIST:
+            print(get_locale_string(STR["not_renamed_exists"]).format(pdf_file))
+            print("  -> {}".format(target))
+        else:
+            print(get_locale_string(STR["not_renamed_locked"]).format(pdf_file))
+            print("  -> {}".format(e))
 
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
 forms.alert(
-    L(STR["summary"]).format(
+    get_locale_string(STR["summary"]).format(
         pdf_count=pdf_count,
         sheet_count=sheet_count,
         rename_count=rename_count,
