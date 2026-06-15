@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using Build.Models;
 
@@ -5,6 +6,15 @@ namespace Build.Helpers;
 
 public static class ProductDataHelper
 {
+    // pyrevit-products.json uses lowercase keys written by the legacy Python CLI.
+    private static readonly JsonSerializerOptions ProductJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
     public static List<ProductRecord> LoadProducts(string path)
     {
         if (!File.Exists(path))
@@ -13,13 +23,13 @@ public static class ProductDataHelper
         }
 
         var json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<List<ProductRecord>>(json) ?? [];
+        return JsonSerializer.Deserialize<List<ProductRecord>>(json, ProductJsonOptions) ?? [];
     }
 
     public static void SaveProducts(string path, IEnumerable<ProductRecord> products)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var json = JsonSerializer.Serialize(products, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(products, ProductJsonOptions);
         File.WriteAllText(path, json);
     }
 

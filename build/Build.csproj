@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Build</RootNamespace>
     <AssemblyName>pyRevit.Build</AssemblyName>
+    <DefaultItemExcludes>$(DefaultItemExcludes);tests/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
