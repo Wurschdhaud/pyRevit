@@ -23,6 +23,7 @@ public sealed class StageBinAssetsModule : Module
         if (!Directory.Exists(cenginesRoot))
             throw new DirectoryNotFoundException($"Missing tracked CPython engines at \"{cenginesRoot}\".");
 
+        // CPY3123 is the minimum engine required today; copy all of release/cengines/ for forward compatibility.
         var cpy3123Source = Path.Combine(cenginesRoot, "CPY3123");
         if (!Directory.Exists(cpy3123Source))
             throw new DirectoryNotFoundException($"Missing CPython 3.12.3 engine at \"{cpy3123Source}\".");

@@ -28,6 +28,8 @@ namespace pyRevitLabs.Common {
     }
 
     public static class GithubRepoHelper {
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+
         private static readonly Regex GithubHttpsRepoPattern =
             new Regex(@"https?://github\.com/(?<owner>[^/]+)/(?<repo>[^/\.]+)", RegexOptions.IgnoreCase);
 
@@ -49,6 +51,10 @@ namespace pyRevitLabs.Common {
             if (match.Success)
                 return string.Format("{0}/{1}", match.Groups["owner"].Value, match.Groups["repo"].Value);
 
+            logger.Warn(
+                "Could not parse GitHub repo URL \"{0}\"; using default {1}.",
+                repoUrl,
+                PyRevitLabsConsts.OriginalRepoId);
             return PyRevitLabsConsts.OriginalRepoId;
         }
     }

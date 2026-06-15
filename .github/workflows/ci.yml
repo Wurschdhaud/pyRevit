@@ -26,7 +26,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 env:
@@ -38,6 +38,9 @@ concurrency:
 
 jobs:
   build:
+    permissions:
+      contents: write
+      actions: read
     outputs:
       build_version: ${{ steps.versionmeta.outputs.build_version }}
       install_version: ${{ steps.versionmeta.outputs.install_version }}
@@ -98,8 +101,9 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $branch = $env:BRANCH_NAME
           $sha = $env:COMMIT_SHA
+          $safeBranch = $branch -replace '[/\\]', '-'
           $shaZip = "unsigned-bin-$sha.zip"
-          $branchZip = "unsigned-bin-$branch-latest.zip"
+          $branchZip = "unsigned-bin-$safeBranch-latest.zip"
           Compress-Archive -Path bin -DestinationPath $shaZip -Force
           Copy-Item $shaZip $branchZip -Force
           gh release view ci-binaries 2>$null
@@ -155,12 +159,10 @@ jobs:
           if (-not (Test-Path $shaZip)) {
             Compress-Archive -Path bin -DestinationPath $shaZip -Force
           }
-          if (-not (Get-Command nuget -ErrorAction SilentlyContinue)) {
-            Invoke-WebRequest -Uri "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" -OutFile nuget.exe
-            $nuget = ".\nuget.exe"
-          } else {
-            $nuget = "nuget"
-          }
+          $nugetVersion = '6.12.2'
+          $nugetUrl = "https://dist.nuget.org/win-x86-commandline/v$nugetVersion/nuget.exe"
+          Invoke-WebRequest -Uri $nugetUrl -OutFile nuget.exe
+          $nuget = ".\nuget.exe"
           $nuspec = @"
           <?xml version="1.0" encoding="utf-8"?>
           <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">

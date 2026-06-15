@@ -27,5 +27,11 @@ namespace pyRevitLabs.UnitTests.Common {
             var repoId = GithubRepoHelper.ParseRepoId("https://github.com/myorg/pyRevit.git");
             Assert.AreEqual("myorg/pyRevit", repoId);
         }
+
+        [TestMethod]
+        public void ParseRepoId_UnrecognizedUrlUsesDefault_Test() {
+            var repoId = GithubRepoHelper.ParseRepoId("not-a-valid-github-url");
+            Assert.AreEqual(PyRevitLabsConsts.OriginalRepoId, repoId);
+        }
     }
 }
