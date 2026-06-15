@@ -56,6 +56,7 @@ if (runCi)
 
 if (runPack || runSign || runPublish)
 {
+    builder.Services.AddModule<RestoreStampedMetadataModule>();
     builder.Services.AddModule<BuildInstallersModule>();
     builder.Services.AddModule<BuildChocoModule>();
 }

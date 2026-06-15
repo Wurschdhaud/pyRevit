@@ -72,5 +72,6 @@ bin/**/*.xml
 
 # build bin (modular pipelines)
 build/bin/*
+build/obj/*
 build/tests/bin/*
 build/tests/obj/*

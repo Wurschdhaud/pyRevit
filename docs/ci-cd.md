@@ -19,7 +19,7 @@ pyRevit's pipeline is split across workflows in [`.github/workflows/`](https://g
 
 | Workflow | File | What it does |
 |----------|------|--------------|
-| **`pyRevit CI`** | [`ci.yml`](https://github.com/pyrevitlabs/pyRevit/blob/develop/.github/workflows/ci.yml) | Runs `dotnet run -- ci` to build unsigned DLLs and upload `unsigned-bin-<sha>`. Runs on every push to `develop` / `master` / `v*` tag (with a path filter), on PRs to those branches, and on manual dispatch. |
+| **`pyRevit CI`** | [`ci.yml`](https://github.com/pyrevitlabs/pyRevit/blob/develop/.github/workflows/ci.yml) | Runs `dotnet run -- ci` to build unsigned DLLs, runs `dotnet test` on the build project, and uploads `unsigned-bin-<sha>`. Runs on every push to `develop` / `master` / `v*` tag (with a path filter), on PRs to those branches, and on manual dispatch. |
 | **`pyRevit WIP`** | [`wip.yml`](https://github.com/pyrevitlabs/pyRevit/blob/develop/.github/workflows/wip.yml) | Downloads CI artifacts, runs `dotnet run -- pack sign` under the **`production`** environment, and uploads signed WIP installers. |
 | **`pyRevit Release`** | [`release.yml`](https://github.com/pyrevitlabs/pyRevit/blob/develop/.github/workflows/release.yml) | On `v*` tag pushes, waits for CI, runs `dotnet run -- release pack sign publish` under **`production`**, then notifies linked issues. |
 | **`Update Winget manifests`** | [`winget.yml`](https://github.com/pyrevitlabs/pyRevit/blob/develop/.github/workflows/winget.yml) | After a GitHub release is **published**, runs `dotnet run -- winget` to submit WinGet manifest PRs. |
@@ -53,7 +53,7 @@ Doc-only or other out-of-scope changes skip CI entirely.
 
 ### Official repository vs forks
 
-The stamping steps (`set year`, `set build wip|release`, `set products`) only run when `github.repository == pyrevitlabs/pyRevit` inside the ModularPipelines modules gated by `Build__Channel`. The downstream `wip.yml` and `release.yml` jobs are similarly gated on the main repo so secrets are never exposed to forks. Forks still get checkout and an **unsigned** product build via `ci.yml` (useful for PR validation).
+The stamping steps (`set year`, `set build wip|release`, `set products`) only run when `Build__Channel` is `wip` or `release` **and** `GITHUB_REPOSITORY` is the main repo (`pyrevitlabs/pyRevit`). The downstream `wip.yml` and `release.yml` jobs are similarly gated on the main repo so secrets are never exposed to forks. Forks still get checkout and an **unsigned** product build via `ci.yml` (useful for PR validation).
 
 ## Feature or fix → `develop` (WIP)
 
@@ -66,7 +66,7 @@ The stamping steps (`set year`, `set build wip|release`, `set products`) only ru
 3. `wip.yml` is triggered automatically when that CI run finishes successfully on `develop`. On the main repo:
 
     - Downloads CI artifacts and runs `dotnet run -- pack sign` to sign DLLs, build/sign installers and the Chocolatey `.nupkg`, and upload `pyrevit-wip-installers-<install-version>`.
-    - The **`notify`** job in `ci.yml` runs `dotnet run -- notify` so linked issues can be updated for testers.
+    - The **`notify`** job in `ci.yml` runs `dotnet run -- notify` with a link to the **WIP workflow run** (where signed installers are published).
 
 **Push to `develop` ⇒ signed WIP installers and notification, not a public GitHub Release.**
 
@@ -171,6 +171,7 @@ CI invokes the ModularPipelines project from [`build/`](../build/) via `dotnet r
 | Command | When / purpose |
 |---------|----------------|
 | `dotnet run -- ci` (in `build/`) | CI build path (replaces `pyrevit check`, `set year`, `set build`, `set products`, `build products`) |
+| `dotnet test tests/Build.Tests.csproj` | Build-project unit tests (also run in CI) |
 | `dotnet run -- pack sign` | WIP/release pack path after artifact restore |
 | `dotnet run -- publish` | Draft GitHub release + Chocolatey push |
 | `dotnet run -- notify` | Post WIP/release URL to linked issues |
@@ -199,7 +200,7 @@ CI invokes the ModularPipelines project from [`build/`](../build/) via `dotnet r
 - **Release fails on `Validate tag matches version`**: the tag (e.g. `v4.8.16`) doesn't match `pyrevitlib/pyrevit/version`. Delete and recreate the tag with the right name, or update the version file and re-tag.
 - **Release fails on `Wait for CI to complete on tagged commit`**: CI either failed or didn't start within 10 minutes of the tag push. Investigate the CI run for the tagged SHA; once it is green, re-run `release.yml`.
 - **Release fails on `Download unsigned bin artifact`**: the CI run exists but the expected `unsigned-bin-<sha>` artifact is missing (most often because CI failed before the upload step). Fix CI and re-run `release.yml`.
-- **Release fails on `Build Installers`**: Inno Setup (`ISCC.exe`), MSBuild, or the legacy WiX v3.x CLI MSI project failed. `windows-2025` preinstalls Inno Setup 6; MSBuild is resolved from `PATH` or Visual Studio's `vswhere.exe`. Local installer builds also need WiX Toolset v3.x build tools until the MSI project is migrated to modern WiX.
+- **Release fails on `Build Installers`**: Inno Setup (`ISCC.exe`), MSBuild, or the legacy WiX v3.x CLI MSI project failed. `windows-2025` preinstalls Inno Setup 6 and WiX Toolset v3.x; MSBuild is resolved from `PATH` or Visual Studio's `vswhere.exe`. Local installer builds need the same tools installed.
 - **Release fails on `Build Choco Package`**: `choco pack` failed, or the upstream signed installer was missing when the SHA was computed. Confirm `Sign installers` produced the expected `dist/*.exe`/`.msi` outputs before this step ran.
 - **Release fails on `Sign Choco Package`**: this step uses the `dotnet sign` CLI (installed via `dotnet tool install --global sign --prerelease`) and authenticates to Azure Trusted Signing via the `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` env vars (DefaultAzureCredential chain). Common causes: (a) the certificate profile lacks the `1.3.6.1.5.5.7.3.3` Code Signing EKU required for NuGet author signing; (b) the App Registration is missing the `Trusted Signing Certificate Profile Signer` role on the Signing Account; (c) the `--prerelease` flag was removed and `sign` is no longer marked prerelease (drop `--prerelease` once the tool has a stable GA release). The previous attempt used `Azure/artifact-signing-action`, but its v2.0.0 PowerShell module routes `.nupkg` to `signtool.exe`, which doesn't recognize the format. Don't switch back without verifying upstream support for NuGet via that action.
 - **Signing step fails (DLLs or installers)**: verify the `production` environment secrets above are present and not expired.

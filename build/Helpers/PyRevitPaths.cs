@@ -81,6 +81,7 @@ public static class PyRevitPaths
 
     public static IReadOnlyList<string> StampedReleaseMetadataFiles =>
     [
+        VersionFile,
         InstallVersionFile,
         PyRevitInstallerScript,
         PyRevitAdminInstallerScript,

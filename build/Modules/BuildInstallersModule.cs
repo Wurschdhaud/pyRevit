@@ -8,6 +8,7 @@ using ModularPipelines.Options;
 
 namespace Build.Modules;
 
+[DependsOn<RestoreStampedMetadataModule>]
 [DependsOn<SignBinariesModule>(Optional = true)]
 public sealed class BuildInstallersModule : Module
 {

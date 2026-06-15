@@ -9,12 +9,13 @@ on:
       ci_run_id:
         required: true
         type: string
-      build_version:
-        required: true
-        type: string
       install_version:
         required: true
         type: string
+    outputs:
+      workflow_run_id:
+        description: Actions run id for this WIP workflow (signed installers and notify link)
+        value: ${{ jobs.sign-wip.outputs.workflow_run_id }}
 
 concurrency:
   group: pyrevit-wip-${{ inputs.head_sha }}
@@ -27,8 +28,15 @@ jobs:
       contents: read
       actions: write
     environment: production
+    outputs:
+      workflow_run_id: ${{ steps.runmeta.outputs.run_id }}
 
     steps:
+      - name: Record workflow run id
+        id: runmeta
+        shell: bash
+        run: echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

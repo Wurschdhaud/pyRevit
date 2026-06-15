@@ -68,6 +68,10 @@ jobs:
           Build__Channel: ${{ github.ref == 'refs/heads/develop' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && 'wip' || ((github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) && 'release') || 'none' }}
         run: dotnet run -c Release -- ci
 
+      - name: Run build unit tests
+        working-directory: build
+        run: dotnet test tests/Build.Tests.csproj -c Release
+
       - name: Capture build versions
         id: versionmeta
         shell: bash
@@ -101,7 +105,6 @@ jobs:
     with:
       head_sha: ${{ github.sha }}
       ci_run_id: ${{ github.run_id }}
-      build_version: ${{ needs.build.outputs.build_version }}
       install_version: ${{ needs.build.outputs.install_version }}
     secrets: inherit
 
@@ -129,5 +132,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           Build__Channel: wip
-          Build__NotifyUrl: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          Build__NotifyUrl: https://github.com/${{ github.repository }}/actions/runs/${{ needs.wip.outputs.workflow_run_id }}
         run: dotnet run -c Release -- notify
