@@ -188,7 +188,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 pendingChars = _pendingChars;
             }
 
-            PumpAfterWrite(output, needShow, pendingChars);
+            PumpAfterWrite(output, needShow, pendingChars, forceSyncFlush: true);
         }
 
         public void WriteError(string error_msg, ScriptEngineType engineType) {
@@ -246,7 +246,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
             PumpAfterWrite(output, needShow, pendingChars);
         }
 
-        private void PumpAfterWrite(ScriptConsole output, bool needShow, int pendingChars) {
+        private void PumpAfterWrite(ScriptConsole output, bool needShow, int pendingChars, bool forceSyncFlush = false) {
             if (needShow) {
                 try {
                     output.Show();
@@ -272,7 +272,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
             var dispatcher = output.Dispatcher;
             if (IsDispatcherReady(dispatcher) && dispatcher.CheckAccess()
-                    && (!_syncFlushedOnce
+                    && (forceSyncFlush
+                        || !_syncFlushedOnce
                         || pendingChars >= SoftFlushCharLimit
                         || _syncFlushClock.Elapsed >= SyncFlushInterval)) {
                 _syncFlushedOnce = true;

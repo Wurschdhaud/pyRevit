@@ -724,12 +724,27 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         private static string MarkdownTableToHtml(IEnumerable<string> lines) {
             var rows = new List<string[]>();
+            var aligns = new List<string>();
             foreach (var line in lines) {
                 var trimmed = line.Trim();
                 if (!(trimmed.StartsWith("|") && trimmed.EndsWith("|")))
                     continue;
-                if (Regex.IsMatch(trimmed, @"^\|[:\-\s\|]+\|$"))
+                if (Regex.IsMatch(trimmed, @"^\|[:\-\s\|]+\|$")) {
+                    foreach (var spec in trimmed.Trim('|').Split('|')) {
+                        var s = spec.Trim();
+                        var left = s.StartsWith(":");
+                        var right = s.EndsWith(":");
+                        if (left && right)
+                            aligns.Add("center");
+                        else if (right)
+                            aligns.Add("right");
+                        else if (left)
+                            aligns.Add("left");
+                        else
+                            aligns.Add(string.Empty);
+                    }
                     continue;
+                }
                 rows.Add(trimmed.Trim('|').Split('|'));
             }
 
@@ -738,23 +753,33 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
             var html = new StringBuilder("<table>");
             html.Append("<thead><tr>");
-            foreach (var col in rows[0])
-                html.AppendFormat("<th>{0}</th>", InlineMarkdown(col.Trim()));
+            var headerCells = rows[0];
+            for (var idx = 0; idx < headerCells.Length; idx++)
+                html.AppendFormat("<th{0}>{1}</th>", AlignAttr(aligns, idx), InlineMarkdown(headerCells[idx].Trim()));
             html.Append("</tr></thead><tbody>");
             for (var rowIdx = 1; rowIdx < rows.Count; rowIdx++) {
                 html.Append("<tr>");
-                foreach (var col in rows[rowIdx])
-                    html.AppendFormat("<td>{0}</td>", InlineMarkdown(col.Trim()));
+                var cells = rows[rowIdx];
+                for (var idx = 0; idx < cells.Length; idx++)
+                    html.AppendFormat("<td{0}>{1}</td>", AlignAttr(aligns, idx), InlineMarkdown(cells[idx].Trim()));
                 html.Append("</tr>");
             }
             html.Append("</tbody></table>");
             return html.ToString();
         }
 
+        private static string AlignAttr(List<string> aligns, int idx) {
+            if (idx < aligns.Count && !string.IsNullOrEmpty(aligns[idx]))
+                return string.Format(" style='text-align:{0}'", aligns[idx]);
+            return string.Empty;
+        }
+
         private static string InlineMarkdown(string text) {
             var encoded = text ?? string.Empty;
             encoded = Regex.Replace(encoded, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
             encoded = Regex.Replace(encoded, @"__(.+?)__", "<strong>$1</strong>");
+            encoded = Regex.Replace(encoded, @"\*(.+?)\*", "<em>$1</em>");
+            encoded = Regex.Replace(encoded, @"(?<!\w)_(.+?)_(?!\w)", "<em>$1</em>");
             encoded = Regex.Replace(encoded, @"`(.+?)`", "<code>$1</code>");
             return encoded;
         }
