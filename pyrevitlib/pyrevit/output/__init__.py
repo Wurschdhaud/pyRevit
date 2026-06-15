@@ -86,9 +86,11 @@ class PyRevitOutputWindow(object):
     code, tables, images), drawing charts, managing window geometry and icon,
     driving the progress bar and log panel, and saving the rendered contents.
 
-    Each wrapper binds to one ``ScriptOutput``: the running command's own window,
-    or the shared session window when no command is running (e.g. session load).
-    The binding is resolved once and cached for the wrapper's lifetime.
+    Each wrapper binds at construction to one ``ScriptOutput``: the running
+    command's own window, or the shared session window when no command is
+    running (e.g. session load). The binding is cached for the wrapper's
+    lifetime, so retaining the wrapper also retains the correct output for
+    deferred and modeless callbacks after the command returns.
 
     Members not listed here are forwarded to the underlying ``ScriptOutput``
     .NET object.
@@ -104,18 +106,23 @@ class PyRevitOutputWindow(object):
         ```
     """
 
+    def __init__(self):
+        # Deferred callbacks must retain the command output selected while the
+        # command runtime is still active.
+        self._runtime_output()
+
     def _runtime_output(self):
         """Return the runtime ``ScriptOutput`` this wrapper is bound to.
 
-        Resolved once per wrapper instance: the running command's output,
-        or the shared session output when no command is running.
+        The binding is resolved during wrapper construction and reused for the
+        wrapper's lifetime.
         """
         out = self.__dict__.get('_rt_out')
         if out is None:
             # bind to the output of the running command; outside of a command
             # (e.g. during session load) fall back to the session output
             runtime = EXEC_PARAMS.script_runtime
-            if runtime and not getattr(runtime, 'IsDisposed', False):
+            if runtime:
                 out = getattr(runtime, 'OutputService', None)
             if out is None:
                 out = ScriptOutput.GetDefault()
@@ -730,5 +737,9 @@ class PyRevitOutputWindow(object):
 
 
 def get_output():
-    """:obj:`pyrevit.output.PyRevitOutputWindow`: Return output window."""
+    """:obj:`PyRevitOutputWindow`: Return a wrapper bound to current output.
+
+    Retain the returned wrapper when it will be used by a deferred or modeless
+    callback after the current command returns.
+    """
     return PyRevitOutputWindow()

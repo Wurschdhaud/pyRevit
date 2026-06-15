@@ -31,6 +31,9 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private ScriptIO _outputStream;
         private UIApplication _uiApp;
         private bool _debugMode;
+        private string _title;
+        private string _outputId;
+        private string _appVersion;
         private bool _hasErrors;
         private bool _isSessionOutput;
         private int _tableCounter;
@@ -44,6 +47,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
             _runtime = new WeakReference<ScriptRuntime>(runtime);
             _uiApp = runtime.UIApp;
             _debugMode = runtime.ScriptRuntimeConfigs?.DebugMode ?? false;
+            _title = runtime.ScriptData?.CommandName;
+            _outputId = runtime.ScriptData?.CommandUniqueId;
         }
 
         /// <summary>Get the shared session output, creating it on first use.</summary>
@@ -81,8 +86,40 @@ namespace PyRevitLabs.PyRevit.Runtime {
                     return null;
 
                 ScriptRuntime runtime;
-                return _runtime.TryGetTarget(out runtime) ? runtime : null;
+                return _runtime.TryGetTarget(out runtime)
+                    && runtime != null
+                    && !runtime.IsDisposed
+                    ? runtime
+                    : null;
             }
+        }
+
+        private static string GetRuntimeAppVersion(ScriptRuntime runtime) {
+            if (runtime?.EnvDict == null)
+                return null;
+
+            return string.Format(
+                "{0}:{1}:{2}",
+                runtime.EnvDict.PyRevitVersion,
+                runtime.EngineType == ScriptEngineType.CPython
+                    ? runtime.EnvDict.PyRevitCPYVersion
+                    : runtime.EnvDict.PyRevitIPYVersion,
+                runtime.EnvDict.RevitVersion);
+        }
+
+        private void ApplyWindowIdentity(ScriptConsole outWindow) {
+            if (string.IsNullOrEmpty(_appVersion) && _runtime != null) {
+                ScriptRuntime runtime;
+                if (_runtime.TryGetTarget(out runtime))
+                    _appVersion = GetRuntimeAppVersion(runtime);
+            }
+
+            if (!string.IsNullOrEmpty(_title))
+                outWindow.OutputTitle = _title;
+            if (!string.IsNullOrEmpty(_outputId))
+                outWindow.OutputId = _outputId;
+            if (!string.IsNullOrEmpty(_appVersion))
+                outWindow.AppVersion = _appVersion;
         }
 
         internal static ScriptOutput GetDefaultIfWindowReady() {
@@ -178,14 +215,15 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 _uiApp = uiApp;
             if (debugMode)
                 _debugMode = true;
+            if (!string.IsNullOrEmpty(title))
+                _title = title;
+            if (!string.IsNullOrEmpty(outputId))
+                _outputId = outputId;
+            if (!string.IsNullOrEmpty(appVersion))
+                _appVersion = appVersion;
 
             var outWindow = window;
-            if (!string.IsNullOrEmpty(title))
-                outWindow.OutputTitle = title;
-            if (!string.IsNullOrEmpty(outputId))
-                outWindow.OutputId = outputId;
-            if (!string.IsNullOrEmpty(appVersion))
-                outWindow.AppVersion = appVersion;
+            ApplyWindowIdentity(outWindow);
             if (isSessionOutput) {
                 _isSessionOutput = true;
                 outWindow.IsSessionOutput = true;
@@ -195,13 +233,16 @@ namespace PyRevitLabs.PyRevit.Runtime {
         public ScriptConsole window {
             get {
                 var runtime = BoundRuntime;
-                if (runtime != null)
-                    return runtime.OutputWindow;
+                if (runtime != null) {
+                    _window = runtime.OutputWindow;
+                    return _window;
+                }
 
                 if (_window == null || _window.ClosedByUser) {
                     _window = new ScriptConsole(_debugMode, _uiApp);
                     if (string.IsNullOrEmpty(_window.OutputId))
                         _window.OutputId = "pyrevit-output";
+                    ApplyWindowIdentity(_window);
                     // re-apply session state so a window reopened mid-session is still
                     // protected from close_other_outputs
                     _window.IsSessionOutput = _isSessionOutput;
@@ -216,8 +257,10 @@ namespace PyRevitLabs.PyRevit.Runtime {
         public ScriptIO output_stream {
             get {
                 var runtime = BoundRuntime;
-                if (runtime != null)
+                if (runtime != null) {
+                    _window = runtime.OutputWindow;
                     return runtime.OutputStream;
+                }
 
                 if (_outputStream == null) {
                     _outputStream = new ScriptIO(window);

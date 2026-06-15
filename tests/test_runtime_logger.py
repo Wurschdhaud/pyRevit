@@ -204,6 +204,16 @@ class RuntimeLoggerTests(unittest.TestCase):
             else:
                 sys.modules['pyrevit.runtime.types'] = previous_types
 
+    def test_runtime_service_is_resolved_without_importing_types(self):
+        runtime_service = FakeService()
+        self.module.EXEC_PARAMS.script_runtime = types.SimpleNamespace(
+            IsDisposed=True,
+            LoggerService=runtime_service)
+        try:
+            self.assertIs(runtime_service, self.original_resolve_service())
+        finally:
+            self.module.EXEC_PARAMS.script_runtime = None
+
     def test_live_runtime_uses_instance_logger_service(self):
         runtime_types = types.ModuleType('pyrevit.runtime.types')
         runtime_service = FakeService()

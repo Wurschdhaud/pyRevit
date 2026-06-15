@@ -150,7 +150,10 @@ def get_logger():
 
 
 def get_output():
-    """Return object wrapping output window for current script.
+    """Return a wrapper bound to the current script output.
+
+    The output binding is captured immediately. Retain the returned wrapper
+    when using it from deferred or modeless callbacks after the command returns.
 
     Returns:
         (pyrevit.output.PyRevitOutputWindow): Output wrapper object

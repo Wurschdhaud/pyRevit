@@ -22,12 +22,12 @@ logging.addLevelName(SUCCESS_LOG_LEVEL, "SUCCESS")
 def _resolve_service():
     """Resolve against the active command on every call for persistent engines."""
     try:
-        from pyrevit.runtime.types import ScriptLoggerService
         runtime = EXEC_PARAMS.script_runtime
-        if runtime and not getattr(runtime, 'IsDisposed', False):
+        if runtime:
             service = getattr(runtime, 'LoggerService', None)
             if service is not None:
                 return service
+        from pyrevit.runtime.types import ScriptLoggerService
         return ScriptLoggerService.GetDefault()
     except Exception:
         return None

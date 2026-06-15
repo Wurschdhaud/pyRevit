@@ -83,6 +83,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
         // output stream
         private WeakReference<ScriptConsole> _scriptOutput = new WeakReference<ScriptConsole>(null);
         private WeakReference<ScriptIO> _outputStream = new WeakReference<ScriptIO>(null);
+        private ScriptOutput _outputService;
 
         // dict for command result data
         private Dictionary<string, string> _resultsDict = null;
@@ -126,6 +127,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
             // prepare results
             ExecutionResult = ScriptExecutorResultCodes.Succeeded;
             TraceMessage = string.Empty;
+            _outputService = ScriptOutput.GetForRuntime(this);
         }
 
         public ScriptData ScriptData { get; private set; }
@@ -133,8 +135,13 @@ namespace PyRevitLabs.PyRevit.Runtime {
         public bool IsDisposed { get; private set; }
         public ScriptLoggerService LoggerService =>
             ScriptLoggerService.GetForRuntime(this);
-        public ScriptOutput OutputService =>
-            ScriptOutput.GetForRuntime(this);
+        public ScriptOutput OutputService {
+            get {
+                if (_outputService == null)
+                    _outputService = ScriptOutput.GetForRuntime(this);
+                return _outputService;
+            }
+        }
 
         // target script
         public string ScriptSourceFile {
