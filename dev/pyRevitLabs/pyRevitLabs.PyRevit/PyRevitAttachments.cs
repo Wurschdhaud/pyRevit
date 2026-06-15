@@ -21,10 +21,11 @@ namespace pyRevitLabs.PyRevit {
 
         // session cache for GetAttachedCached(). GetAttachments() re-reads the
         // addin manifests and the clones registry from disk on every
-        // enumeration, but within a running Revit session the attachment only
-        // changes through Attach/Detach, which invalidate this cache. The IronPython
-        // loader and the C# runtime share it because both reference this single
-        // assembly; on reload it is cleared via ClearAttachmentCache().
+        // enumeration, but within a running Revit session those inputs only
+        // change through Attach/Detach or clone registry edits, which
+        // invalidate this cache. The IronPython loader and the C# runtime share
+        // it because both reference this single assembly; on reload it is
+        // cleared via ClearAttachmentCache().
         private static readonly Dictionary<int, PyRevitAttachment> _attachmentCache =
             new Dictionary<int, PyRevitAttachment>();
         private static readonly object _attachmentCacheLock = new object();
@@ -150,7 +151,8 @@ namespace pyRevitLabs.PyRevit {
             return GetAllAttached(revitYear)?.FirstOrDefault();
         }
 
-        // get attachment for a revit version, cached for the running session
+        // get attachment for a revit version, cached for the running session.
+        // invalidated by Attach/Detach, clone registry changes, and reload.
         // @handled @logs
         public static PyRevitAttachment GetAttachedCached(int revitYear) {
             lock (_attachmentCacheLock) {
