@@ -50,9 +50,11 @@ if (runCi)
     builder.Services.AddModule<CheckDeployLocksModule>();
     builder.Services.AddModule<BuildEnginesModule>();
     builder.Services.AddModule<BuildRuntimeModule>();
+    builder.Services.AddModule<StageBinAssetsModule>();
     builder.Services.AddModule<BuildAutocompModule>();
     builder.Services.AddModule<VerifyLibGit2Module>();
     builder.Services.AddModule<StageReleaseMetadataModule>();
+    builder.Services.AddModule<WriteCiBinManifestModule>();
 }
 
 if (runPack || runSign || runPublish)

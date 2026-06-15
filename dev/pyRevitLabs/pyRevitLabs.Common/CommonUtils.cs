@@ -136,6 +136,13 @@ namespace pyRevitLabs.Common {
             return HttpClient.GetAsync(url).GetAwaiter().GetResult();
         }
 
+        public static HttpResponseMessage SendHttpRequest(HttpRequestMessage request) {
+            if (!CheckInternetConnection())
+                throw new pyRevitNoInternetConnectionException();
+
+            return HttpClient.SendAsync(request).GetAwaiter().GetResult();
+        }
+
         public static string DownloadFile(string url, string destPath) {
             if (!CheckInternetConnection())
                 throw new pyRevitNoInternetConnectionException();

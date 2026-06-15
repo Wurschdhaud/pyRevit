@@ -44,7 +44,7 @@ public sealed class ProductDataHelperTests
     public void LoadProducts_reads_committed_pyrevit_products_json()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "pyrevit-products.json");
-        Assert.IsTrue(File.Exists(path), "Expected fixture copy of bin/pyrevit-products.json.");
+        Assert.IsTrue(File.Exists(path), "Expected fixture copy of release/pyrevit-products.json.");
 
         var products = ProductDataHelper.LoadProducts(path);
 

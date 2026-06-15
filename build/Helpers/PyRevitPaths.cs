@@ -30,7 +30,18 @@ public static class PyRevitPaths
 
     public static string VersionFile => Path.Combine(Root, "pyrevitlib", "pyrevit", "version");
     public static string InstallVersionFile => Path.Combine(ReleasePath, "version");
+    public static string ProductsTemplateFile => Path.Combine(ReleasePath, "pyrevit-products.json");
     public static string ProductsDataFile => Path.Combine(BinPath, "pyrevit-products.json");
+    public static string HostsDataFile => Path.Combine(ReleasePath, "pyrevit-hosts.json");
+    public static string BinAssetsPath => Path.Combine(ReleasePath, "bin-assets");
+    public static string CEnginesPath => Path.Combine(ReleasePath, "cengines");
+
+    public static IReadOnlyList<string> HostsDataTargets =>
+    [
+        Path.Combine(BinPath, "pyrevit-hosts.json"),
+        Path.Combine(BinPath, "netfx", "pyrevit-hosts.json"),
+        Path.Combine(BinPath, "netcore", "pyrevit-hosts.json"),
+    ];
     public static string VerifyLibGit2Script => Path.Combine(ReleasePath, "Verify-LibGit2NativeDll.ps1");
 
     public static string PyRevitInnoProductCode => "f2a3da53-6f34-41d5-abbd-389ffa7f4d5f";

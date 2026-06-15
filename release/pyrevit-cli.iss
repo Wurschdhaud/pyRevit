@@ -32,7 +32,7 @@ PrivilegesRequired=lowest
 OutputDir=..\dist
 ; See dev/scripts/config.py INSTALLER_EXES
 OutputBaseFilename=pyRevit_CLI_{#MyAppVersion}_signed
-SetupIconFile=..\bin\pyrevit_cli.ico
+SetupIconFile=..\release\bin-assets\pyrevit_cli.ico
 Compression=lzma
 SolidCompression=yes
 DisableWelcomePage=no

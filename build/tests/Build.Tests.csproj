@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\bin\pyrevit-products.json" Link="Fixtures\pyrevit-products.json">
+    <None Include="..\..\release\pyrevit-products.json" Link="Fixtures\pyrevit-products.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
