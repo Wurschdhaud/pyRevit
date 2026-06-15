@@ -171,9 +171,9 @@ namespace PyRevitLabs.PyRevit.Runtime {
             var buffer = new byte[1024];
             // we know how read works so don't need to read size until
             // zero and make multiple calls
-            Read(buffer, 0, 1024);
+            var _ = Read(buffer, 0, 1024);
             // second call to clear the flag
-            Read(buffer, 0, 1024);
+            _ = Read(buffer, 0, 1024);
             return OutputEncoding.GetString(buffer);
         }
 
