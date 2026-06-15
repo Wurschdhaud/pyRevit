@@ -9,6 +9,11 @@ public static class SigningHelper
 {
     public static async Task EnsureSignToolInstalledAsync(IModuleContext context, CancellationToken cancellationToken)
     {
+        if (File.Exists(GetSignExecutablePath()))
+        {
+            return;
+        }
+
         await context.Shell.Command.ExecuteCommandLineTool(
             new GenericCommandLineToolOptions("dotnet")
             {

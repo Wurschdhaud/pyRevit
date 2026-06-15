@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.RegularExpressions;
 using Build.Helpers;
 using Build.Models;
 using ModularPipelines.Attributes;
@@ -30,6 +29,7 @@ public sealed class GenerateReleaseNotesModule : Module<string>
             context.GitHub().Client,
             owner,
             repo,
+            warning => context.Summary.Warning(warning),
             cancellationToken);
 
         var builder = new StringBuilder();
@@ -135,6 +135,7 @@ public sealed class GenerateReleaseNotesModule : Module<string>
         IGitHubClient gitHubClient,
         string owner,
         string repo,
+        Action<string> logWarning,
         CancellationToken cancellationToken)
     {
         var result = await context.Git().Commands.Log(
@@ -144,10 +145,15 @@ public sealed class GenerateReleaseNotesModule : Module<string>
                 Arguments = [$"{previousTag}..HEAD"],
             });
 
-        return await ParseChangesAsync(result.StandardOutput, gitHubClient, owner, repo);
+        return await ParseChangesAsync(result.StandardOutput, gitHubClient, owner, repo, logWarning);
     }
 
-    internal static async Task<IReadOnlyList<ChangeEntry>> ParseChangesAsync(string gitLog, IGitHubClient? gitHubClient, string owner, string repo)
+    internal static async Task<IReadOnlyList<ChangeEntry>> ParseChangesAsync(
+        string gitLog,
+        IGitHubClient? gitHubClient,
+        string owner,
+        string repo,
+        Action<string>? logWarning = null)
     {
         var changes = new List<ChangeEntry>();
         var lines = gitLog.Split('\n');
@@ -184,7 +190,7 @@ public sealed class GenerateReleaseNotesModule : Module<string>
                 index++;
             }
 
-            changes.Add(await ChangeEntry.CreateAsync(hash, message, comments.ToString(), gitHubClient, owner, repo));
+            changes.Add(await ChangeEntry.CreateAsync(hash, message, comments.ToString(), gitHubClient, owner, repo, logWarning));
         }
 
         return changes;
@@ -235,10 +241,10 @@ public sealed class GenerateReleaseNotesModule : Module<string>
             string comments,
             IGitHubClient? gitHubClient,
             string owner,
-            string repo)
+            string repo,
+            Action<string>? logWarning = null)
         {
-            var ticketMatch = Regex.Match(message, @"#(\d+)");
-            var ticket = ticketMatch.Success ? ticketMatch.Groups[1].Value : null;
+            var ticket = IssueReferenceHelper.ExtractIssueNumbers(message).FirstOrDefault();
             var title = message;
             var url = string.Empty;
             var subsystems = new List<string>();
@@ -270,9 +276,13 @@ public sealed class GenerateReleaseNotesModule : Module<string>
                         }
                     }
                 }
-                catch
+                catch (NotFoundException)
                 {
-                    // Issue metadata is optional for release notes generation.
+                    // Issue metadata is optional when the ticket no longer exists.
+                }
+                catch (Exception ex)
+                {
+                    logWarning?.Invoke($"Could not fetch metadata for #{ticket}: {ex.Message}");
                 }
             }
 

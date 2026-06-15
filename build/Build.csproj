@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Build.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="ModularPipelines" Version="3.2.8" />
     <PackageReference Include="ModularPipelines.Cmd" Version="3.2.8" />
     <PackageReference Include="ModularPipelines.DotNet" Version="3.2.8" />

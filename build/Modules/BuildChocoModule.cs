@@ -9,7 +9,7 @@ using ModularPipelines.Options;
 
 namespace Build.Modules;
 
-[DependsOn<SignDistInstallersModule>]
+[DependsOn<SignDistInstallersModule>(Optional = true)]
 public sealed class BuildChocoModule : Module
 {
     protected override async Task ExecuteModuleAsync(IModuleContext context, CancellationToken cancellationToken)

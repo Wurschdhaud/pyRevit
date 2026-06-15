@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Build.Helpers;
 using Build.Models;
 using Build.Options;
@@ -23,7 +22,8 @@ public sealed class NotifyIssuesModule(IOptions<BuildOptions> buildOptions) : Mo
         var notifyUrl = buildOptions.Value.NotifyUrl;
         if (string.IsNullOrWhiteSpace(notifyUrl))
         {
-            throw new InvalidOperationException("NotifyUrl is required for issue notifications.");
+            context.Summary.Warning("NotifyUrl is not set; skipping issue notifications.");
+            return;
         }
 
         var channel = buildOptions.Value.Channel;
@@ -120,10 +120,9 @@ public sealed class NotifyIssuesModule(IOptions<BuildOptions> buildOptions) : Mo
             var parts = line.Split(' ', 2);
             if (parts.Length == 2)
             {
-                var match = Regex.Match(parts[1], @"#(\d+)");
-                if (match.Success)
+                foreach (var ticket in IssueReferenceHelper.ExtractIssueNumbers(parts[1]))
                 {
-                    tickets.Add(new ChangeTicket(match.Groups[1].Value));
+                    tickets.Add(new ChangeTicket(ticket));
                 }
             }
 

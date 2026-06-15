@@ -11,11 +11,11 @@ PyRevitPaths.Initialize();
 var builder = Pipeline.CreateBuilder(args);
 
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: false);
+builder.Configuration.AddEnvironmentVariables();
 builder.Configuration.AddJsonFile(
     $"appsettings.{builder.Configuration["DOTNET_ENVIRONMENT"] ?? "Development"}.json",
     optional: true,
     reloadOnChange: false);
-builder.Configuration.AddEnvironmentVariables();
 builder.Configuration.AddCommandLine(args);
 
 var argsSet = new HashSet<string>(args, StringComparer.OrdinalIgnoreCase);
