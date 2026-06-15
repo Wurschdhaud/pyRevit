@@ -9,9 +9,7 @@ from pyrevit import forms, EXEC_PARAMS
 from pyrevit.coreutils.applocales import get_locale_string
 
 
-# ---------------------------------------------------------------------------
 # Localised UI strings
-# ---------------------------------------------------------------------------
 
 STR = {
     "include_subfolders": {
@@ -105,11 +103,9 @@ STR = {
     },
 }
 
-# ---------------------------------------------------------------------------
 # Sheet prefix terms per locale
 # Used to build the prefix-stripping regex dynamically.
 # Each entry is a list of terms that Revit uses in that locale for "Sheet".
-# ---------------------------------------------------------------------------
 
 SHEET_TERMS = {
     "en_us": ["Sheet"],
@@ -141,9 +137,7 @@ capitalizer = re.compile(r"-(?!.*-)\s*(.*)", re.UNICODE)
 normalizer = re.compile(r"\s*-\s*", re.UNICODE)
 
 
-# ---------------------------------------------------------------------------
 # Core rename logic
-# ---------------------------------------------------------------------------
 
 
 def renamepdf(old_name):
@@ -156,9 +150,7 @@ def renamepdf(old_name):
     return new_name
 
 
-# ---------------------------------------------------------------------------
 # Folder selection
-# ---------------------------------------------------------------------------
 
 if EXEC_PARAMS.config_mode:
     basefolder = op.expandvars(r"%userprofile%\desktop")
@@ -169,9 +161,7 @@ else:
 if not basefolder:
     sys.exit()
 
-# ---------------------------------------------------------------------------
 # Subfolder choice
-# ---------------------------------------------------------------------------
 
 include_subfolders = forms.alert(
     get_locale_string(STR["include_subfolders"]),
@@ -180,9 +170,7 @@ include_subfolders = forms.alert(
 )
 dir_pattern = "**/" if include_subfolders else ""
 
-# ---------------------------------------------------------------------------
 # Main loop
-# ---------------------------------------------------------------------------
 
 pdf_files = list(Path(basefolder).glob("{}*.pdf".format(dir_pattern)))
 pdf_count = len(pdf_files)
@@ -225,9 +213,7 @@ for pdf_file in pdf_files:
             print(get_locale_string(STR["not_renamed_locked"]).format(pdf_file))
             print("  -> {}".format(e))
 
-# ---------------------------------------------------------------------------
 # Summary
-# ---------------------------------------------------------------------------
 
 forms.alert(
     get_locale_string(STR["summary"]).format(
