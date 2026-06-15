@@ -136,7 +136,7 @@ def _execute_renames(rename_pairs):
     failed = []
     temp_name_map = {}
 
-    with revit.Transaction('Rename Sheets (Temporary Names)'):
+    with revit.Transaction('Rename Selected Sheets'):
         for idx, pair in enumerate(rename_pairs):
             sheet = pair['sheet']
             temp_name = '__pyrevit_temp_sheet_name_{}_{}__'.format(
@@ -154,7 +154,6 @@ def _execute_renames(rename_pairs):
                     'reason': 'Could not assign temporary name: {}'.format(err),
                 })
 
-    with revit.Transaction('Rename Sheets'):
         for pair in rename_pairs:
             sheet = pair['sheet']
             if sheet.Id.IntegerValue not in temp_name_map:
