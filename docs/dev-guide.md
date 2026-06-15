@@ -58,7 +58,7 @@ Two common paths:
 
 | Goal | Steps | Gets `bin/` from |
 |------|-------|------------------|
-| **Run pyRevit only** (no C# SDK) | `pyrevit clone dev --source <your-fork-url> --branch develop` | Public [CI Release assets](ci-cd.md#prebuilt-binaries-for-clone) (no token) |
+| **Run pyRevit only** (no C# SDK) | `pyrevit clone dev --source <your-fork-url> --branch develop` | Public [CI Release assets](ci-cd.md#prebuilt-binaries-for-clone) on upstream when fork is synced (no token); diverged forks need `GITHUBTOKEN` or local build |
 | **Contribute C# / debug DLLs** | `git clone` → `dotnet run -- ci` → `pyrevit clones add dev .` | Local build into gitignored `bin/` |
 
 **End-user / quick start** — if pyRevit CLI is installed:
@@ -67,7 +67,7 @@ Two common paths:
 pyrevit clone dev --source <url-of-your-repo> --dest <destination-directory> --branch develop
 ```
 
-This clones source and downloads pre-built binaries from the repo's public GitHub Release (`ci-binaries` tag). No `GITHUBTOKEN` is required for the public `pyrevitlabs/pyRevit` repo.
+This clones source and downloads pre-built binaries from the public GitHub Release (`ci-binaries` tag). No `GITHUBTOKEN` is required for the public `pyrevitlabs/pyRevit` repo. Fork clones fall back to upstream Release assets for the same commit SHA when the fork has no `ci-binaries` release yet. Only **`develop`** and **`master`** are supported for CI binary download.
 
 **Contributor path** — canonical git workflow:
 

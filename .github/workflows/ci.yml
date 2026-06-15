@@ -84,14 +84,20 @@ jobs:
           path: bin/**
 
       - name: Publish unsigned bin to GitHub Release
-        if: github.repository == env.MainRepo && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        if: >
+          github.repository == env.MainRepo &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
         shell: pwsh
-        working-directory: ..
+        working-directory: ${{ github.workspace }}
         env:
           GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          $branch = "${{ github.ref_name }}"
-          $sha = "${{ github.sha }}"
+          $ErrorActionPreference = 'Stop'
+          $branch = $env:BRANCH_NAME
+          $sha = $env:COMMIT_SHA
           $shaZip = "unsigned-bin-$sha.zip"
           $branchZip = "unsigned-bin-$branch-latest.zip"
           Compress-Archive -Path bin -DestinationPath $shaZip -Force
@@ -103,18 +109,52 @@ jobs:
           gh release upload ci-binaries $shaZip --clobber
           gh release upload ci-binaries $branchZip --clobber
 
-      - name: Publish unsigned bin NuGet package
-        if: github.repository == env.MainRepo && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      - name: Prune old CI bin release assets
+        if: >
+          github.repository == env.MainRepo &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
         shell: pwsh
-        working-directory: ..
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $keep = New-Object System.Collections.Generic.HashSet[string]
+          foreach ($branch in @('develop', 'master')) {
+            $runs = gh api "repos/pyrevitlabs/pyRevit/actions/workflows/ci.yml/runs" `
+              -f branch=$branch -f status=completed -f per_page=10 `
+              --jq '.workflow_runs[] | select(.conclusion=="success") | .head_sha'
+            $runs | Select-Object -First 3 | ForEach-Object { [void]$keep.Add($_) }
+          }
+          $assets = gh release view ci-binaries --json assets --jq '.assets[].name'
+          foreach ($asset in $assets) {
+            if ($asset -match '^unsigned-bin-.+-latest\.zip$') { continue }
+            if ($asset -notmatch '^unsigned-bin-([a-f0-9]{40})\.zip$') { continue }
+            $sha = $Matches[1]
+            if (-not $keep.Contains($sha)) {
+              gh release delete-asset ci-binaries $asset --yes
+            }
+          }
+
+      - name: Publish unsigned bin NuGet package
+        if: >
+          github.repository == env.MainRepo &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          $branch = "${{ github.ref_name }}"
-          $sha = "${{ github.sha }}"
+          $ErrorActionPreference = 'Stop'
+          $sha = $env:COMMIT_SHA
           $shortSha = $sha.Substring(0, 7)
           $version = "1.0.0-ci-$shortSha"
           $shaZip = "unsigned-bin-$sha.zip"
+          if (-not (Test-Path $shaZip)) {
+            Compress-Archive -Path bin -DestinationPath $shaZip -Force
+          }
           if (-not (Get-Command nuget -ErrorAction SilentlyContinue)) {
             Invoke-WebRequest -Uri "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" -OutFile nuget.exe
             $nuget = ".\nuget.exe"

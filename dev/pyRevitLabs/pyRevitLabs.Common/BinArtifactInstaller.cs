@@ -23,6 +23,15 @@ namespace pyRevitLabs.Common {
             if (string.IsNullOrWhiteSpace(clonePath))
                 throw new PyRevitException("Clone path can not be null.");
 
+            if (!BinArtifactSupport.IsSupportedCiBinBranch(branchName)) {
+                throw new PyRevitException(
+                    string.Format(
+                        "CI binaries are only published for branches \"{0}\" and \"{1}\". "
+                        + "Checkout a supported branch or build locally with \"dotnet run -- ci\".",
+                        PyRevitLabsConsts.SupportedCiBinBranches[0],
+                        PyRevitLabsConsts.SupportedCiBinBranches[1]));
+            }
+
             if (mode == BinArtifactInstallMode.Update
                 && GitInstaller.IsValidRepo(clonePath)
                 && GitInstaller.IsLocalAheadOfTrackingBranch(clonePath)) {
@@ -49,6 +58,13 @@ namespace pyRevitLabs.Common {
             try {
                 downloaded = TryDownloadPublicRelease(repoId, normalizedSha, branchName, mode, clonePath,
                     allowBranchFallback, tempZip, out usedBranchFallback);
+
+                if (!downloaded && !string.IsNullOrWhiteSpace(GithubAPI.AuthToken)) {
+                    downloaded = GithubNuGetBinAPI.TryDownloadPackageZip(
+                        PyRevitLabsConsts.OriginalRepoId,
+                        normalizedSha,
+                        tempZip);
+                }
 
                 if (!downloaded)
                     downloaded = TryDownloadFromActionsArtifact(
@@ -112,10 +128,17 @@ namespace pyRevitLabs.Common {
             usedBranchFallback = false;
 
             var shaAsset = GithubReleaseBinAPI.BuildShaAssetName(normalizedSha);
-            if (GithubReleaseBinAPI.TryDownloadReleaseAsset(repoId, shaAsset, destPath))
-                return true;
+            foreach (var releaseRepoId in BinArtifactSupport.GetReleaseDownloadRepos(repoId)) {
+                if (GithubReleaseBinAPI.TryDownloadReleaseAsset(releaseRepoId, shaAsset, destPath)) {
+                    if (BinArtifactSupport.IsForkRepo(repoId)
+                        && string.Equals(releaseRepoId, PyRevitLabsConsts.OriginalRepoId, StringComparison.OrdinalIgnoreCase)) {
+                        logger.Info("Installed pre-built binaries from upstream release for synced fork.");
+                    }
+                    return true;
+                }
+            }
 
-            if (!allowBranchFallback)
+            if (!allowBranchFallback || !BinArtifactSupport.IsSupportedCiBinBranch(branchName))
                 return false;
 
             if (mode == BinArtifactInstallMode.Update
@@ -135,8 +158,14 @@ namespace pyRevitLabs.Common {
                 branchName);
 
             var branchAsset = GithubReleaseBinAPI.BuildBranchLatestAssetName(branchName);
-            usedBranchFallback = GithubReleaseBinAPI.TryDownloadReleaseAsset(repoId, branchAsset, destPath);
-            return usedBranchFallback;
+            foreach (var releaseRepoId in BinArtifactSupport.GetReleaseDownloadRepos(repoId)) {
+                if (GithubReleaseBinAPI.TryDownloadReleaseAsset(releaseRepoId, branchAsset, destPath)) {
+                    usedBranchFallback = true;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static bool TryDownloadFromActionsArtifact(
@@ -160,7 +189,7 @@ namespace pyRevitLabs.Common {
             var artifactName = GithubActionsAPI.UnsignedBinArtifactPrefix + normalizedSha;
             var artifact = GithubActionsAPI.FindArtifactByName(repoId, artifactName);
 
-            if (artifact == null && allowBranchFallback) {
+            if (artifact == null && allowBranchFallback && BinArtifactSupport.IsSupportedCiBinBranch(branchName)) {
                 if (mode == BinArtifactInstallMode.Update
                     && GitInstaller.IsValidRepo(clonePath)
                     && !GitInstaller.IsSyncedWithTrackingBranch(clonePath)) {
@@ -192,32 +221,8 @@ namespace pyRevitLabs.Common {
 
             ZipFile.ExtractToDirectory(artifactZipPath, tempExtract);
 
-            var binSource = ResolveBinSourceRoot(tempExtract);
-            var binDest = Path.Combine(clonePath, "bin");
-
-            if (CommonUtils.VerifyPath(binDest))
-                CommonUtils.DeleteDirectory(binDest);
-
-            CommonUtils.CopyDirectory(binSource, binDest);
-        }
-
-        private static string ResolveBinSourceRoot(string extractRoot) {
-            var directBin = Path.Combine(extractRoot, "bin");
-            if (CommonUtils.VerifyPath(directBin))
-                return directBin;
-
-            if (Directory.GetFiles(extractRoot).Length > 0 || Directory.GetDirectories(extractRoot).Length > 1)
-                return extractRoot;
-
-            var subDirs = Directory.GetDirectories(extractRoot);
-            if (subDirs.Length == 1) {
-                var nestedBin = Path.Combine(subDirs[0], "bin");
-                if (CommonUtils.VerifyPath(nestedBin))
-                    return nestedBin;
-                return subDirs[0];
-            }
-
-            return extractRoot;
+            var binSource = BinArtifactSupport.ResolveBinSourceRoot(tempExtract);
+            BinArtifactSupport.SwapBinDirectory(clonePath, binSource);
         }
 
         private static string NormalizeSha(string commitSha) {

@@ -129,6 +129,9 @@ namespace pyRevitLabs.Common {
         }
 
         public static GithubArtifactInfo FindLatestBranchArtifact(string repoId, string branchName) {
+            if (!BinArtifactSupport.IsSupportedCiBinBranch(branchName))
+                return null;
+
             var url = string.Format(
                 "https://api.github.com/repos/{0}/actions/workflows/{1}/runs?branch={2}&status=completed&per_page=20",
                 repoId,
@@ -150,7 +153,7 @@ namespace pyRevitLabs.Common {
                     continue;
 
                 var artifactName = UnsignedBinArtifactPrefix + headSha;
-                var artifact = FindArtifactByName(repoId, artifactName);
+                var artifact = FindArtifactForRun(repoId, runId, artifactName);
                 if (artifact != null) {
                     artifact.WorkflowRunId = runId;
                     return artifact;
@@ -158,6 +161,21 @@ namespace pyRevitLabs.Common {
             }
 
             return null;
+        }
+
+        private static GithubArtifactInfo FindArtifactForRun(string repoId, long runId, string artifactName) {
+            var url = string.Format(
+                "https://api.github.com/repos/{0}/actions/runs/{1}/artifacts?per_page=5",
+                repoId,
+                runId);
+            var payload = GetJson(url, requireAuth: true);
+            var artifacts = payload["artifacts"] as JArray;
+            if (artifacts == null || artifacts.Count == 0)
+                return null;
+
+            return artifacts
+                .Select(ParseArtifact)
+                .FirstOrDefault(item => item != null && item.Name == artifactName);
         }
 
         public static string DownloadArtifactZip(string repoId, long artifactId, string destPath) {
@@ -178,8 +196,7 @@ namespace pyRevitLabs.Common {
                         "GitHub artifact download failed ({0}): {1}", (int)response.StatusCode, body));
                 }
 
-                var bytes = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
-                File.WriteAllBytes(destPath, bytes);
+                CommonUtils.CopyHttpContentToFile(response.Content, destPath);
             }
 
             return destPath;

@@ -49,12 +49,8 @@ namespace pyRevitLabs.Common {
                         return false;
                     }
 
-                    var bytes = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
-                    if (bytes == null || bytes.Length == 0)
-                        return false;
-
-                    File.WriteAllBytes(destPath, bytes);
-                    return true;
+                    CommonUtils.CopyHttpContentToFile(response.Content, destPath);
+                    return CommonUtils.VerifyFile(destPath) && new FileInfo(destPath).Length > 0;
                 }
             }
             catch (Exception ex) {

@@ -57,17 +57,17 @@ dotnet run -c Debug -- ci
 
 Outputs land under `bin/` (`netfx/`, `netcore/`, engines, CLI, doctor, autocomplete, etc.). LibGit2 native DLL verification runs at the end of `ci`.
 
-The `bin/` directory is **not tracked in git**. It is produced locally by `dotnet run -- ci` or downloaded by `pyrevit clone` / `pyrevit clones update` from **public GitHub Release assets** on the `ci-binaries` tag (`unsigned-bin-{sha}.zip`). Static assets are staged from [`release/bin-assets/`](../release/bin-assets/) and [`release/cengines/`](../release/cengines/); host/product JSON templates live under [`release/`](../release/). **Contributors edit** [`release/pyrevit-hosts.json`](../release/pyrevit-hosts.json), not files under `bin/`.
+The `bin/` directory is **not tracked in git**. It is produced locally by `dotnet run -- ci` or downloaded by `pyrevit clone` / `pyrevit clones update` from **public GitHub Release assets** on the `ci-binaries` tag (`unsigned-bin-{sha}.zip`). Only **`develop`** and **`master`** are supported for CI binary download. Static assets are staged from [`release/bin-assets/`](../release/bin-assets/) and [`release/cengines/`](../release/cengines/); host/product JSON templates live under [`release/`](../release/). **Contributors edit** [`release/pyrevit-hosts.json`](../release/pyrevit-hosts.json), not files under `bin/`.
 
 ### Getting binaries without building
 
-No token is required for the public `pyrevitlabs/pyRevit` repository:
+No token is required for the public `pyrevitlabs/pyRevit` repository on `develop` or `master`:
 
 ```powershell
 pyrevit clone myclone --branch develop
 ```
 
-This clones source from git and downloads pre-built binaries from the public Release. Updates refresh binaries the same way:
+This clones source from git and downloads pre-built binaries from the public Release. Fork clones use upstream Release assets for the same commit SHA when the fork has no release yet. Updates refresh binaries the same way:
 
 ```powershell
 pyrevit clones update myclone
@@ -85,9 +85,9 @@ cd ..
 pyrevit clones add dev .
 ```
 
-CI also uploads `unsigned-bin-${{ github.sha }}` as an Actions artifact (for WIP/release pipelines) and publishes the same zip to GitHub Releases and GitHub Packages (`PyRevit.UnsignedBin`).
+CI also uploads `unsigned-bin-${{ github.sha }}` as an Actions artifact (for WIP/release pipelines), publishes the same zip to GitHub Releases, and mirrors it as **`PyRevit.UnsignedBin`** on GitHub Packages (consumed by the CLI when `GITHUBTOKEN` is set). Release assets are pruned to the last **3 SHAs per branch** (`develop`, `master`).
 
-Optional: set `GITHUBTOKEN` (`actions:read`) only for **private forks** without public Release assets — the CLI falls back to Actions artifacts when Release download fails.
+Optional: set `GITHUBTOKEN` (`read:packages` and/or `actions:read`) for private or diverged forks — the CLI falls back to NuGet and Actions artifacts when public Release download fails.
 
 Run unit tests:
 

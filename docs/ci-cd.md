@@ -57,18 +57,21 @@ The stamping steps (`set year`, `set build wip|release`, `set products`) only ru
 
 ## Prebuilt binaries for clone
 
-End users and contributors who only need to **run** pyRevit (not build C#) get `bin/` via `pyrevit clone` or `pyrevit clones update` — **no GitHub token** on the public repo.
+End users and contributors who only need to **run** pyRevit (not build C#) get `bin/` via `pyrevit clone` or `pyrevit clones update` on **`develop`** or **`master`** — **no GitHub token** on the public repo when Release assets are available.
 
 | Consumer | Source | Auth |
 |----------|--------|------|
-| `pyrevit clone` / `clones update` | GitHub Release **`ci-binaries`** assets | None (anonymous HTTPS) |
+| `pyrevit clone` / `clones update` | GitHub Release **`ci-binaries`** assets (fork → upstream SHA fallback) | None (anonymous HTTPS) |
+| `pyrevit clone` / `clones update` (token fallback) | GitHub Packages **`PyRevit.UnsignedBin`** NuGet mirror | `GITHUBTOKEN` (`read:packages`) |
+| `pyrevit clone` / `clones update` (token fallback) | Actions artifact `unsigned-bin-<sha>` | `GITHUBTOKEN` (`actions:read`) |
 | WIP / release pack pipelines | Actions artifact `unsigned-bin-<sha>` | `GITHUB_TOKEN` in CI |
 
-After each successful CI push to `develop` or `master` on the main repo:
+After each successful CI push to **`develop`** or **`master`** on the main repo:
 
 1. CI zips `bin/` → `unsigned-bin-{fullSha}.zip`
 2. Uploads to Release tag **`ci-binaries`** (pre-release), plus rolling **`unsigned-bin-{branch}-latest.zip`**
-3. Also pushes **`PyRevit.UnsignedBin`** NuGet package to GitHub Packages (secondary mirror)
+3. Pushes **`PyRevit.UnsignedBin`** NuGet package to GitHub Packages (token-authenticated CLI mirror)
+4. Prunes per-SHA release assets older than the **last 3 successful CI builds** per branch (`develop`, `master`); branch-latest zips are always kept
 
 Anonymous download URL pattern:
 
@@ -77,7 +80,13 @@ https://github.com/pyrevitlabs/pyRevit/releases/download/ci-binaries/unsigned-bi
 https://github.com/pyrevitlabs/pyRevit/releases/download/ci-binaries/unsigned-bin-develop-latest.zip
 ```
 
-The CLI tries the SHA asset first, then branch-latest, then (only if `GITHUBTOKEN` is set) Actions artifacts for private forks.
+CLI download order:
+
+1. Release asset for clone remote + commit SHA
+2. Release asset for upstream (`pyrevitlabs/pyRevit`) + same SHA (synced forks)
+3. Release branch-latest on clone remote, then upstream
+4. NuGet `PyRevit.UnsignedBin` (when `GITHUBTOKEN` is set)
+5. Actions artifacts (when `GITHUBTOKEN` is set)
 
 See also [`build/README.md`](../build/README.md) and the [developer guide](dev-guide.md).
 
