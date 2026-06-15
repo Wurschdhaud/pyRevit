@@ -30,9 +30,14 @@ namespace PyRevitLabs.PyRevit.Runtime {
             new ConditionalWeakTable<ScriptRuntime, ScriptLoggerService>();
         private static readonly ScriptLoggerService SessionService = new ScriptLoggerService();
         private static readonly Encoding Utf8Encoding = new UTF8Encoding(false);
+        private static readonly int ProcessId = Process.GetCurrentProcess().Id;
 
         private static int _minimumLevel = ReadConfiguredMinimumLevel();
         private static bool _fileLoggingEnabled = ReadConfiguredFileLogging();
+
+        private static readonly object DefaultLogPathLock = new object();
+        private static string _cachedDefaultLogPath;
+        private static string _cachedDefaultLogPathVersion;
 
         private readonly WeakReference<ScriptRuntime> _runtime;
         private readonly bool _runtimeBound;
@@ -124,14 +129,18 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 if (visible && !(runtime?.ScriptRuntimeConfigs?.SuppressOutput ?? false))
                     WriteOutput(runtime, normalizedLevel, normalizedName, normalizedMessage);
 
-                var fileEntry = FormatFileEntry(
-                    runtime,
-                    normalizedLevel,
-                    normalizedName,
-                    normalizedMessage);
-                AppendFile(explicitLogPath, fileEntry);
-                if (!PathsEqual(explicitLogPath, defaultLogPath))
-                    AppendFile(defaultLogPath, fileEntry);
+                var hasFileSink = !string.IsNullOrWhiteSpace(explicitLogPath)
+                    || !string.IsNullOrWhiteSpace(defaultLogPath);
+                if (hasFileSink) {
+                    var fileEntry = FormatFileEntry(
+                        runtime,
+                        normalizedLevel,
+                        normalizedName,
+                        normalizedMessage);
+                    AppendFile(explicitLogPath, fileEntry);
+                    if (!PathsEqual(explicitLogPath, defaultLogPath))
+                        AppendFile(defaultLogPath, fileEntry);
+                }
             }
             catch {
                 // Logging failures must never interrupt command execution.
@@ -292,13 +301,24 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 if (string.IsNullOrEmpty(revitVersion))
                     return null;
 
-                var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                var fileName = string.Format(
-                    "{0}_{1}_{2}_runtime.log",
-                    PyRevitLabsConsts.ProductName,
-                    revitVersion,
-                    Process.GetCurrentProcess().Id);
-                return Path.Combine(appData, PyRevitLabsConsts.AppdataDirName, revitVersion, fileName);
+                // path inputs are constant for the process lifetime; resolve once
+                lock (DefaultLogPathLock) {
+                    if (_cachedDefaultLogPath != null
+                            && string.Equals(_cachedDefaultLogPathVersion, revitVersion, StringComparison.Ordinal))
+                        return _cachedDefaultLogPath;
+
+                    var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                    var fileName = string.Format(
+                        "{0}_{1}_{2}_runtime.log",
+                        PyRevitLabsConsts.ProductName,
+                        revitVersion,
+                        ProcessId);
+                    var path = Path.Combine(appData, PyRevitLabsConsts.AppdataDirName, revitVersion, fileName);
+
+                    _cachedDefaultLogPath = path;
+                    _cachedDefaultLogPathVersion = revitVersion;
+                    return path;
+                }
             }
             catch {
                 return null;

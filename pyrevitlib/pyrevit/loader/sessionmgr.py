@@ -387,17 +387,20 @@ def load_session():
     # setup runtime environment variables
     sessioninfo.setup_runtime_vars()
 
+    # start timing before output setup so the reported load time reflects the
+    # full user wait, including first-load output window construction
+    timer = Timer()
+
     # the loader dll addon, does not create an output window
     # if an output window is not provided, create one
     if EXEC_PARAMS.first_load:
         output_window = _setup_output()
+        output_setup_time = timer.get_time()
     else:
         from pyrevit import script
 
         output_window = script.get_output()
-
-    # initialize timer to measure load time
-    timer = Timer()
+        output_setup_time = None
 
     # perform pre-load tasks
     _perform_onsessionloadstart_ops()
@@ -434,6 +437,12 @@ def load_session():
     endtime = timer.get_time()
     success_emoji = ":OK_hand:" if endtime < 3.00 else ":thumbs_up:"
     mlogger.info("Load time: %s seconds %s", endtime, success_emoji)
+    if output_setup_time is not None:
+        mlogger.debug(
+            "Load breakdown: output setup %.3fs | session build %.3fs",
+            output_setup_time,
+            endtime - output_setup_time,
+        )
 
     # if everything went well, self destruct
     try:
