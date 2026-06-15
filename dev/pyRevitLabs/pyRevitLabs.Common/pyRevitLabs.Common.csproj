@@ -21,6 +21,7 @@
         <PackageReference Condition="'$(TargetFrameworkIdentifier)' == '.NetCoreApp'" Include="MadMilkman.Ini.Unofficial" Version="1.0.1"/>
 
         <Reference Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'" Include="System.Management"/>
+        <Reference Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'" Include="System.Net.Http"/>
         <PackageReference Condition="'$(TargetFrameworkIdentifier)' == '.NetCoreApp'" Include="System.Management" Version="10.0.5"/>
     </ItemGroup>
 

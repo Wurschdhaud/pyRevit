@@ -12,6 +12,12 @@ C# ModularPipelines project that replaces the YAML-heavy CI steps previously dri
 - `wingetcreate` for WinGet manifest updates (release publish workflow)
 - Azure Trusted Signing credentials for `sign` steps (production only)
 
+### Local development
+
+If a dev clone is attached to this repository, **close Revit** before running `dotnet run -c Release -- ci`. Revit loads engine DLLs from `bin/netfx/engines/` and blocks in-place updates (same constraint as core DLL updates in pyRevit).
+
+If the build fails with MSB3021 on paths under `bin/netfx/engines/...`, close Revit and retry.
+
 Open [`pyRevit.Build.slnx`](pyRevit.Build.slnx) in Visual Studio to inspect or debug the build project.
 
 ## Run locally

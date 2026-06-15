@@ -9,7 +9,7 @@ using ModularPipelines.Modules;
 
 namespace Build.Modules;
 
-[DependsOn<BuildLabsModule>]
+[DependsOn<CheckDeployLocksModule>]
 public sealed class BuildEnginesModule(IOptions<BuildOptions> buildOptions) : Module
 {
     protected override async Task ExecuteModuleAsync(IModuleContext context, CancellationToken cancellationToken)
