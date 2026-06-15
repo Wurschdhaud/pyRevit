@@ -266,23 +266,31 @@ def main():
         else:
             valid_pairs.append(pairs[0])
 
-    selected_sheet_ids = set([x['sheet'].Id.IntegerValue for x in valid_pairs])
-    existing_names = set(
-        name for sid, name in all_sheet_names.items()
-        if sid not in selected_sheet_ids
-    )
+    unique_pairs = list(valid_pairs)
+    while True:
+        selected_sheet_ids = set([x['sheet'].Id.IntegerValue for x in unique_pairs])
+        existing_names = set(
+            name for sid, name in all_sheet_names.items()
+            if sid not in selected_sheet_ids
+        )
 
-    unique_pairs = []
-    for pair in valid_pairs:
-        if pair['new_name'] in existing_names:
-            conflicts.append({
-                'sheet_number': pair['sheet'].SheetNumber,
-                'old_name': pair['old_name'],
-                'new_name': pair['new_name'],
-                'reason': 'Target name already exists in model',
-            })
-        else:
-            unique_pairs.append(pair)
+        next_unique_pairs = []
+        removed_any = False
+        for pair in unique_pairs:
+            if pair['new_name'] in existing_names:
+                conflicts.append({
+                    'sheet_number': pair['sheet'].SheetNumber,
+                    'old_name': pair['old_name'],
+                    'new_name': pair['new_name'],
+                    'reason': 'Target name already exists in model',
+                })
+                removed_any = True
+            else:
+                next_unique_pairs.append(pair)
+
+        unique_pairs = next_unique_pairs
+        if not removed_any:
+            break
 
     if not unique_pairs:
         forms.alert('No valid unique target names. Nothing renamed.')
