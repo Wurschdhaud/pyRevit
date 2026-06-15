@@ -31,21 +31,24 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         public void Execute(UIApplication uiApp) {
             if (ScriptData != null && ScriptRuntimeConfigs != null) {
-                // provide the given uiapp
-                ScriptRuntimeConfigs.UIApp = uiApp;
+                try {
+                    // provide the given uiapp
+                    ScriptRuntimeConfigs.UIApp = uiApp;
 
-                // request execution and set results
-                Result = ScriptExecutor.ExecuteScript(ScriptData, ScriptRuntimeConfigs);
-
-                // release the executed script's references; this handler lives
-                // for the whole process and would otherwise pin the previous
-                // session's runtime objects (UIApp, documents) across reloads.
-                // NOTE: these fields are a singleton and not thread-safe. A
-                // concurrent non-blocking RequestExecuteScript can overwrite a
-                // pending script before Execute() fires for it; this is a
-                // pre-existing limitation of the single-handler design.
-                ScriptData = null;
-                ScriptRuntimeConfigs = null;
+                    // request execution and set results
+                    Result = ScriptExecutor.ExecuteScript(ScriptData, ScriptRuntimeConfigs);
+                }
+                finally {
+                    // release the executed script's references; this handler lives
+                    // for the whole process and would otherwise pin the previous
+                    // session's runtime objects (UIApp, documents) across reloads.
+                    // NOTE: these fields are a singleton and not thread-safe. A
+                    // concurrent non-blocking RequestExecuteScript can overwrite a
+                    // pending script before Execute() fires for it; this is a
+                    // pre-existing limitation of the single-handler design.
+                    ScriptData = null;
+                    ScriptRuntimeConfigs = null;
+                }
             }
         }
 
