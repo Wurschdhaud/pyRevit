@@ -69,3 +69,10 @@ bin/**/*.xml
 # claude
 .claude
 .vscode/settings.json
+
+# build bin (modular pipelines)
+build/bin/*
+build/obj/*
+build/tests/bin/*
+build/tests/obj/*
+ci-stamped/

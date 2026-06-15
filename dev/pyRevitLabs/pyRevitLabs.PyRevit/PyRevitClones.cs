@@ -658,6 +658,7 @@ namespace pyRevitLabs.PyRevit
                 PyRevitConsts.EnvConfigsSectionName,
                 PyRevitConsts.EnvConfigsInstalledClonesKey,
                 newValueDic);
+            PyRevitAttachments.ClearAttachmentCache();
         }
     }
 }
