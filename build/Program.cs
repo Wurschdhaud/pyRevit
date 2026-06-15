@@ -48,8 +48,10 @@ if (runCi)
     builder.Services.AddModule<SetProductDataModule>();
     builder.Services.AddModule<BuildLabsModule>();
     builder.Services.AddModule<CheckDeployLocksModule>();
-    builder.Services.AddModule<BuildEnginesModule>();
+    builder.Services.AddModule<BuildIronPythonDepsModule>();
+    builder.Services.AddModule<BuildLoadersModule>();
     builder.Services.AddModule<BuildRuntimeModule>();
+    builder.Services.AddModule<BuildRunnersModule>();
     builder.Services.AddModule<StageBinAssetsModule>();
     builder.Services.AddModule<BuildAutocompModule>();
     builder.Services.AddModule<VerifyLibGit2Module>();

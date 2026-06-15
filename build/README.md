@@ -57,6 +57,17 @@ dotnet run -c Debug -- ci
 
 Outputs land under `bin/` (`netfx/`, `netcore/`, engines, CLI, doctor, autocomplete, etc.). LibGit2 native DLL verification runs at the end of `ci`.
 
+On a **clean checkout** (no tracked `bin/`), `ci` builds in this order:
+
+1. Labs (`pyRevitLabs.sln` + CLI/doctor)
+2. IronPython deps → seeds `bin/*/engines/IPY2712PR/` from `dev/modules/`
+3. Loaders (`pyRevitLoader.*`, not runners)
+4. Runtime (`pyRevitLabs.PyRevit.Runtime.sln`)
+5. Runners (`pyRevitRunner.*`)
+6. Static assets from `release/`
+
+This mirrors the legacy `pipenv run pyrevit build deps` + `build engines` + `build runtime` sequence.
+
 The `bin/` directory is **not tracked in git**. It is produced locally by `dotnet run -- ci` or downloaded by `pyrevit clone` / `pyrevit clones update` from **public GitHub Release assets** on the `ci-binaries` tag (`unsigned-bin-{sha}.zip`). Only **`develop`** and **`master`** are supported for CI binary download. Static assets are staged from [`release/bin-assets/`](../release/bin-assets/) and [`release/cengines/`](../release/cengines/); host/product JSON templates live under [`release/`](../release/). **Contributors edit** [`release/pyrevit-hosts.json`](../release/pyrevit-hosts.json), not files under `bin/`.
 
 ### Getting binaries without building
