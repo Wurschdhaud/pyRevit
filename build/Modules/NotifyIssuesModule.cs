@@ -10,12 +10,16 @@ using ModularPipelines.GitHub.Attributes;
 using ModularPipelines.GitHub.Extensions;
 using ModularPipelines.Modules;
 using ModularPipelines.Options;
+using Octokit;
+using System.Net;
 
 namespace Build.Modules;
 
 [SkipIfNoGitHubToken]
 public sealed class NotifyIssuesModule(IOptions<BuildOptions> buildOptions) : Module
 {
+    private static readonly TimeSpan CommentDelay = TimeSpan.FromSeconds(2);
+
     protected override async Task ExecuteModuleAsync(IModuleContext context, CancellationToken cancellationToken)
     {
         var versionInfo = VersionHelper.CreateVersionInfo(VersionHelper.ReadBuildVersion());
@@ -37,14 +41,80 @@ public sealed class NotifyIssuesModule(IOptions<BuildOptions> buildOptions) : Mo
 
         var changes = await CollectChangesAsync(context, previousTag, cancellationToken);
         var repositoryInfo = context.GitHub().RepositoryInfo;
+        var tickets = changes
+            .Select(change => change.Ticket)
+            .Where(ticket => ticket is not null)
+            .Distinct()
+            .ToList();
 
-        foreach (var ticket in changes.Select(change => change.Ticket).Where(ticket => ticket is not null).Distinct())
+        if (tickets.Count == 0)
         {
-            await context.GitHub().Client.Issue.Comment.Create(
-                repositoryInfo.Owner,
-                repositoryInfo.RepositoryName,
-                int.Parse(ticket!, System.Globalization.CultureInfo.InvariantCulture),
-                comment);
+            context.Summary.KeyValue("Notify", "Issues", "0 (none linked since " + previousTag + ")");
+            return;
+        }
+
+        context.Summary.KeyValue("Notify", "Issues", tickets.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+        var posted = 0;
+        var stoppedEarly = false;
+
+        foreach (var ticket in tickets)
+        {
+            try
+            {
+                await context.GitHub().Client.Issue.Comment.Create(
+                    repositoryInfo.Owner,
+                    repositoryInfo.RepositoryName,
+                    int.Parse(ticket!, System.Globalization.CultureInfo.InvariantCulture),
+                    comment);
+                posted++;
+                if (posted < tickets.Count)
+                {
+                    await Task.Delay(CommentDelay, cancellationToken);
+                }
+            }
+            catch (SecondaryRateLimitExceededException ex)
+            {
+                context.Summary.Warning(string.Format(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    "GitHub secondary rate limit hit after {0} of {1} notifications; stopping. {2}",
+                    posted,
+                    tickets.Count,
+                    ex.Message));
+                stoppedEarly = true;
+                break;
+            }
+            catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
+            {
+                context.Summary.Warning(string.Format(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    "GitHub rejected issue comment (403) after {0} of {1} notifications; stopping. {2}",
+                    posted,
+                    tickets.Count,
+                    ex.Message));
+                stoppedEarly = true;
+                break;
+            }
+            catch (ApiException ex)
+            {
+                context.Summary.Warning(string.Format(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    "Failed to notify issue #{0}: {1}",
+                    ticket,
+                    ex.Message));
+            }
+        }
+
+        if (!stoppedEarly)
+        {
+            context.Summary.KeyValue(
+                "Notify",
+                "Posted",
+                string.Format(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    "{0} of {1}",
+                    posted,
+                    tickets.Count));
         }
     }
 
