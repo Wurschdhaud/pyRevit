@@ -40,6 +40,7 @@ public sealed class SignDistInstallersModule(
             signingOptions.Value,
             buildOptions.Value,
             files,
+            "Installers",
             cancellationToken);
     }
 

@@ -28,11 +28,37 @@ public static class SigningHelper
         return Path.Combine(userProfile, ".dotnet", "tools", OperatingSystem.IsWindows() ? "sign.exe" : "sign");
     }
 
+    public static string BuildSigningSummary(IEnumerable<string> files)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in files)
+        {
+            var extension = Path.GetExtension(file);
+            if (string.IsNullOrEmpty(extension))
+            {
+                extension = "(no extension)";
+            }
+
+            counts.TryGetValue(extension, out var count);
+            counts[extension] = count + 1;
+        }
+
+        var total = counts.Values.Sum();
+        var breakdown = string.Join(
+            ", ",
+            counts
+                .OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(kvp => string.Format("{0} {1}", kvp.Value, kvp.Key)));
+
+        return string.Format("{0} file(s): {1}", total, breakdown);
+    }
+
     public static async Task<CommandResult> SignFilesAsync(
         IModuleContext context,
         SigningOptions signingOptions,
         BuildOptions buildOptions,
         IEnumerable<string> files,
+        string summaryLabel,
         CancellationToken cancellationToken)
     {
         var fileList = files.ToArray();
@@ -40,6 +66,8 @@ public static class SigningHelper
         {
             throw new InvalidOperationException("No files were provided for signing.");
         }
+
+        context.Summary.KeyValue("Signing", summaryLabel, BuildSigningSummary(fileList));
 
         await EnsureSignToolInstalledAsync(context, cancellationToken);
 

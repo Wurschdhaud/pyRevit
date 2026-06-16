@@ -21,6 +21,7 @@ public sealed class SignBinariesModule(
             signingOptions.Value,
             buildOptions.Value,
             files,
+            "Binaries",
             cancellationToken);
     }
 }
