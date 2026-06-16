@@ -32,6 +32,7 @@ public sealed class SignChocoPackageModule(
             signingOptions.Value,
             buildOptions.Value,
             [nupkgPath],
+            "Choco",
             cancellationToken);
     }
 
