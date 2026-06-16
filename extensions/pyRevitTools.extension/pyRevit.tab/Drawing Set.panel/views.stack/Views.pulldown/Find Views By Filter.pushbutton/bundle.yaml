@@ -1,5 +1,6 @@
 title:
   en_us: |-
+  ko: |-
     Search Views By Filter
   fr_fr: |-
     Rechercher les vues par filtrage
@@ -13,6 +14,7 @@ title:
     Pesquisar Vistas por Filtro
 tooltip:
   en_us: |-
+  ko: |-
     Lists views based on a search option
   fr_fr: |-
     Lister les vues à partir d'options de recherche

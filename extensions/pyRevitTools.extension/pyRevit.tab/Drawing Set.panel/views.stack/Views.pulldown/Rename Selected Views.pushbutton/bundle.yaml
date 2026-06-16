@@ -1,5 +1,6 @@
 title:
   en_us: |-
+  ko: |-
     Rename Selected Views
   fr_fr: |-
     Renommer les vues sélectionnées
@@ -14,6 +15,7 @@ title:
     Renomear Vistas Selecionadas
 tooltip:
   en_us: |-
+  ko: |-
     Changes the selected view names
   fr_fr: |-
     Changer le nom des vues sélectionnées

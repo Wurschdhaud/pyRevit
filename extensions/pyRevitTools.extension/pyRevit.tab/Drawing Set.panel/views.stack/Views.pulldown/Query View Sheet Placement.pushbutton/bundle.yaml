@@ -1,5 +1,6 @@
 title:
   en_us: |-
+  ko: |-
     Query View Sheet Placement
   fr_fr: |-
     Rechercher les vues non placées
@@ -14,6 +15,7 @@ title:
     Consultar Colocação de Vista em Folha
 tooltip:
   en_us: |-
+  ko: |-
     Lists views that have not been placed on any sheets
   fr_fr: |-
     Répertorie les vues qui n'ont été placées sur aucune feuille

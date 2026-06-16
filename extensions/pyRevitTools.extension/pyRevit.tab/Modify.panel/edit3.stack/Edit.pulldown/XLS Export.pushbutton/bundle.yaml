@@ -1,5 +1,6 @@
 title:
   en_us: Export Parameters to Excel
+  ko: 매개변수를 Excel로 내보내기
   fr_fr: Exporter les paramètres vers Excel
   ru: Экспорт параметров в Excel
   chinese_s: 将参数导出到 Excel
@@ -8,6 +9,7 @@ title:
   pt_br: Exportar Parâmetros para Excel
 tooltip:
   en_us: |
+  ko: |
     Exports element parameters of schedules to an Excel file.
     You can choose which parameters to include. Parameter values are converted into project units for later reimport. 
     Read-only and unsupported parameters are marked and locked.

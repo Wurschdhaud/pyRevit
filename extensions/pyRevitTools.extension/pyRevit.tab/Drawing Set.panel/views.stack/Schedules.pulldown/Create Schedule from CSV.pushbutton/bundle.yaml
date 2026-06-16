@@ -1,5 +1,6 @@
 title:
   en_us: |-
+  ko: |-
     Create schedule from CSV
   fr_fr: |-
     Créer une nomenclature à partir d'un CSV
@@ -14,6 +15,7 @@ title:
     Criar Tabela a partir de CSV
 tooltip:
   en_us: |-
+  ko: |-
     Import existing CSV file as a key schedule
 
 

@@ -1,5 +1,6 @@
 title:
   en_us: |-
+  ko: |-
     Print
     Sheets
   fr_fr: |-
@@ -20,6 +21,7 @@ title:
     Folhas
 tooltip:
   en_us: |-
+  ko: |-
     Print sheets in order from a sheet index.
 
     Note:

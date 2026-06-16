@@ -1,5 +1,6 @@
 title:
   en_us: |-
+  ko: |-
     Move Viewport Label
   fr_fr: |-
     Déplacer le Titre de la Fenêtre
@@ -14,6 +15,7 @@ title:
     Mover Título da Viewport
 tooltip:
   en_us: |-
+  ko: |-
     Move Viewport Label
   fr_fr: |-
     Déplacer le Titre de la Fenêtre

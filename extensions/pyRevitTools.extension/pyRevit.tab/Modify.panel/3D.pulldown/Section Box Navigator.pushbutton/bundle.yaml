@@ -1,5 +1,6 @@
 title:
   en_us: SectionBox Navigator
+  ko: 단면 상자 탐색기
   fr_fr: Navigateur de Zone de Coupe
   ru: Навигатор Секущей Коробки
   chinese_s: 剖面框导航器
@@ -8,6 +9,7 @@ title:
   pt_br: Navegador de Caixa de Corte
 tooltip:
   en_us: |
+  ko: |
     Modeless window for section box navigation in 3D views.
     Quickly snap boundaries to levels, nudge precisely, expand/shrink uniformly.
     Real-time preview on hover shows changes before applying.

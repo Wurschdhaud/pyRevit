@@ -1,5 +1,6 @@
 title:
   en_us: |-
+  ko: |-
     Export Schedules To CSV
   fr_fr: |-
     Exporter les nomenclatures en CSV
@@ -13,6 +14,7 @@ title:
   pt_br: Exportar Tabelas para CSV
 tooltip:
   en_us: |-
+  ko: |-
     Exports selected schedules to CSV files
 
     Shift-Click:

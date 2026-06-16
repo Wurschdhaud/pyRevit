@@ -1,5 +1,6 @@
 title:
   en_us: |-
+  ko: |-
     Open Referencing Sheet
   fr_fr: |-
     Ouvrir la feuille en référence
@@ -14,6 +15,7 @@ title:
     Abrir Folha de Referência
 tooltip:
   en_us: |-
+  ko: |-
     Opens the sheet containing this view and zooms to the viewport
   fr_fr: |-
     Ouvre la feuille contenant cette vue et effectue un zoom sur la fenêtre

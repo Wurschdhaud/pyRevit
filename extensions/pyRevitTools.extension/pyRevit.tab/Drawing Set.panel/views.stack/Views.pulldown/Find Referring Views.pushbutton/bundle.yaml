@@ -1,5 +1,6 @@
 title:
   en_us: |-
+  ko: |-
     Open Refererring Views
   fr_fr: |-
     Ouvrir les vues en référence
@@ -14,6 +15,7 @@ title:
     Abrir Vistas de Referência
 tooltip:
   en_us: |-
+  ko: |-
     List all view that are referring the selected viewports or active view
   fr_fr: |-
     Répertorier toutes les vues faisant référence aux fenêtres sélectionnées ou à la vue active

@@ -1,5 +1,6 @@
 title:
   en_us: Colorize Group Types
+  ko: 그룹 유형 색상화
   fr_fr: Colorer les types de groupes
   ru: Раскрасить типы групп
   chinese_s: 着色组类型
@@ -8,6 +9,7 @@ title:
   pt_br: Colorir Tipos de Grupo
 tooltip:
   en_us: |-
+  ko: |-
     Overrides graphics of groups instances on selected views or
     active view in such way that all instances of the same group type
     are marked with the same color. You can select multiple views before

@@ -1,5 +1,6 @@
 title:
   en_us: Match History Clipboard
+  ko: 히스토리 클립보드 일치
   fr_fr: Historique Presse-papiers
   ru: История буфера совпадений
   chinese_s: 匹配历史剪贴板
@@ -8,6 +9,7 @@ title:
   pt_br: Histórico de transferência
 tooltip:
   en_us: >
+  ko: >
     Toggle the Match History Clipboard dockable pane.
     Load parameter values from elements or view filters, then paste them
     onto any number of elements — one by one, by box selection, or from

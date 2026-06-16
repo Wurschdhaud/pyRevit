@@ -1,5 +1,6 @@
 title:
   en_us: Sync Views
+  ko: 뷰 동기화
   fr_fr: Synchro Vues
   ru: Синхро-ть виды
   chinese_s: 同步视图
@@ -13,6 +14,7 @@ tooltip:
     in the same zoomed area so you can keep working in the same
     area without the need to zoom and pan again.
     This tool works best when the views are maximized
+  ko: 뷰를 동기화 상태로 유지합니다. 뷰를 이동하고 확대/축소할 때
   fr_fr: >-
     Gardez les vues synchronisées. Cela signifie que lorsque vous effectuez un panoramique, un zoom et
     basculez entre les vues Plan et Plans de plafond, cet outil conservera les vues

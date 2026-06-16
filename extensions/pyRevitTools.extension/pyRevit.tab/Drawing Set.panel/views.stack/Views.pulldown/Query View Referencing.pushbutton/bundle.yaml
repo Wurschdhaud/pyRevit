@@ -1,5 +1,6 @@
 title:
   en_us: |-
+  ko: |-
     Query View Referencing
   fr_fr: |-
     Rechercher référencement des vues
@@ -14,6 +15,7 @@ title:
     Consultar Referência de Vista
 tooltip:
   en_us: |-
+  ko: |-
     Query all selected views and determine if referenced or not
   fr_fr: |-
     Interroger toutes les vues sélectionnées et déterminer si elles sont référencées ou non

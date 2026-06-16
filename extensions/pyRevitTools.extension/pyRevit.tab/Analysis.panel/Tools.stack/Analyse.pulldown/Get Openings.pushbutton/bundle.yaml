@@ -1,5 +1,6 @@
 title:
   en_us: Get Openings
+  ko: 개구부 가져오기
   fr_fr: Obtenir les ouvertures
   ru: Получить отверстия
   chinese_s: 获取洞口
@@ -8,6 +9,7 @@ title:
   pt_br: Obter Aberturas
 tooltip:
   en_us: |
+  ko: |
     Scans through the project for openings. A list with clickable links will be presented. Open a 3D view to access and see the selected openings. A selection filter will be created or updated to select all openings with one click.
   fr_fr: |
     Examine le projet à la recherche d'ouvertures. Une liste avec des liens cliquables sera présentée. Ouvrez une vue 3D pour accéder et voir les ouvertures sélectionnées. Un filtre de sélection sera créé ou mis à jour pour sélectionner toutes les ouvertures en un seul clic.

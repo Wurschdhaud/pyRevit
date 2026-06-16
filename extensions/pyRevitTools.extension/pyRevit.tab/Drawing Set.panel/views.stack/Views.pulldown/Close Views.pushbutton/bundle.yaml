@@ -1,5 +1,6 @@
 title:
   en_us: |-
+  ko: |-
     Close Tabs
   fr_fr: |-
     Fermer les onglets
@@ -13,6 +14,7 @@ title:
     Fechar Abas
 tooltip:
   en_us: |-
+  ko: |-
     Close everything but the selected views.
   fr_fr: |-
     Fermez tout sauf les vues sélectionnées.
