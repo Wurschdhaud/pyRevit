@@ -41,6 +41,7 @@ jobs:
     permissions:
       contents: write
       actions: read
+      packages: write
     outputs:
       build_version: ${{ steps.versionmeta.outputs.build_version }}
       install_version: ${{ steps.versionmeta.outputs.install_version }}
