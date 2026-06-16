@@ -405,6 +405,19 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal">
+                        <Button x:Name="expandAllBtn" Style="{StaticResource ToolbarButton}" Width="28"
+                                ToolTip="Expand all" Click="expand_all_tree">
+                            <TextBlock Text="&#x2295;" FontSize="12"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </Button>
+                        <Button x:Name="collapseAllBtn" Style="{StaticResource ToolbarButton}" Width="28"
+                                ToolTip="Collapse all" Click="collapse_all_tree">
+                            <TextBlock Text="&#x2296;" FontSize="12"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </Button>
+
+                        <Rectangle Style="{StaticResource ToolbarSep}"/>
+
                         <!-- Add Group / Keynote -->
                         <Button x:Name="addCategoryBtn" Style="{StaticResource ToolbarButton}"
                                 ToolTip="Add group (top-level category)" Click="add_category">

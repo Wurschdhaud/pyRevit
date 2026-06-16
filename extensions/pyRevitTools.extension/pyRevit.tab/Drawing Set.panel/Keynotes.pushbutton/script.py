@@ -6,6 +6,7 @@ Features:
 - Indent / Outdent to promote or demote nodes (Tab / Shift+Tab)
 - Move Up / Move Down to reorder siblings (Ctrl+Up / Ctrl+Down)
 - Drag-and-drop to reparent across the tree
+- Collapse All / Expand All tree controls
 - Search with smart filters
 - Keyboard shortcuts (F2, F5, Ctrl+N, Ctrl+D, Del, Tab, Shift+Tab)
 
@@ -780,6 +781,58 @@ class KeynoteManagerWindow(forms.WPFWindow):
                 if sub:
                     return [root] + sub
         return None
+
+    def _set_all_tree_items_expanded(self, expanded):
+        """Set IsExpanded on all currently visible tree containers."""
+        tv = self.keynotes_tv
+        if not tv:
+            return
+        try:
+            tv.UpdateLayout()
+        except Exception:
+            return
+
+        def _walk(container):
+            if not container or not hasattr(container, "IsExpanded"):
+                return
+            container.IsExpanded = expanded
+            if expanded:
+                container.UpdateLayout()
+            gen = container.ItemContainerGenerator
+            for child in container.Items:
+                child_container = gen.ContainerFromItem(child)
+                if child_container is None:
+                    container.UpdateLayout()
+                    child_container = gen.ContainerFromItem(child)
+                if child_container:
+                    _walk(child_container)
+
+        root_gen = tv.ItemContainerGenerator
+        for root in tv.Items:
+            root_container = root_gen.ContainerFromItem(root)
+            if root_container is None:
+                tv.UpdateLayout()
+                root_container = root_gen.ContainerFromItem(root)
+            if root_container:
+                _walk(root_container)
+
+    def expand_all_tree(self, sender, args):
+        def _do_expand():
+            self._set_all_tree_items_expanded(True)
+
+        self.Dispatcher.BeginInvoke(
+            System.Action(_do_expand), Windows.Threading.DispatcherPriority.Loaded
+        )
+
+    def collapse_all_tree(self, sender, args):
+        def _do_collapse():
+            # Expand first to materialize all containers, then collapse all.
+            self._set_all_tree_items_expanded(True)
+            self._set_all_tree_items_expanded(False)
+
+        self.Dispatcher.BeginInvoke(
+            System.Action(_do_collapse), Windows.Threading.DispatcherPriority.Loaded
+        )
 
     # =========================================================================
     # USED KEYNOTE TRACKING
