@@ -20,7 +20,10 @@ title:
     Manage
 
     Keynotes
-  ko: 관리
+  ko: >-
+    관리
+
+    키노트
   chinese_s: 管理注释
 engine:
   persistent: true
