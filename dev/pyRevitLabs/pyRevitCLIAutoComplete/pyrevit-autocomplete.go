@@ -126,6 +126,7 @@ func main() {
 						Flags: complete.Flags{
 							"--log":      complete.PredictNothing,
 							"--password": complete.PredictNothing,
+							"--skip":     complete.PredictNothing,
 							"--token":    complete.PredictNothing,
 						},
 					},

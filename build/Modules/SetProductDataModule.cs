@@ -26,7 +26,7 @@ public sealed class SetProductDataModule(IOptions<BuildOptions> buildOptions) : 
             msiProductCode,
             PyRevitPaths.PyRevitCliUpgradeCode);
 
-        var products = ProductDataHelper.LoadProducts(PyRevitPaths.ProductsDataFile);
+        var products = ProductDataHelper.LoadProducts(PyRevitPaths.ProductsTemplateFile);
         ProductDataHelper.InsertProduct(
             products,
             new ProductRecord("pyRevit", versionInfo.BuildVersion, versionInfo.BuildVersion, PyRevitPaths.PyRevitInnoProductCode),

@@ -11,13 +11,8 @@ extensions/*
 !extensions/extensions.json
 !extensions/README.md
 !extensions/pyRevitBundlesCreatorExtension.extension/
-#bin/*
-#!bin/engines
-#!bin/pyrevit.svg
-#!bin/pyrevit_outputwindow.png
-#!bin/pyrevit_settings.png
-#!bin/pyrevit-hosts.json
-#!bin/pyrevit-products.json
+# Generated product binaries (build locally or download from CI artifacts)
+bin/
 
 # ignore visual studio files
 **/.vs
@@ -76,3 +71,4 @@ build/obj/*
 build/tests/bin/*
 build/tests/obj/*
 ci-stamped/
+ci-bin-manifest.json
