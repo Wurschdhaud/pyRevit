@@ -52,60 +52,64 @@ Go to the [pyrevitlabs/pyrevit](https://github.com/pyrevitlabs/pyrevit) GitHub p
 
 Make sure to uncheck the "Copy the master branch only" option, since we mostly use the develop branch to make changes.
 
-### Clone Your Fork
+### Clone workflows
 
-Two common paths:
+`bin/` is **not in git**. Choose one workflow below. Only **`develop`** and **`master`** support CI binary download. Details on CI assets and fallbacks: [CI/CD — Prebuilt binaries for clone](ci-cd.md#prebuilt-binaries-for-clone).
 
-| Goal | Steps | Gets `bin/` from |
-|------|-------|------------------|
-| **Run pyRevit only** (no C# SDK) | `pyrevit clone dev --source <your-fork-url> --branch develop` | Public [CI Release assets](ci-cd.md#prebuilt-binaries-for-clone) on upstream when fork is synced (no token); diverged forks need `GITHUBTOKEN` or local build |
-| **Contribute C# / debug DLLs** | `git clone` → `dotnet run -- ci` → `pyrevit clones add dev .` | Local build into gitignored `bin/` |
+| Profile | You want to… | Get source via | Get `bin/` via |
+|---------|----------------|----------------|----------------|
+| **1 — Run in Revit** | Use pyRevit without building C# | `pyrevit clone` | Public Release `ci-binaries` (no token on upstream when assets exist) |
+| **2 — C# contributor** | Change DLLs and debug in Visual Studio | `git clone` | `dotnet run -- ci` in [`build/`](../build/) |
 
-**End-user / quick start** — if pyRevit CLI is installed:
+#### Profile 1 — Run in Revit (CI binaries)
+
+Uses the pyRevit CLI to clone git source **and** download pre-built `bin/` from the [`ci-binaries`](https://github.com/pyrevitlabs/pyRevit/releases/tag/ci-binaries) release. Normal path on `pyrevitlabs/pyRevit` needs no `GITHUBTOKEN`. Synced forks use upstream Release assets for the same commit SHA.
 
 ```shell
-pyrevit clone dev --source <url-of-your-repo> --dest <destination-directory> --branch develop
+pyrevit clone dev --source <repo-url> --dest <parent-directory> --branch develop
+pyrevit attach dev default --installed
 ```
 
-This clones source and downloads pre-built binaries from the public GitHub Release (`ci-binaries` tag). No `GITHUBTOKEN` is required for the public `pyrevitlabs/pyRevit` repo. Fork clones fall back to upstream Release assets for the same commit SHA when the fork has no `ci-binaries` release yet. Only **`develop`** and **`master`** are supported for CI binary download.
+Refresh source and binaries later:
 
-**Contributor path** — canonical git workflow:
+```shell
+pyrevit clones update dev
+```
 
-1. **Clone Your Fork**: Clone your forked repository to your local machine:
+If public Release download fails (diverged fork, private repo), set `GITHUBTOKEN` (`read:packages` and/or `actions:read`) and retry — the CLI falls back to the `PyRevit.UnsignedBin` NuGet mirror and Actions artifacts. See [download order](ci-cd.md#prebuilt-binaries-for-clone).
 
-    ```shell
-    git clone <your-fork-url>
-    ```
+#### Profile 2 — C# contributor (local build)
 
-2. **Enter pyRevit folder**:
+Use **git**, not `pyrevit clone` — `clone` would pull CI binaries and overwrite the local-build workflow.
 
-    ```shell
-    cd pyrevit
-    ```
+```shell
+git clone <your-fork-url>
+cd pyRevit
+git checkout develop
+git submodule update --init --recursive
+git remote add upstream https://github.com/pyrevitlabs/pyrevit.git
 
-3. **Checkout the Develop Branch**: This is where active development happens, so make sure you're working on this branch:
+cd build
+dotnet run -c Release -- ci
+cd ..
 
-    ```shell
-    git checkout develop
-    ```
+pyrevit clones add dev .
+pyrevit attach dev default --installed
+```
 
-4. **Build binaries locally** (required before registering the repo as a clone):
+After pulling source changes, refresh **without** downloading CI binaries:
 
-    ```shell
-    cd build
-    dotnet run -c Release -- ci
-    cd ..
-    ```
+```shell
+git pull
+pyrevit clones update dev --skip-bin
+cd build && dotnet run -c Release -- ci && cd ..
+```
 
-5. **Register as a pyRevit clone**:
-
-    ```shell
-    pyrevit clones add dev .
-    ```
+Rebuild in Debug when attaching the debugger (see [Debugging Code](#debugging-code)).
 
 ### Set Upstream Remote
 
-Add the original pyrevitlabs repository as an "upstream" remote to keep your fork in sync:
+If you did not add upstream in Profile 2, add the original pyrevitlabs repository to keep your fork in sync:
 
 ```shell
 git remote add upstream https://github.com/pyrevitlabs/pyrevit.git
@@ -115,8 +119,7 @@ You can choose any name for the remote, but "upstream" is a common convention.
 
 ### Retrieve the submodules
 
-At this time of writing, the pyRevit repository uses git submodules (stored in the `dev\modules` folder) to get some of its dependencies.
-Initialize and fetch them with the following commands:
+If you skipped Profile 2 step 4, or switch branches that change dependencies:
 
 ```shell
 git submodule update --init --recursive
@@ -124,7 +127,7 @@ git submodule update --init --recursive
 
 !!! note
 
-    you may have to repeat the `git submodule update` command when you switch to another existing branch, or when new commits in the develop branch update the dependencies.
+    Repeat `git submodule update` when you switch branches or when `develop` updates submodule pointers.
 
 ## Initialize the pipenv environment
 
@@ -150,26 +153,18 @@ But you can of course use your IDE of choice, such as Rider for .NET and pyCharm
 
 ## Revit Setup
 
-To run and test your changes in Revit, follow these steps:
+Follow [Profile 1](#profile-1-run-in-revit-ci-binaries) or [Profile 2](#profile-2-c-contributor-local-build) under [Clone workflows](#clone-workflows) — each includes `pyrevit attach`.
 
-1. **Ensure `bin/` exists**: Either run `dotnet run -- ci` in [`build/`](../build/) (contributor path) or use `pyrevit clone` / `pyrevit clones update` (downloads pre-built binaries — see [CI/CD](ci-cd.md#prebuilt-binaries-for-clone)).
+Quick checks:
 
-2. **Create or register a clone**: If you used `git clone` without `pyrevit clone`:
-
-   ```shell
-   pyrevit clones add dev <path-to-your-git-directory>
-   ```
-
-3. **Attach the Clone**: Attach your clone to the default Revit installation:
-
-   ```shell
-   pyrevit attach dev default --installed
-   ```
+```shell
+pyrevit clones info dev
+pyrevit attachments
+```
 
 !!! note
 
-    the pyRevit dll paths have changed with pyrevit 5 (current WIP version), so you need to use the pyrevit CLI from a WIP installer for this to work.
-    If you don't have it already, build the CLI from sources:
+    pyRevit 5 (current WIP) needs a WIP `pyrevit` CLI. Build it from this repo if needed:
 
     ```shell
     cd build

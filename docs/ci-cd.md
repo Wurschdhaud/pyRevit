@@ -57,7 +57,9 @@ The stamping steps (`set year`, `set build wip|release`, `set products`) only ru
 
 ## Prebuilt binaries for clone
 
-End users and contributors who only need to **run** pyRevit (not build C#) get `bin/` via `pyrevit clone` or `pyrevit clones update` on **`develop`** or **`master`** — **no GitHub token** on the public repo when Release assets are available.
+**User workflows** (full commands for run-only vs C# contributor): [Developer Guide — Clone workflows](dev-guide.md#clone-workflows).
+
+End users and contributors who only need to **run** pyRevit (not build C#) get `bin/` via `pyrevit clone` or `pyrevit clones update` on **`develop`** or **`master`** — **no GitHub token** on the public repo when Release assets are available. C# contributors use `git clone`, local `dotnet run -- ci`, and `pyrevit clones update --skip-bin` instead — see Profile 2 in the dev guide.
 
 | Consumer | Source | Auth |
 |----------|--------|------|
