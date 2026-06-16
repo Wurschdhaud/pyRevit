@@ -1,0 +1,294 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:system="clr-namespace:System;assembly=mscorlib">
+    <system:String x:Key="AuthorLabel">작성자</system:String>
+    <system:String x:Key="ExtensionLabel">확장</system:String>
+    <system:String x:Key="SelectPreflightCheckTitle">사전 점검 선택</system:String>
+    <system:String x:Key="RunCheckButton">점검 실행</system:String>
+
+    <!-- Check Names -->
+    <system:String x:Key="CheckName_GridsDataLister">그리드 데이터 목록</system:String>
+    <system:String x:Key="CheckName_LevelsDataLister">레벨 데이터 목록</system:String>
+    <system:String x:Key="CheckName_ReferencePlanLister">참조 평면 목록</system:String>
+    <system:String x:Key="CheckName_SchedulesNotOnSheet">시트에 없는 일람표 목록</system:String>
+    <system:String x:Key="CheckName_ElementsPerWorksets">작업 세트별 요소 점검</system:String>
+    <system:String x:Key="CheckName_10MileRadar">10마일 레이더</system:String>
+    <system:String x:Key="CheckName_ModelChecker">모델 검사기</system:String>
+    <system:String x:Key="CheckName_RVTLinksWarnings">RVT 링크 경고</system:String>
+    <system:String x:Key="CheckName_AuditAll">전체 감사 (링크 포함)</system:String>
+    <system:String x:Key="CheckName_CADAudit">CAD 감사</system:String>
+    <system:String x:Key="CheckName_NamingConvention">명명 규칙</system:String>
+
+    <!-- Check Descriptions (Docstrings) -->
+    <system:String x:Key="CheckDescription_GridsDataLister">그리드가 고정, 범위 상자 설정, 또는 이름 지정 여부 목록 표시
+
+이 QC 도구는 다음 데이터를 반환합니다:
+    그리드 수, 이름, 유형, 고정 상태</system:String>
+    <system:String x:Key="CheckDescription_LevelsDataLister">레벨이 고정, 범위 상자 설정, 또는 이름 지정 여부 및 고도 목록 표시
+
+이 QC 도구는 다음 데이터를 반환합니다:
+    레벨 수, 이름, 유형, 고정 상태, 범위 상자, 고도</system:String>
+    <system:String x:Key="CheckDescription_ReferencePlanLister">모델의 모든 참조 평면 목록 표시
+이 QC 도구는 다음 데이터를 반환합니다:
+    참조 평면 수, 링크 대상, 이름</system:String>
+    <system:String x:Key="CheckDescription_SchedulesNotOnSheet">시트에 배치되지 않은 모든 일람표 목록 표시
+이 QC 도구는 다음 데이터를 반환합니다:
+    유형, ID + 링크, 일람표 이름 (링크 클릭으로 일람표 열기 가능)</system:String>
+    <system:String x:Key="CheckDescription_ElementsPerWorksets">Revit 모델 품질 점검
+QC 도구는 다음 데이터를 반환합니다:
+    - 카테고리 이름, 요소 이름, 요소 ID를 포함한 작업 세트별 모든 요소 표
+    - 작업 세트별 요소 수 도넛 차트</system:String>
+    <system:String x:Key="CheckDescription_10MileRadar">모델의 모든 요소 범위를 점검합니다.
+이 모델 검사기는 Revit 모델의 범위를 신속하게 확인합니다.
+모델 범위가 프로젝트 내부 원점에서 10마일(16KM) 이상 떨어진 경우
+정확도, 허용 오차, 성능 및 뷰포트 표시에 문제가 발생할 수 있습니다.
+이 점검은 모델이 내부 원점 10마일 반경 내에 있는지 확인합니다.
+
+테스트 케이스는 프로젝트 내부 원점을 기준으로 다음을 검사합니다:
+
+    - 프로젝트 기준점과 내부 원점 간의 거리
+    - 측량점과 내부 원점 간의 거리
+    - 3D 뷰의 바운딩 박스
+    - 설계 옵션 객체의 바운딩 박스
+    - CAD 및 RVT 링크의 바운딩 박스
+    - 모델의 모든 요소의 바운딩 박스</system:String>
+    <system:String x:Key="CheckDescription_ModelChecker">Revit 모델 품질 점검
+QC 도구는 다음 데이터를 반환합니다:
+    Revit 파일: 이름 및 프로젝트 정보
+    Revit 링크: 목록, 수, 고정 상태
+    뷰: 수, 복사된 뷰 수, 시트에 없는 뷰 수
+    일람표: 수, 시트에 없는 수
+    시트: 수
+    경고: 전체 수, 사전 정의된 심각한 경고 목록
+    재료 수
+    선 패턴 수
+    DWG: 가져온 수, 링크 수, 3D 뷰의 DWG 수
+    로드 가능 패밀리: 수, 인플레이스 패밀리 수, 비매개변수 패밀리 수
+    텍스트 노트: 계수 변경된 수, 모두 대문자 텍스트 노트 수
+    시스템 패밀리: 경사로 수, 건축 기둥 수, 해석 모델 옵션 활성화된 요소
+    그룹: 상세 그룹 유형 수, 상세 그룹 인스턴스 수, 모델 그룹 유형 수, 모델 그룹 인스턴스 수
+    참조 평면: 이름 없는 수, 참조 평면 수
+    요소 수
+    단계: 현재 문서 및 링크 파일의 단계 목록</system:String>
+    <system:String x:Key="CheckDescription_RVTLinksWarnings">Revit 링크 품질 관리 - 경고
+    링크된 파일의 경고:
+    - 설명,
+    - ID,
+    - 수
+
+    !! Revit 2018 이상 전용 !!
+    !!사용 전 링크 로드!!</system:String>
+    <system:String x:Key="CheckDescription_AuditAll">링크된 모델 포함 모든 모델의 사전 감사.
+!!링크가 로드되어 있어야 합니다.!!
+이 QC 도구는 다음 데이터를 반환합니다:
+- 프로젝트 이름, 번호, 클라이언트, 단계, 작업 세트
+- 요소 수
+- 제거 가능한 요소 수
+- 전체 경고 수
+- 심각한 경고 수
+- RVT 링크 수
+- 활성화된 해석 모델 요소 수
+- 공간 수
+- 미배치 공간 수
+- 경계 없는 공간 수
+- 시트 수
+- 뷰 유형별 뷰 수
+- 시트에 없는 뷰
+- 시트에 없는 일람표 수
+- 복사된 뷰 수
+- 뷰 템플릿 수
+- 사용되지 않는 뷰 템플릿 수
+- 필터 수
+- 사용되지 않는 뷰 필터 수
+- 재료 수
+- 선 패턴 수
+- DWG 수
+- 링크된 DWG 수
+- 가져온 DWG 수
+- 인플레이스 패밀리 수
+- 비매개변수 패밀리 수
+- 패밀리 수
+- 가져온 하위 카테고리 수
+- 일반 모델 유형 수
+- 상세 구성요소 수
+- 텍스트 노트 유형 수
+- 너비 비율 != 1인 텍스트 노트 유형
+- 텍스트 노트 수
+- 모두 대문자 텍스트 노트
+- 단색 배경 텍스트 노트
+- 상세 그룹 수
+- 상세 그룹 유형 수
+- 모델 그룹 수
+- 모델 그룹 유형 수
+- 참조 평면 수
+- 이름 없는 참조 평면 수
+- 상세 선 수
+- 치수 유형 수
+- 치수 수
+- 치수 재정의 수
+- 수정 구름 수</system:String>
+    <system:String x:Key="CheckDescription_CADAudit">가져온 CAD 및 링크된 CAD의 사전 감사
+이 QC 도구는 다음 데이터를 반환합니다:
+    CAD 링크 인스턴스 및 유형 정보
+
+    품질 관리에는 다음에 대한 정보 및 경고가 포함됩니다:
+      링크 상태 (로드됨, 찾을 수 없음, 로드 안 됨...)
+      CAD가 모델 작업 평면에 있는지 단일 뷰에만 있는지 여부
+      CAD가 링크되었는지 가져왔는지 여부
+      CAD가 중복되었는지 여부
+      CAD의 공유 위치 이름
+
+      기능: 출력에서 발견된 CAD로 이동 가능</system:String>
+    <system:String x:Key="CheckDescription_NamingConvention">패밀리 유형 이름이 Revit 내 벽 유형 목록으로 정의된 지정 목록을 준수하는지 확인합니다.</system:String>
+
+    <!-- Common Output Strings -->
+    <system:String x:Key="GridsDataLister">그리드 데이터 목록</system:String>
+    <system:String x:Key="LevelsDataLister">레벨 데이터 목록</system:String>
+    <system:String x:Key="NumberOfGrids">그리드 수</system:String>
+    <system:String x:Key="NumberOfLevels">레벨 수</system:String>
+    <system:String x:Key="Grids">그리드</system:String>
+    <system:String x:Key="Levels">레벨</system:String>
+    <system:String x:Key="Name">이름</system:String>
+    <system:String x:Key="Type">유형</system:String>
+    <system:String x:Key="Pinned">고정됨</system:String>
+    <system:String x:Key="ScopeBox">범위 상자</system:String>
+    <system:String x:Key="Elevation">고도</system:String>
+    <system:String x:Key="ReferencePlanes">참조 평면</system:String>
+    <system:String x:Key="ReferencePlanesCount">참조 평면:</system:String>
+    <system:String x:Key="SchedulesNotOnSheets">시트에 없는 일람표</system:String>
+    <system:String x:Key="TransactionTook">트랜잭션 소요 시간</system:String>
+    <system:String x:Key="NameLabel">이름:</system:String>
+    <system:String x:Key="IdLabel">ID:</system:String>
+    <system:String x:Key="TypeLabel">유형:</system:String>
+    <system:String x:Key="WorksetName">작업 세트 이름</system:String>
+    <system:String x:Key="ElementCategory">요소 카테고리</system:String>
+    <system:String x:Key="ElementName">요소 이름</system:String>
+    <system:String x:Key="ElementId">요소 ID</system:String>
+    <system:String x:Key="ElementCountByWorkset">작업 세트별 요소 수</system:String>
+
+    <!-- Radar Check Strings -->
+    <system:String x:Key="RadarCheckingModelPlacement">모델 배치 및 좌표 점검 중</system:String>
+    <system:String x:Key="RadarBasePointMoreThan">기준점이 초과:</system:String>
+    <system:String x:Key="RadarSurveyPointMoreThan">측량점이 초과:</system:String>
+    <system:String x:Key="RadarSurveyPointLessThan">측량점이 미만:</system:String>
+    <system:String x:Key="RadarProjectBasePointCoords">프로젝트 기준점 좌표에서 내부 원점까지</system:String>
+    <system:String x:Key="RadarSurveyPointCoords">측량점 좌표에서 내부 원점까지</system:String>
+    <system:String x:Key="RadarBaseToSurveyDeltaX">프로젝트 기준점에서 측량점 델타 X</system:String>
+    <system:String x:Key="RadarBaseToSurveyDeltaY">프로젝트 기준점에서 측량점 델타 Y</system:String>
+    <system:String x:Key="RadarPlanarDistance">기준점과 측량점 간의 평면 거리</system:String>
+    <system:String x:Key="RadarTotalDistance">기준점과 측량점 간의 전체 거리</system:String>
+    <system:String x:Key="RadarProjectElevation">프로젝트 고도 (기준점 수직 거리)</system:String>
+    <system:String x:Key="RadarProjectCoordinates">프로젝트 좌표 및 거리</system:String>
+    <system:String x:Key="RadarPoints">점</system:String>
+    <system:String x:Key="RadarChecking3DViewBBox">3D 뷰 바운딩 박스의 범위 점검 중</system:String>
+    <system:String x:Key="Radar3DViewBBoxMoreThan">3D 뷰 바운딩 박스가 초과:</system:String>
+    <system:String x:Key="Radar3DViewBBoxLessThan">3D 뷰 바운딩 박스가 미만:</system:String>
+    <system:String x:Key="RadarCheckingDesignOptions">설계 옵션 객체의 범위 점검 중</system:String>
+    <system:String x:Key="RadarDesignOptionsMoreThan">설계 옵션 객체가 초과:</system:String>
+    <system:String x:Key="RadarShowingFirst10">처음 10개 객체 표시</system:String>
+    <system:String x:Key="RadarManualInvestigation">수동 조사 필요</system:String>
+    <system:String x:Key="RadarAllObjectsLessThan">모든 객체가 미만:</system:String>
+    <system:String x:Key="RadarCheckingCADRVT">CAD 및 RVT 링크의 범위 점검 중</system:String>
+    <system:String x:Key="RadarAllCADRVTLessThan">모든 CAD 및 RVT 링크가 미만:</system:String>
+    <system:String x:Key="RadarDistantObjectsDetected">원거리 객체가 여전히 감지되고 있습니다!</system:String>
+    <system:String x:Key="RadarFurtherAnalysis">추가 분석이 필요합니다.</system:String>
+    <system:String x:Key="RadarCheckingEverything">모든 것을 점검 중입니다. 시간이 다소 걸릴 수 있습니다.</system:String>
+    <system:String x:Key="RadarPleaseBePatient">잠시 기다려 주세요.</system:String>
+    <system:String x:Key="RadarElementsMoreThan">아래 요소들이 초과 위치에 있습니다:</system:String>
+    <system:String x:Key="RadarAllTestsCompleted">모든 테스트가 완료되었습니다. 위 결과를 검토하세요.</system:String>
+    <system:String x:Key="Radar10MilesAway">내부 원점에서 10마일(16KM) 이상.</system:String>
+    <system:String x:Key="RadarNoObjectInDesignOption">설계 옵션의 객체가 초과하지 않음:</system:String>
+    <system:String x:Key="RadarIsPartOf">의 일부</system:String>
+    <system:String x:Key="RadarXYZCoordinates">XYZ 좌표</system:String>
+    <system:String x:Key="RadarDistance">거리</system:String>
+    <system:String x:Key="RadarAngle">각도 (°)</system:String>
+
+    <!-- Model Checker Strings -->
+    <system:String x:Key="ModelCheckerTitle">모델 검사기</system:String>
+    <system:String x:Key="ModelCheckerRVTFile">RVT 파일</system:String>
+    <system:String x:Key="ModelCheckerRVTLinks">RVT 링크</system:String>
+    <system:String x:Key="ModelCheckerNoLinks">링크 없음</system:String>
+    <system:String x:Key="ModelCheckerInstanceFileName">인스턴스 파일 이름</system:String>
+    <system:String x:Key="ModelCheckerInstanceName">인스턴스 이름</system:String>
+    <system:String x:Key="ModelCheckerPinnedStatus">고정 상태</system:String>
+    <system:String x:Key="ModelCheckerViews">뷰</system:String>
+    <system:String x:Key="ModelCheckerViewTemplates">뷰 템플릿</system:String>
+    <system:String x:Key="ModelCheckerSchedules">일람표</system:String>
+    <system:String x:Key="ModelCheckerSheets">시트</system:String>
+    <system:String x:Key="ModelCheckerWarnings">경고</system:String>
+    <system:String x:Key="ModelCheckerNoWarnings">경고 없음, 잘하셨습니다!</system:String>
+    <system:String x:Key="ModelCheckerMaterials">재료</system:String>
+    <system:String x:Key="ModelCheckerLinePatterns">선 패턴</system:String>
+    <system:String x:Key="ModelCheckerDWGs">DWG</system:String>
+    <system:String x:Key="ModelCheckerLoadableFamilies">로드 가능 패밀리</system:String>
+    <system:String x:Key="ModelCheckerTextNotes">텍스트 노트</system:String>
+    <system:String x:Key="ModelCheckerSystemFamilies">시스템 패밀리</system:String>
+    <system:String x:Key="ModelCheckerGroups">그룹</system:String>
+    <system:String x:Key="ModelCheckerReferencePlanes">참조 평면</system:String>
+    <system:String x:Key="ModelCheckerPhases">단계</system:String>
+    <system:String x:Key="ModelCheckerElementsCount">요소 수</system:String>
+    <system:String x:Key="ModelCheckerNotSavedFile">저장되지 않은 파일</system:String>
+
+    <!-- Model Checker Warnings Strings -->
+    <system:String x:Key="RVTLinksWarningChecker">RVT 링크 - 경고 검사기</system:String>
+    <system:String x:Key="RVTLinksWarningsCount">경고 수</system:String>
+    <system:String x:Key="RVTLinksWarningsDetails">경고 세부 정보</system:String>
+    <system:String x:Key="RVTLinksFileName">파일 이름</system:String>
+    <system:String x:Key="RVTLinksWarningsCountLabel">경고 수</system:String>
+    <system:String x:Key="RVTLinksWarningsLabel">경고</system:String>
+    <system:String x:Key="RVTLinksIds">ID</system:String>
+    <system:String x:Key="RVTLinksLoadAllLinks">모든 링크를 로드하세요. 이 도구는 링크가 로드된 모델을 위한 것입니다</system:String>
+    <system:String x:Key="RVTLinksLoadAtLeastOne">최소 하나의 링크를 로드하세요. 이 도구는 링크가 로드된 모델을 위한 것입니다</system:String>
+
+    <!-- Audit All Strings -->
+    <system:String x:Key="AuditAllMainFileInfos">기본 파일 정보</system:String>
+    <system:String x:Key="AuditAllLinkedFilesInfos">링크된 파일 정보</system:String>
+    <system:String x:Key="AuditAllProjectName">프로젝트 이름</system:String>
+    <system:String x:Key="AuditAllProjectNumber">프로젝트 번호</system:String>
+    <system:String x:Key="AuditAllClientName">클라이언트 이름</system:String>
+    <system:String x:Key="AuditAllProjectPhases">프로젝트 단계</system:String>
+    <system:String x:Key="AuditAllWorksets">작업 세트</system:String>
+    <system:String x:Key="AuditAllLinkedFileName">링크된 파일 이름</system:String>
+    <system:String x:Key="AuditAllLoadedStatus">로드 상태</system:String>
+    <system:String x:Key="AuditAllLinks">링크</system:String>
+    <system:String x:Key="AuditAllLinksNotPinned">고정되지 않은 링크</system:String>
+
+    <!-- CAD Audit Strings -->
+    <system:String x:Key="CADAuditInstances">CAD 인스턴스 감사:</system:String>
+    <system:String x:Key="CADAuditInProject">이 프로젝트에서</system:String>
+    <system:String x:Key="CADAuditInActiveView">활성 뷰에서만</system:String>
+    <system:String x:Key="CADAuditCancel">취소</system:String>
+    <system:String x:Key="CADAuditOK">확인</system:String>
+    <system:String x:Key="CADAuditTitle">현재 프로젝트의 CAD 인스턴스 감사</system:String>
+    <system:String x:Key="CADAuditNoInstances">CAD 인스턴스를 찾을 수 없습니다</system:String>
+    <system:String x:Key="CADAuditSelect">선택</system:String>
+    <system:String x:Key="CADAuditPreflightAudit">가져온 CAD 및 링크된 CAD의 사전 감사</system:String>
+    <system:String x:Key="CADAuditNo">아니오</system:String>
+    <system:String x:Key="CADAuditSelectZoom">선택/확대</system:String>
+    <system:String x:Key="CADAuditDWGInstance">DWG 인스턴스</system:String>
+    <system:String x:Key="CADAuditLoadedStatus">로드 상태</system:String>
+    <system:String x:Key="CADAuditWorkplaneOrView">작업 평면 또는 단일 뷰</system:String>
+    <system:String x:Key="CADAuditDuplicate">중복</system:String>
+    <system:String x:Key="CADAuditCreatorUser">생성자</system:String>
+    <system:String x:Key="CADAuditLocationSiteName">위치 사이트 이름</system:String>
+    <system:String x:Key="CADAuditInstancesFound">CAD 인스턴스 발견.</system:String>
+    <system:String x:Key="CADAuditCheckRunOn">점검 실행 대상:</system:String>
+    <system:String x:Key="CADAuditActiveView">활성 뷰</system:String>
+    <system:String x:Key="CADAuditWholeModel">전체 모델</system:String>
+    <system:String x:Key="CADAuditExplanations">경고 설명</system:String>
+    <system:String x:Key="CADAuditLoadedStatusExplanation">로드 상태............: CAD가 링크 대신 가져온 경우 경고</system:String>
+    <system:String x:Key="CADAuditWorkplaneExplanation">작업 평면 또는 단일 뷰: CAD가 모델 작업 평면이 아닌 '활성 뷰만' 옵션으로 단일 뷰에 배치된 경우 경고</system:String>
+    <system:String x:Key="CADAuditDuplicateExplanation">중복.................: 의도하지 않은 경우를 대비해 CAD가 두 번 이상 배치된 경우 경고 (링크 또는 가져오기 여부 무관)</system:String>
+    <system:String x:Key="CADAuditCheckDuration">점검 소요 시간</system:String>
+    <system:String x:Key="CADAuditShowView">뷰 표시</system:String>
+
+    <!-- Naming Convention Strings -->
+    <system:String x:Key="NamingConventionReport">모델 명명 규칙 보고서</system:String>
+    <system:String x:Key="NamingConventionWallCheck">명명 규칙 벽 점검</system:String>
+    <system:String x:Key="NamingConventionWallType">벽 유형</system:String>
+    <system:String x:Key="NamingConventionCount">수</system:String>
+    <system:String x:Key="NamingConventionStatus">상태</system:String>
+    <system:String x:Key="NamingConventionWrongName">잘못된 이름</system:String>
+    <system:String x:Key="NamingConventionIncorrectlyNamed">잘못된 이름의 벽 유형 발견:</system:String>
+    <system:String x:Key="NamingConventionNoFileSelected">JSON 파일이 선택되지 않았습니다.</system:String>
+</ResourceDictionary>
