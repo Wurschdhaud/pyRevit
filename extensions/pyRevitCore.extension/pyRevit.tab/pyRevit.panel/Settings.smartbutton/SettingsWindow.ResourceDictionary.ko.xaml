@@ -171,7 +171,7 @@
 
     <system:String x:Key="StartupChecks.Build">필요한 빌드 번호 (빌드):</system:String>
     <system:String x:Key="StartupChecks.Build.Button">현재 호스트 빌드 번호로 설정</system:String>
-    <system:String x:Key="StartupChecks.Build.Button.ToolTip">필요한 빌드 번호를 현재 호스트 빌드 번호로 설정</system:String>
+    <system:String x:Key="StartupChecks.Build.Button.ToolTip">필요한 빌드 번호를 현재 호스트 빌드 번호로 설정합니다</system:String>
     <system:Double x:Key="StartupChecks.Build.Button.Width">200</system:Double>
 
     <system:String x:Key="StartupChecks.MinimumSpace">호스트 드라이브의 최소 여유 공간 (기가바이트):</system:String>
@@ -244,7 +244,7 @@
     <system:String x:Key="Telemetry.DataFolder.Button.ToolTip">원격 측정 폴더 선택</system:String>
     <system:String x:Key="Telemetry.Reset.Button">초기화</system:String>
     <system:Double x:Key="Telemetry.Reset.Button.Width">48</system:Double>
-    <system:String x:Key="Telemetry.Reset.Button.ToolTip">원격 측정 폴더를 기본값으로 초기화</system:String>
+    <system:String x:Key="Telemetry.Reset.Button.ToolTip">원격 측정 폴더를 기본값으로 초기화합니다</system:String>
     <system:String x:Key="Telemetry.Events">활성 애플리케이션 원격 측정 이벤트 선택</system:String>
 
     <system:String x:Key="SupportedRevitVersions.Title">지원되는 Revit 버전</system:String>

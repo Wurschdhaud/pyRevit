@@ -3,7 +3,7 @@
                     xmlns:system="clr-namespace:System;assembly=mscorlib">
 
     <!-- Search bar -->
-    <system:String x:Key="TooltipToggleRegex">정규식 / 부분 문자열 검색 전환</system:String>
+    <system:String x:Key="TooltipToggleRegex">정규식 / 부분 문자열 검색으로 전환합니다</system:String>
 
     <!-- Check / Uncheck / Toggle row -->
     <system:String x:Key="BtnCheckAll">모두 선택</system:String>

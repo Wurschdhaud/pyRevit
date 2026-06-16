@@ -68,7 +68,7 @@
     <!-- Placeholders -->
     <system:String x:Key="ColorSplasher.Placeholders.SearchParameters">매개변수 검색...</system:String>
     <system:String x:Key="ColorSplasher.Placeholders.SelectCategoryAndParameter">카테고리와 매개변수를 선택하면 매개변수 값이 표시됩니다</system:String>
-    <system:String x:Key="ColorSplasher.Messages.ShiftClickToSelect">Shift+클릭으로 요소 선택</system:String>
+    <system:String x:Key="ColorSplasher.Messages.ShiftClickToSelect">Shift+클릭으로 요소를 선택합니다</system:String>
 
     <!-- Save/Load Dialog -->
     <system:String x:Key="ColorSplasher.SaveLoadDialog.Title">색상 구성표 저장 / 불러오기</system:String>

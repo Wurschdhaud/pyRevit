@@ -22,6 +22,6 @@
     <system:String x:Key="SelectFromList.Toggle.Button">전환</system:String>
 
     <!-- Tooltips -->
-    <system:String x:Key="SelectFromList.RegexToggle.Tooltip">정규식 필터링과 퍼지 필터링 간 전환</system:String>
+    <system:String x:Key="SelectFromList.RegexToggle.Tooltip">정규식 필터링과 퍼지 필터링 간 전환합니다</system:String>
 
 </ResourceDictionary>
