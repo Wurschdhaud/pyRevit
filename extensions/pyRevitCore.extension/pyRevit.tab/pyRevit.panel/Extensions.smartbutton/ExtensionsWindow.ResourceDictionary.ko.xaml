@@ -48,5 +48,6 @@
     <v:String x:Key="AddCustomExtension.NameToolTip">확장 이름 (예: MyTools)</v:String>
     <v:String x:Key="AddCustomExtension.TokenLabel">토큰 (선택 사항):</v:String>
     <v:String x:Key="AddCustomExtension.TokenToolTip">공개 저장소는 비워 두세요</v:String>
+    <v:String x:Key="AddCustomExtension.RevealTokenToolTip">길게 눌러 토큰 확인</v:String>
     <v:String x:Key="AddCustomExtension.AddAndInstall">추가 및 설치</v:String>
 </ResourceDictionary>
