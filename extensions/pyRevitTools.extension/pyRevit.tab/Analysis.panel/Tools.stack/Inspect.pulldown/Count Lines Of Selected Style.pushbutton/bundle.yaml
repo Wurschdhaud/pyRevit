@@ -14,7 +14,7 @@ tooltip:
 
 
     CTRL-Click: Lists every matching line
-  ko: 선택한 선과 스타일이 일치하는 모델의 모든 선을 셉니다. CTRL+클릭: 일치하는 모든 선을 나열합니다.
+  ko: "선택한 선과 스타일이 일치하는 모델의 모든 선을 셉니다. CTRL+클릭: 일치하는 모든 선을 나열합니다."
   fr_fr: >-
     Compte toutes les lignes du modèle avec un style correspondant à la ligne sélectionnée
 
