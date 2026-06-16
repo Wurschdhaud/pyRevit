@@ -17,8 +17,8 @@
     <system:String x:Key="SelectFromList.Select.Button">선택</system:String>
 
     <!-- Dynamic button labels (when filtered) -->
-    <system:String x:Key="SelectFromList.Check.Button">선택</system:String>
-    <system:String x:Key="SelectFromList.Uncheck.Button">해제</system:String>
+    <system:String x:Key="SelectFromList.Check.Button">체크</system:String>
+    <system:String x:Key="SelectFromList.Uncheck.Button">체크 해제</system:String>
     <system:String x:Key="SelectFromList.Toggle.Button">전환</system:String>
 
     <!-- Tooltips -->
