@@ -22,6 +22,12 @@ This is the starting point for pyRevit. At Revit loads the PyRevitLoader.dll
 import sys
 import os.path as op
 
+# Defense-in-depth: a runaway circular import in pyRevit or any user extension
+# must raise a catchable RecursionError rather than overflow the native stack
+# and crash Revit. The C# engine also passes the same limit via the
+# RecursionLimit flag, but apply it here too in case the flag is not honored.
+sys.setrecursionlimit(1000)
+
 # add the library location to the system search paths
 repo_path = op.dirname(op.dirname(op.dirname(op.dirname(__file__))))
 sys.path.append(op.join(repo_path, 'pyrevitlib'))
