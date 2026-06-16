@@ -9,11 +9,11 @@ title:
   pt_br: Fixar/Desafixar Referências em Massa
 tooltip:
   en_us: |
-  ko: |
     Allows you to select one or more categories (e.g., Grids, Levels, Links) and pin all unpinned instances in the model.
 
     Shift-Click:
     Unpins all pinned instances in the selected categories.
+  ko: "하나 이상의 카테고리(예: 그리드, 레벨, 링크)를 선택하여 모델의 모든 고정되지 않은 인스턴스를 고정합니다. Shift+클릭: 선택한 카테고리의 모든 고정된 인스턴스의 고정을 해제합니다."
   fr_fr: |
     Permet de sélectionner une ou plusieurs catégories (ex : grilles, niveaux, liens) et d’épingler toutes les instances non épinglées dans le modèle.
 

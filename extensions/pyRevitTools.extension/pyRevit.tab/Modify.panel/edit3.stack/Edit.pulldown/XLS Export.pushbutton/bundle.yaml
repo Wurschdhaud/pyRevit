@@ -9,7 +9,6 @@ title:
   pt_br: Exportar Parâmetros para Excel
 tooltip:
   en_us: |
-  ko: |
     Exports element parameters of schedules to an Excel file.
     You can choose which parameters to include. Parameter values are converted into project units for later reimport. 
     Read-only and unsupported parameters are marked and locked.
@@ -21,6 +20,7 @@ tooltip:
     - document - instances
     - current view
     - selection
+  ko: 일람표의 요소 매개변수를 Excel 파일로 내보냅니다. 포함할 매개변수를 선택할 수 있습니다. 매개변수 값은 나중에 다시 가져오기 위해 프로젝트 단위로 변환됩니다. 읽기 전용 및 지원되지 않는 매개변수는 표시되고 잠깁니다. Shift+클릭으로 범위를 선택할 수 있습니다.
   fr_fr: |
     Exporte les paramètres des éléments à partir des nomenclatures vers un fichier Excel.
     Vous pouvez choisir les paramètres à inclure. Les valeurs sont converties en unités du projet pour permettre une réimportation ultérieure.
