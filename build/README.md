@@ -57,6 +57,49 @@ dotnet run -c Debug -- ci
 
 Outputs land under `bin/` (`netfx/`, `netcore/`, engines, CLI, doctor, autocomplete, etc.). LibGit2 native DLL verification runs at the end of `ci`.
 
+On a **clean checkout** (no tracked `bin/`), `ci` builds in this order:
+
+1. Labs (`pyRevitLabs.sln` + CLI/doctor)
+2. IronPython deps → seeds `bin/*/engines/IPY2712PR/` from `dev/modules/`
+3. Loaders (`pyRevitLoader.*`, not runners)
+4. Runtime (`pyRevitLabs.PyRevit.Runtime.sln`)
+5. Runners (`pyRevitRunner.*`)
+6. Static assets from `release/`
+
+This mirrors the legacy `pipenv run pyrevit build deps` + `build engines` + `build runtime` sequence.
+
+The `bin/` directory is **not tracked in git**. It is produced locally by `dotnet run -- ci` or downloaded by `pyrevit clone` / `pyrevit clones update` from **public GitHub Release assets** on the `ci-binaries` tag (`unsigned-bin-{sha}.zip`). Only **`develop`** and **`master`** are supported for CI binary download. Static assets are staged from [`release/bin-assets/`](../release/bin-assets/) and [`release/cengines/`](../release/cengines/); host/product JSON templates live under [`release/`](../release/). **Contributors edit** [`release/pyrevit-hosts.json`](../release/pyrevit-hosts.json), not files under `bin/`.
+
+### Getting binaries without building
+
+No token is required for the public `pyrevitlabs/pyRevit` repository on `develop` or `master`:
+
+```powershell
+pyrevit clone myclone --branch develop
+```
+
+This clones source from git and downloads pre-built binaries from the public Release. Fork clones use upstream Release assets for the same commit SHA when the fork has no release yet. Updates refresh binaries the same way:
+
+```powershell
+pyrevit clones update myclone
+```
+
+Use `--skip-bin` on update when you manage `bin/` yourself (local `dotnet run -- ci`).
+
+**Contributor path** (C# development):
+
+```powershell
+git clone https://github.com/pyrevitlabs/pyRevit.git
+cd pyRevit\build
+dotnet run -c Release -- ci
+cd ..
+pyrevit clones add dev .
+```
+
+CI also uploads `unsigned-bin-${{ github.sha }}` as an Actions artifact (for WIP/release pipelines), publishes the same zip to GitHub Releases, and mirrors it as **`PyRevit.UnsignedBin`** on GitHub Packages (consumed by the CLI when `GITHUBTOKEN` is set). Release assets are pruned to the last **3 SHAs per branch** (`develop`, `master`).
+
+Optional: set `GITHUBTOKEN` (`read:packages` and/or `actions:read`) for private or diverged forks — the CLI falls back to NuGet and Actions artifacts when public Release download fails.
+
 Run unit tests:
 
 ```powershell
@@ -100,6 +143,7 @@ Non-secret defaults live in [`appsettings.json`](appsettings.json). Override via
 | `Publish__ChocoToken` | Chocolatey push token |
 | `Publish__WingetToken` | WinGet manifest submit token |
 | `GITHUB_TOKEN` | GitHub API access for releases/notify |
+| `GITHUBTOKEN` | Optional: pyRevit CLI fallback to Actions artifacts for private forks (`actions:read`) |
 
 Set `DOTNET_ENVIRONMENT=Production` to load [`appsettings.Production.json`](appsettings.Production.json).
 

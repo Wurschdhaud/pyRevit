@@ -136,14 +136,29 @@ namespace pyRevitLabs.Common {
             return HttpClient.GetAsync(url).GetAwaiter().GetResult();
         }
 
+        public static HttpResponseMessage SendHttpRequest(HttpRequestMessage request) {
+            if (!CheckInternetConnection())
+                throw new pyRevitNoInternetConnectionException();
+
+            return HttpClient.SendAsync(request).GetAwaiter().GetResult();
+        }
+
+        public static void CopyHttpContentToFile(HttpContent content, string destPath) {
+            using (var stream = content.ReadAsStreamAsync().GetAwaiter().GetResult())
+            using (var fileStream = File.Create(destPath))
+                stream.CopyTo(fileStream);
+        }
+
         public static string DownloadFile(string url, string destPath) {
             if (!CheckInternetConnection())
                 throw new pyRevitNoInternetConnectionException();
 
             try {
                 logger.Debug("Downloading \"{0}\"", url);
-                var bytes = HttpClient.GetByteArrayAsync(url).GetAwaiter().GetResult();
-                File.WriteAllBytes(destPath, bytes);
+                using (var response = HttpClient.GetAsync(url).GetAwaiter().GetResult()) {
+                    response.EnsureSuccessStatusCode();
+                    CopyHttpContentToFile(response.Content, destPath);
+                }
             }
             catch (Exception dlEx) {
                 logger.Debug("Error downloading file. | {0}", dlEx.Message);

@@ -6,7 +6,6 @@ on:
     branches: [develop, master]
     paths:
       - '.github/workflows/**'
-      - 'bin/**'
       - 'build/**'
       - 'dev/**'
       - 'extensions/**'
@@ -18,7 +17,6 @@ on:
     tags: ['v*']
     paths:
       - '.github/workflows/**'
-      - 'bin/**'
       - 'build/**'
       - 'dev/**'
       - 'extensions/**'
@@ -40,6 +38,9 @@ concurrency:
 
 jobs:
   build:
+    permissions:
+      contents: write
+      actions: read
     outputs:
       build_version: ${{ steps.versionmeta.outputs.build_version }}
       install_version: ${{ steps.versionmeta.outputs.install_version }}
@@ -84,6 +85,104 @@ jobs:
         with:
           name: unsigned-bin-${{ github.sha }}
           path: bin/**
+
+      - name: Publish unsigned bin to GitHub Release
+        if: >
+          github.repository == env.MainRepo &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $branch = $env:BRANCH_NAME
+          $sha = $env:COMMIT_SHA
+          $safeBranch = $branch -replace '[/\\]', '-'
+          $shaZip = "unsigned-bin-$sha.zip"
+          $branchZip = "unsigned-bin-$safeBranch-latest.zip"
+          Compress-Archive -Path bin -DestinationPath $shaZip -Force
+          Copy-Item $shaZip $branchZip -Force
+          gh release view ci-binaries 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create ci-binaries --prerelease --title "CI Binaries" --notes "Pre-built bin/ from CI (anonymous download for pyrevit clone)."
+          }
+          gh release upload ci-binaries $shaZip --clobber
+          gh release upload ci-binaries $branchZip --clobber
+
+      - name: Prune old CI bin release assets
+        if: >
+          github.repository == env.MainRepo &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $keep = New-Object System.Collections.Generic.HashSet[string]
+          foreach ($branch in @('develop', 'master')) {
+            $runs = gh api "repos/pyrevitlabs/pyRevit/actions/workflows/ci.yml/runs" `
+              -f branch=$branch -f status=completed -f per_page=10 `
+              --jq '.workflow_runs[] | select(.conclusion=="success") | .head_sha'
+            $runs | Select-Object -First 3 | ForEach-Object { [void]$keep.Add($_) }
+          }
+          $assets = gh release view ci-binaries --json assets --jq '.assets[].name'
+          foreach ($asset in $assets) {
+            if ($asset -match '^unsigned-bin-.+-latest\.zip$') { continue }
+            if ($asset -notmatch '^unsigned-bin-([a-f0-9]{40})\.zip$') { continue }
+            $sha = $Matches[1]
+            if (-not $keep.Contains($sha)) {
+              gh release delete-asset ci-binaries $asset --yes
+            }
+          }
+
+      - name: Publish unsigned bin NuGet package
+        if: >
+          github.repository == env.MainRepo &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sha = $env:COMMIT_SHA
+          $shortSha = $sha.Substring(0, 7)
+          $version = "1.0.0-ci-$shortSha"
+          $shaZip = "unsigned-bin-$sha.zip"
+          if (-not (Test-Path $shaZip)) {
+            Compress-Archive -Path bin -DestinationPath $shaZip -Force
+          }
+          $nugetVersion = '6.12.2'
+          $nugetUrl = "https://dist.nuget.org/win-x86-commandline/v$nugetVersion/nuget.exe"
+          Invoke-WebRequest -Uri $nugetUrl -OutFile nuget.exe
+          $nuget = ".\nuget.exe"
+          $nuspec = @"
+          <?xml version="1.0" encoding="utf-8"?>
+          <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+            <metadata>
+              <id>PyRevit.UnsignedBin</id>
+              <version>$version</version>
+              <authors>pyRevitLabs</authors>
+              <description>Unsigned pyRevit bin/ output from CI commit $sha</description>
+            </metadata>
+            <files>
+              <file src="$shaZip" target="content" />
+            </files>
+          </package>
+          "@
+          Set-Content -Path PyRevit.UnsignedBin.nuspec -Value $nuspec -Encoding UTF8
+          & $nuget pack PyRevit.UnsignedBin.nuspec -OutputDirectory .
+          dotnet nuget push "PyRevit.UnsignedBin.$version.nupkg" `
+            --source "https://nuget.pkg.github.com/pyrevitlabs/index.json" `
+            --api-key $env:GITHUB_TOKEN `
+            --skip-duplicate
 
       - name: Upload stamped release metadata
         if: github.repository == env.MainRepo
