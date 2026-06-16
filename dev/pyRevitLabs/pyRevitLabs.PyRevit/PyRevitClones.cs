@@ -273,7 +273,7 @@ namespace pyRevitLabs.PyRevit
                 catch (pyRevitBinArtifactNotFoundException ex)
                 {
                     logger.Warn(
-                        "Git clone succeeded but CI binaries are not available yet at \"{0}\" | {1}",
+                        "Git clone succeeded but CI binaries could not be installed at \"{0}\" | {1}",
                         clonedPath,
                         ex.Message);
                     throw;
@@ -687,6 +687,9 @@ namespace pyRevitLabs.PyRevit
             catch (pyRevitMissingGithubTokenException) {
                 throw;
             }
+            catch (pyRevitBinArtifactNotFoundException) {
+                throw;
+            }
             catch (Exception ex) {
                 throw new PyRevitException(
                     string.Format("Error installing CI binaries for clone \"{0}\" | {1}", clonePath, ex.Message),
@@ -703,6 +706,9 @@ namespace pyRevitLabs.PyRevit
                 BinArtifactInstaller.InstallForImageClone(clonePath, repoId, branchName, mode);
             }
             catch (pyRevitMissingGithubTokenException) {
+                throw;
+            }
+            catch (pyRevitBinArtifactNotFoundException) {
                 throw;
             }
             catch (Exception ex) {

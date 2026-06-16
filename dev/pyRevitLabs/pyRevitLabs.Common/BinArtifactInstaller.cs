@@ -24,7 +24,7 @@ namespace pyRevitLabs.Common {
                 throw new PyRevitException("Clone path can not be null.");
 
             if (!BinArtifactSupport.IsSupportedCiBinBranch(branchName)) {
-                throw new PyRevitException(
+                throw new pyRevitBinArtifactNotFoundException(
                     string.Format(
                         "CI binaries are only published for branches \"{0}\" and \"{1}\". "
                         + "Checkout a supported branch or build locally with \"dotnet run -- ci\".",
