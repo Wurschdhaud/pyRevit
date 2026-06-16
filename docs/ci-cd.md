@@ -74,6 +74,7 @@ After each successful CI push to **`develop`** or **`master`** on the main repo:
 2. Uploads to Release tag **`ci-binaries`** (pre-release), plus rolling **`unsigned-bin-{branch}-latest.zip`**
 3. Pushes **`PyRevit.UnsignedBin`** NuGet package to GitHub Packages (token-authenticated CLI mirror)
 4. Prunes per-SHA release assets older than the **last 3 successful CI builds** per branch (`develop`, `master`); branch-latest zips are always kept
+5. Prunes **`PyRevit.UnsignedBin`** NuGet versions older than the **last 2 successful CI builds** per branch (`develop`, `master`)
 
 Anonymous download URL pattern:
 
