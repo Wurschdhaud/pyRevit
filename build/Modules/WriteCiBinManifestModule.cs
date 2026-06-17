@@ -9,13 +9,14 @@ using ModularPipelines.Modules;
 namespace Build.Modules;
 
 [DependsOn<StageBinAssetsModule>]
+[DependsOn<ResolveVersioningModule>]
 public sealed class WriteCiBinManifestModule(IOptions<BuildOptions> buildOptions) : Module
 {
     protected override async Task ExecuteModuleAsync(IModuleContext context, CancellationToken cancellationToken)
     {
-        var versionResult = await context.GetModule<StampVersionModule>();
+        var versionResult = await context.GetModule<ResolveVersioningModule>();
         var versionInfo = versionResult.ValueOrDefault
-            ?? throw new InvalidOperationException("StampVersionModule did not produce a version.");
+            ?? throw new InvalidOperationException("ResolveVersioningModule did not produce a version.");
 
         var sha = Environment.GetEnvironmentVariable("GITHUB_SHA") ?? string.Empty;
         var branch = Environment.GetEnvironmentVariable("GITHUB_REF_NAME")

@@ -1,6 +1,7 @@
 using Build.Helpers;
 using Build.Options;
 using Microsoft.Extensions.Options;
+using ModularPipelines.Attributes;
 using ModularPipelines.Context;
 using ModularPipelines.DotNet.Extensions;
 using ModularPipelines.Models;
@@ -9,6 +10,8 @@ using ModularPipelines.Options;
 
 namespace Build.Modules;
 
+[DependsOn<SeedProductDataModule>]
+[DependsOn<SetProductDataModule>]
 public sealed class BuildLabsModule(IOptions<BuildOptions> buildOptions) : Module
 {
     protected override async Task ExecuteModuleAsync(IModuleContext context, CancellationToken cancellationToken)

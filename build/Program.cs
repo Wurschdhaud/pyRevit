@@ -45,6 +45,7 @@ if (runCi)
     builder.Services.AddModule<ResolveVersioningModule>();
     builder.Services.AddModule<SetCopyrightYearModule>();
     builder.Services.AddModule<StampVersionModule>();
+    builder.Services.AddModule<SeedProductDataModule>();
     builder.Services.AddModule<SetProductDataModule>();
     builder.Services.AddModule<BuildLabsModule>();
     builder.Services.AddModule<CheckDeployLocksModule>();

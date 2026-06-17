@@ -57,8 +57,11 @@ dotnet run -c Debug -- ci
 
 Outputs land under `bin/` (`netfx/`, `netcore/`, engines, CLI, doctor, autocomplete, etc.). LibGit2 native DLL verification runs at the end of `ci`.
 
+`Channel=none` (the default) is valid for unsigned local builds and fork PR validation. The pipeline seeds `bin/pyrevit-products.json` from [`release/pyrevit-products.json`](../release/pyrevit-products.json) before building labs.
+
 On a **clean checkout** (no tracked `bin/`), `ci` builds in this order:
 
+0. Seed `bin/pyrevit-products.json` from `release/` (stamping may update it when `Build__Channel` is `wip` or `release` on the main repo)
 1. Labs (`pyRevitLabs.sln` + CLI/doctor)
 2. IronPython deps → seeds `bin/*/engines/IPY2712PR/` from `dev/modules/`
 3. Loaders (`pyRevitLoader.*`, not runners)
