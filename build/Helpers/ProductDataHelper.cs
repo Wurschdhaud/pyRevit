@@ -40,8 +40,13 @@ public static class ProductDataHelper
             throw new FileNotFoundException("Missing product template.", templatePath);
         }
 
+        if (File.Exists(dataPath))
+        {
+            return;
+        }
+
         Directory.CreateDirectory(Path.GetDirectoryName(dataPath)!);
-        File.Copy(templatePath, dataPath, overwrite: true);
+        File.Copy(templatePath, dataPath, overwrite: false);
     }
 
     public static void InsertProduct(List<ProductRecord> products, ProductRecord product, bool cli, bool msi = false)

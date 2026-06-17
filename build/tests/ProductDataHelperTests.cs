@@ -134,6 +134,18 @@ public sealed class ProductDataHelperTests
             ProductDataHelper.SeedProductsFromTemplate(missingTemplate, dataPath));
     }
 
+    [TestMethod]
+    public void SeedProductsFromTemplate_skips_when_destination_exists()
+    {
+        var templatePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "pyrevit-products.json");
+        var dataPath = WriteTempJson(LegacyProductJson);
+        var originalJson = File.ReadAllText(dataPath);
+
+        ProductDataHelper.SeedProductsFromTemplate(templatePath, dataPath);
+
+        Assert.AreEqual(originalJson, File.ReadAllText(dataPath));
+    }
+
     private static string WriteTempJson(string json)
     {
         var path = Path.Combine(Path.GetTempPath(), "pyrevit-products-" + Guid.NewGuid().ToString("N") + ".json");
