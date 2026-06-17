@@ -1,5 +1,4 @@
 """Wrapper module for pyRevitLabs functionality."""
-import logging
 import os.path as op
 #pylint: disable=W0703,C0302,C0103,W0614,E0401,W0611,C0413
 #pylint: disable=superfluous-parens,useless-import-alias
@@ -63,37 +62,6 @@ from pyrevit.coreutils import logger
 
 
 mlogger = logger.get_logger(__name__)
-
-
-# setup logger
-class PyRevitOutputTarget(NLog.Targets.TargetWithLayout):
-    """NLog target to direct log messages to pyRevit output window."""
-    def Write(self, asyncLogEvent):
-        """Write event handler."""
-        try:
-            event = asyncLogEvent.LogEvent
-            level = self.convert_level(event.Level)
-            if mlogger.is_enabled_for(level):
-                print(self.Layout.Render(event))    #pylint: disable=E1101
-        except Exception as e:
-            print(e)
-
-    def convert_level(self, nlog_level):
-        """Convert Nlog levels to pything logging levels."""
-        if nlog_level == NLog.LogLevel.Fatal:
-            return logging.CRITICAL
-        elif nlog_level == NLog.LogLevel.Error:
-            return logging.ERROR
-        elif nlog_level == NLog.LogLevel.Info:
-            return logging.INFO
-        elif nlog_level == NLog.LogLevel.Debug:
-            return logging.DEBUG
-        elif nlog_level == NLog.LogLevel.Off:
-            return logging.DEBUG
-        elif nlog_level == NLog.LogLevel.Trace:
-            return logging.DEBUG
-        elif nlog_level == NLog.LogLevel.Warn:
-            return logging.WARNING
 
 
 def extract_build_from_exe(proc_path):

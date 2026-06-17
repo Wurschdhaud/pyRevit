@@ -19,7 +19,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
     public static class ServiceFactory
     {
         /// <summary>
-        /// Creates a logger instance from a Python logger object.
+        /// Creates a logger instance for the C# session manager.
         /// </summary>
         /// <param name="pythonLogger">The Python logger instance.</param>
         /// <param name="revitVersion">
@@ -242,13 +242,11 @@ namespace pyRevitAssemblyBuilder.SessionManager
         /// <param name="revitVersion">The Revit version number (e.g., "2024").</param>
         /// <param name="buildStrategy">The build strategy to use for assembly generation.</param>
         /// <param name="uiApplication">The Revit UIApplication instance.</param>
-        /// <param name="pythonLogger">The Python logger instance for integration with pyRevit's logging system.</param>
         /// <returns>A new ISessionManagerService instance.</returns>
         public static ISessionManagerService CreateSessionManagerService(
             string revitVersion,
             AssemblyBuildStrategy buildStrategy,
-            UIApplication uiApplication,
-            object? pythonLogger)
+            UIApplication uiApplication)
         {
             // Create logger first - it's used by all other services.
             // Pass revitVersion so the optional [core] csharp_filelogging sidecar lands in

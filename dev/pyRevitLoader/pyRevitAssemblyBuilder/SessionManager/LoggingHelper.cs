@@ -8,7 +8,7 @@ using pyRevitLabs.NLog;
 namespace pyRevitAssemblyBuilder.SessionManager
 {
     /// <summary>
-    /// Helper class for logging using Python's logger.
+    /// Logger adapter used by the C# session manager.
     /// </summary>
     public class LoggingHelper : ILogger
     {
@@ -104,10 +104,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
         {
             try
             {
-                if (_pythonLogger != null)
-                    _pythonLogger.info(message);
-                else
-                    nlog.Info(message);
+                nlog.Info(message);
             }
             catch (Exception ex)
             {
@@ -124,10 +121,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
         {
             try
             {
-                if (_pythonLogger != null)
-                    _pythonLogger.debug(message);
-                else
-                    nlog.Debug(message);
+                nlog.Debug(message);
             }
             catch (Exception ex)
             {
@@ -144,10 +138,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
         {
             try
             {
-                if (_pythonLogger != null)
-                    _pythonLogger.error(message);
-                else
-                    nlog.Error(message);
+                nlog.Error(message);
             }
             catch (Exception ex)
             {
@@ -164,10 +155,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
         {
             try
             {
-                if (_pythonLogger != null)
-                    _pythonLogger.warning(message);
-                else
-                    nlog.Warn(message);
+                nlog.Warn(message);
             }
             catch (Exception ex)
             {
@@ -175,5 +163,6 @@ namespace pyRevitAssemblyBuilder.SessionManager
             }
             WriteSidecar("WARN ", message);
         }
+
     }
 }
