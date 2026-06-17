@@ -33,6 +33,22 @@ public static class ProductDataHelper
         File.WriteAllText(path, json);
     }
 
+    public static void SeedProductsFromTemplate(string templatePath, string dataPath)
+    {
+        if (!File.Exists(templatePath))
+        {
+            throw new FileNotFoundException("Missing product template.", templatePath);
+        }
+
+        if (File.Exists(dataPath))
+        {
+            return;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(dataPath)!);
+        File.Copy(templatePath, dataPath, overwrite: false);
+    }
+
     public static void InsertProduct(List<ProductRecord> products, ProductRecord product, bool cli, bool msi = false)
     {
         if (products.Any(x => x.Product == product.Product && x.Version == product.Version))

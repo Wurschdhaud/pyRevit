@@ -109,6 +109,43 @@ public sealed class ProductDataHelperTests
         Assert.DoesNotContain("\\u002B", outputJson);
     }
 
+    [TestMethod]
+    public void SeedProductsFromTemplate_copies_template_to_bin_path()
+    {
+        var templatePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "pyrevit-products.json");
+        var outputDir = Path.Combine(Path.GetTempPath(), "pyrevit-bin-" + Guid.NewGuid().ToString("N"));
+        var dataPath = Path.Combine(outputDir, "pyrevit-products.json");
+
+        ProductDataHelper.SeedProductsFromTemplate(templatePath, dataPath);
+
+        Assert.IsTrue(File.Exists(dataPath));
+        var products = ProductDataHelper.LoadProducts(dataPath);
+        Assert.IsGreaterThan(0, products.Count);
+        Assert.IsTrue(products.All(product => !string.IsNullOrWhiteSpace(product.Product)));
+    }
+
+    [TestMethod]
+    public void SeedProductsFromTemplate_throws_when_template_missing()
+    {
+        var dataPath = Path.Combine(Path.GetTempPath(), "pyrevit-products-" + Guid.NewGuid().ToString("N") + ".json");
+        var missingTemplate = Path.Combine(Path.GetTempPath(), "missing-template-" + Guid.NewGuid().ToString("N") + ".json");
+
+        Assert.ThrowsExactly<FileNotFoundException>(() =>
+            ProductDataHelper.SeedProductsFromTemplate(missingTemplate, dataPath));
+    }
+
+    [TestMethod]
+    public void SeedProductsFromTemplate_skips_when_destination_exists()
+    {
+        var templatePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "pyrevit-products.json");
+        var dataPath = WriteTempJson(LegacyProductJson);
+        var originalJson = File.ReadAllText(dataPath);
+
+        ProductDataHelper.SeedProductsFromTemplate(templatePath, dataPath);
+
+        Assert.AreEqual(originalJson, File.ReadAllText(dataPath));
+    }
+
     private static string WriteTempJson(string json)
     {
         var path = Path.Combine(Path.GetTempPath(), "pyrevit-products-" + Guid.NewGuid().ToString("N") + ".json");

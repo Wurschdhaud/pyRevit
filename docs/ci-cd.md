@@ -53,7 +53,7 @@ Doc-only or other out-of-scope changes skip CI entirely.
 
 ### Official repository vs forks
 
-The stamping steps (`set year`, `set build wip|release`, `set products`) only run when `Build__Channel` is `wip` or `release` **and** `GITHUB_REPOSITORY` is the main repo (`pyrevitlabs/pyRevit`). The downstream `wip.yml` and `release.yml` jobs are similarly gated on the main repo so secrets are never exposed to forks. Forks still get checkout and an **unsigned** product build via `ci.yml` (useful for PR validation).
+The stamping steps (`set year`, `set build wip|release`, `set products`) only run when `Build__Channel` is `wip` or `release` **and** `GITHUB_REPOSITORY` is the main repo (`pyrevitlabs/pyRevit`). The downstream `wip.yml` and `release.yml` jobs are similarly gated on the main repo so secrets are never exposed to forks. Forks still get checkout and an **unsigned** product build via `ci.yml` (useful for PR validation). Unsigned builds (`Channel=none`) still seed `bin/pyrevit-products.json` from `release/` before the labs build so fork PR validation succeeds.
 
 ## Prebuilt binaries for clone
 

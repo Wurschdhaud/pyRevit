@@ -97,6 +97,8 @@ pyrevit clones add dev .
 pyrevit attach dev default --installed
 ```
 
+The `ci` pipeline seeds `bin/pyrevit-products.json` from tracked `release/` templates before building labs. No manual `bin/` setup or `Build__Channel` override is required for a first local build.
+
 After pulling source changes, refresh **without** downloading CI binaries:
 
 ```shell
@@ -106,6 +108,60 @@ cd build && dotnet run -c Release -- ci && cd ..
 ```
 
 Rebuild in Debug when attaching the debugger (see [Debugging Code](#debugging-code)).
+
+#### Build channel (maintainers)
+
+Most contributors can use the default build channel (`none`) shown in Profile 2 above. **Repo admins and maintainers** who need to reproduce what CI does on the main repository — version stamping, copyright year, and product metadata in `bin/` — set `Build__Channel` before running `dotnet run -- ci`.
+
+| Channel | When to use | Matches CI on |
+|---------|-------------|---------------|
+| `none` (default) | Local dev, fork PRs, unsigned builds | Fork PR validation; any build without stamping |
+| `wip` | Testing a **develop**-style stamped build locally | Push to `develop` on `pyrevitlabs/pyRevit` |
+| `release` | Testing a **master** / tag-style stamped build locally | Push to `master` or `v*` tag on `pyrevitlabs/pyRevit` |
+
+Set the channel with the `Build__Channel` environment variable (maps to [`build/appsettings.json`](../build/appsettings.json) → `Build:Channel`). Run commands from `build/`.
+
+**PowerShell:**
+
+```powershell
+cd build
+
+# develop-style stamping (WIP version suffix, product metadata refresh)
+$env:Build__Channel = 'wip'
+dotnet run -c Release -- ci
+
+# master / release-tag stamping
+$env:Build__Channel = 'release'
+$env:DOTNET_ENVIRONMENT = 'Production'
+dotnet run -c Release -- ci
+
+# back to unsigned (default)
+Remove-Item Env:Build__Channel -ErrorAction SilentlyContinue
+Remove-Item Env:DOTNET_ENVIRONMENT -ErrorAction SilentlyContinue
+dotnet run -c Release -- ci
+```
+
+**cmd:**
+
+```bat
+cd build
+set Build__Channel=wip
+dotnet run -c Release -- ci
+```
+
+**bash:**
+
+```bash
+cd build
+export Build__Channel=wip
+dotnet run -c Release -- ci
+```
+
+!!! warning "Stamping modifies source files"
+
+    `wip` and `release` update tracked files under `pyrevitlib/`, `release/`, and installer metadata — the same steps CI runs before building products. Review `git status` before committing; do not push accidental version bumps from a local stamped build.
+
+On GitHub Actions, full stamping runs only when `Build__Channel` is `wip` or `release` **and** `GITHUB_REPOSITORY` is `pyrevitlabs/pyRevit`. Fork workflows always use `none` for stamping even if you set the variable in a custom workflow. Locally, `GITHUB_REPOSITORY` is usually unset, so setting `Build__Channel` is enough to mirror main-repo CI. See [CI/CD — Official repository vs forks](ci-cd.md#official-repository-vs-forks) and [`build/README.md`](../build/README.md).
 
 ### Set Upstream Remote
 
