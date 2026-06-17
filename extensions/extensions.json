@@ -291,6 +291,19 @@
             "website": "https://seed43.org",
             "image": "https://github.com/Seed-43/Seed43/blob/main/Seed43.png",
             "dependencies": []
+        },
+        {
+            "builtin": "False",
+            "type": "extension",
+            "rocket_mode_compatible": "True",
+            "name": "BMT",
+            "description": "BMT - free productivity tools for Revit by Biminent.",
+            "author": "Viktor Kuzev",
+            "author_profile": "https://biminent.com",
+            "url": "https://github.com/biminent/pyRevitExtension.git",
+            "website": "https://biminent.com",
+            "image": "",
+            "dependencies": []
         }
     ]
 }
