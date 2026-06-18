@@ -281,4 +281,17 @@ def loggers_have_errors():
         return False
 
 
+def get_runtime_logfile_path():
+    """Return the path of the current session's default runtime log file.
+
+    Resolved by the runtime logging service so callers always agree with where
+    the file is actually written. Returns None if it can't be determined.
+    """
+    try:
+        from pyrevit.runtime.types import ScriptLoggerService
+        return ScriptLoggerService.GetDefaultLogFilePath() or None
+    except Exception:
+        return None
+
+
 _install_standard_logging_bridge()

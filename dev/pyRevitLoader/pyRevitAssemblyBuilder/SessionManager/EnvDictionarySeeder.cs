@@ -60,10 +60,18 @@ namespace pyRevitAssemblyBuilder.SessionManager
         {
             var config = PyRevitConfig.Load();
 
+            // Revit version is seeded earlier by Python sessioninfo as the precise subversion
+            // (e.g. "2025.4.10"); the loader only knows the major VersionNumber (e.g. "2025").
+            // Preserve the already-seeded value so a single session keeps one host version
+            // (SessionInfo / output-window identity) instead of flipping it mid-startup.
+            var seededAppVersion = ReadSeededAppVersion();
+
             var values = new Dictionary<string, object>
             {
                 [KeySessionUUID]        = Guid.NewGuid().ToString(),
-                [KeyRevitVersion]       = uiApp?.Application?.VersionNumber ?? string.Empty,
+                [KeyRevitVersion]       = !string.IsNullOrEmpty(seededAppVersion)
+                                              ? seededAppVersion!
+                                              : (uiApp?.Application?.VersionNumber ?? string.Empty),
                 [KeyVersion]            = ReadPyRevitVersion(pyRevitRoot),
                 [KeyClone]              = "Unknown",
                 [KeyIPYVersion]         = ReadIPYVersion(pyRevitRoot),
@@ -97,6 +105,26 @@ namespace pyRevitAssemblyBuilder.SessionManager
                 ?? throw new InvalidOperationException("Cannot find EnvDictionary.Seed(Dictionary<string, object>) method.");
 
             seedMethod.Invoke(null, new object[] { values });
+        }
+
+        /// <summary>
+        /// Returns the Revit version already seeded into the AppDomain env dictionary by the
+        /// Python sessioninfo step (the precise subversion, e.g. "2025.4.10"), or null if none
+        /// is present yet. Lets Seed() avoid clobbering it with the loader's major-only version.
+        /// </summary>
+        private static string? ReadSeededAppVersion()
+        {
+            try
+            {
+                // Key names must match DomainStorageKeys.EnvVarsDictKey and
+                // EnvDictionaryKeys.RevitVersion in the Runtime (EnvVariables.cs).
+                const string envVarsDictKey = "PYREVITEnvVarsDict";
+                if (AppDomain.CurrentDomain.GetData(envVarsDictKey) is System.Collections.IDictionary dict
+                        && dict.Contains(KeyRevitVersion))
+                    return dict[KeyRevitVersion] as string;
+            }
+            catch { /* fall back to the loader-supplied version */ }
+            return null;
         }
 
         internal static string ReadPyRevitVersion(string pyRevitRoot)
