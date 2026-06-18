@@ -58,15 +58,15 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
         string GetButtonText(ParsedComponent component);
 
         /// <summary>
-        /// Returns the accumulated sub-step timing collected since the last call (or since
-        /// construction) and resets all counters back to zero. Used by the session manager
-        /// to attribute [PERF] sub-step totals to each extension's <c>BuildUI</c> window.
+        /// Returns the total post-processing time collected since the last call (or since
+        /// construction) and resets the counters back to zero. Used by the session manager
+        /// to attribute [PERF] post-processing cost to each extension's <c>BuildUI</c> window.
         /// </summary>
         /// <returns>
-        /// A tuple of (iconMs, tooltipMs, helpMs, highlightMs, calls). All values are 0
-        /// when no <see cref="Process"/> calls have run since the previous reset.
+        /// A tuple of (processMs, calls). Both are 0 when no <see cref="Process"/> calls have
+        /// run since the previous reset.
         /// </returns>
-        (long IconMs, long TooltipMs, long HelpMs, long HighlightMs, int Calls) ResetAndGetStats();
+        (long ProcessMs, int Calls) ResetAndGetStats();
 
         /// <summary>
         /// Adds <paramref name="elapsedMs"/> to the shared AddItem accumulator. Builders call

@@ -318,9 +318,14 @@ namespace pyRevitExtensionParser
                     {
                         var sw = Stopwatch.StartNew();
                         var parsed = ParseExtension(extDir, revitYear);
-                        RecordParseTiming(extDir, "ui", sw.ElapsedMilliseconds);
+                        // Only record timing for extensions actually parsed; disabled or
+                        // version-incompatible ones return null after a near-zero config check
+                        // and shouldn't appear in the [PERF] breakdown or inflate the count.
                         if (parsed != null)
+                        {
+                            RecordParseTiming(extDir, "ui", sw.ElapsedMilliseconds);
                             yield return parsed;
+                        }
                     }
                 }
 
@@ -342,9 +347,11 @@ namespace pyRevitExtensionParser
                     {
                         var sw = Stopwatch.StartNew();
                         var parsed = ParseExtension(libDir, revitYear);
-                        RecordParseTiming(libDir, "lib", sw.ElapsedMilliseconds);
                         if (parsed != null)
+                        {
+                            RecordParseTiming(libDir, "lib", sw.ElapsedMilliseconds);
                             yield return parsed;
+                        }
                     }
                 }
             }
