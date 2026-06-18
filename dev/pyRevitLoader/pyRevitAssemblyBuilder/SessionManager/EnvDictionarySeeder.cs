@@ -44,6 +44,10 @@ namespace pyRevitAssemblyBuilder.SessionManager
         private const string KeyAutoUpdating         = "PYREVIT_AUTOUPDATE";
         private const string KeyOutputStyleSheet     = "PYREVIT_STYLESHEET";
 
+        // Must match DomainStorageKeys.EnvVarsDictKey in the Runtime (EnvVariables.cs).
+        // Kept as a literal because pyRevitAssemblyBuilder does not reference that assembly.
+        private const string KeyEnvVarsDict          = "PYREVITEnvVarsDict";
+
         /// <summary>
         /// Builds the session environment dictionary and stores it in the AppDomain via a reflection
         /// call to <c>EnvDictionary.Seed()</c> in the Runtime assembly.
@@ -60,10 +64,18 @@ namespace pyRevitAssemblyBuilder.SessionManager
         {
             var config = PyRevitConfig.Load();
 
+            // Revit version is seeded earlier by Python sessioninfo as the precise subversion
+            // (e.g. "2025.4.10"); the loader only knows the major VersionNumber (e.g. "2025").
+            // Preserve the already-seeded value so a single session keeps one host version
+            // (SessionInfo / output-window identity) instead of flipping it mid-startup.
+            var seededAppVersion = ReadSeededAppVersion();
+
             var values = new Dictionary<string, object>
             {
                 [KeySessionUUID]        = Guid.NewGuid().ToString(),
-                [KeyRevitVersion]       = uiApp?.Application?.VersionNumber ?? string.Empty,
+                [KeyRevitVersion]       = !string.IsNullOrEmpty(seededAppVersion)
+                                              ? seededAppVersion!
+                                              : (uiApp?.Application?.VersionNumber ?? string.Empty),
                 [KeyVersion]            = ReadPyRevitVersion(pyRevitRoot),
                 [KeyClone]              = "Unknown",
                 [KeyIPYVersion]         = ReadIPYVersion(pyRevitRoot),
@@ -97,6 +109,23 @@ namespace pyRevitAssemblyBuilder.SessionManager
                 ?? throw new InvalidOperationException("Cannot find EnvDictionary.Seed(Dictionary<string, object>) method.");
 
             seedMethod.Invoke(null, new object[] { values });
+        }
+
+        /// <summary>
+        /// Returns the Revit version already seeded into the AppDomain env dictionary by the
+        /// Python sessioninfo step (the precise subversion, e.g. "2025.4.10"), or null if none
+        /// is present yet. Lets Seed() avoid clobbering it with the loader's major-only version.
+        /// </summary>
+        private static string? ReadSeededAppVersion()
+        {
+            try
+            {
+                if (AppDomain.CurrentDomain.GetData(KeyEnvVarsDict) is System.Collections.IDictionary dict
+                        && dict.Contains(KeyRevitVersion))
+                    return dict[KeyRevitVersion] as string;
+            }
+            catch { /* fall back to the loader-supplied version */ }
+            return null;
         }
 
         internal static string ReadPyRevitVersion(string pyRevitRoot)

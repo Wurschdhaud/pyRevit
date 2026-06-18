@@ -5,6 +5,8 @@ import os.path as op
 from pyrevit import HOST_APP
 from pyrevit.framework import clr
 from pyrevit.compat import PY2
+from pyrevit._perf import mark as _perfmark
+_perfmark("pyrevit.labs:entry")
 
 # try loading pyrevitlabs
 clr.AddReference('Nett')
@@ -36,6 +38,8 @@ clr.AddReference('pyRevitLabs.Language')
 clr.AddReference('pyRevitLabs.DeffrelDB')
 clr.AddReference('pyRevitLabs.TargetApps.Revit')
 clr.AddReference('pyRevitLabs.PyRevit')
+clr.AddReference('PythonStubsBuilder')
+_perfmark("pyrevit.labs:after clr.AddReference block (14 pyRevitLabs DLLs)")
 import Nett
 import MadMilkman.Ini
 import OpenMcdf
@@ -50,6 +54,8 @@ from pyRevitLabs import Language
 from pyRevitLabs import DeffrelDB
 from pyRevitLabs import TargetApps
 from pyRevitLabs import PyRevit
+from PythonStubs import PythonStubsBuilder
+_perfmark("pyrevit.labs:after `from pyRevitLabs import` block")
 
 from pyrevit import coreutils
 from pyrevit.coreutils import logger
@@ -79,3 +85,5 @@ if HOST_APP.is_older_than(2019):
     PyRevit.PyRevitBindings.ActivateResolver()
 
 # NLog output is configured by PyRevitLabs.PyRevit.Runtime.ScriptOutput.
+
+_perfmark("pyrevit.labs:exit")

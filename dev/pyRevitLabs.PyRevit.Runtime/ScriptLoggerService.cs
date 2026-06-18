@@ -37,7 +37,6 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         private static readonly object DefaultLogPathLock = new object();
         private static string _cachedDefaultLogPath;
-        private static string _cachedDefaultLogPathVersion;
 
         private readonly WeakReference<ScriptRuntime> _runtime;
         private readonly bool _runtimeBound;
@@ -102,6 +101,13 @@ namespace PyRevitLabs.PyRevit.Runtime {
         }
 
         public void Log(string loggerName, int level, string message) {
+            Log(loggerName, level, message, allowWindowCreation: true);
+        }
+
+        // Forwarded loader/NLog records pass allowWindowCreation: false so they still persist
+        // to disk and reach an already-open console, but never spawn a session window the user
+        // never opened. Direct script output keeps the default and creates windows as before.
+        public void Log(string loggerName, int level, string message, bool allowWindowCreation) {
             try {
                 var runtime = GetActiveRuntime();
                 if (_runtimeBound && runtime == null)
@@ -127,7 +133,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 }
 
                 if (visible && !(runtime?.ScriptRuntimeConfigs?.SuppressOutput ?? false))
-                    WriteOutput(runtime, normalizedLevel, normalizedName, normalizedMessage);
+                    WriteOutput(runtime, normalizedLevel, normalizedName, normalizedMessage,
+                        allowWindowCreation);
 
                 var hasFileSink = !string.IsNullOrWhiteSpace(explicitLogPath)
                     || !string.IsNullOrWhiteSpace(defaultLogPath);
@@ -195,8 +202,13 @@ namespace PyRevitLabs.PyRevit.Runtime {
             ScriptRuntime runtime,
             ScriptLogLevel level,
             string loggerName,
-            string message) {
+            string message,
+            bool allowWindowCreation) {
             var output = ScriptOutput.GetForRuntime(runtime);
+            // File persistence is handled by the caller; a forwarded record must not be the
+            // reason an output window appears, so drop it when none is already open.
+            if (!allowWindowCreation && !output.IsWindowReady)
+                return;
             var rendered = FormatVisibleEntry(level, loggerName, message);
             output.write_log_record(
                 rendered,
@@ -293,30 +305,45 @@ namespace PyRevitLabs.PyRevit.Runtime {
             }
         }
 
+        /// <summary>
+        /// Path of the session's default runtime log file
+        /// (<c>%APPDATA%\pyRevit\{majorVersion}\pyRevit_{majorVersion}_{pid}_runtime.log</c>),
+        /// or null if it can't be resolved. Exposed so tools (e.g. the DevTools Logs viewer)
+        /// can locate and pre-select the active session's log.
+        /// </summary>
+        public static string GetDefaultLogFilePath() {
+            return GetDefaultLogFilePath(null);
+        }
+
         private static string GetDefaultLogFilePath(ScriptRuntime runtime) {
             try {
-                var revitVersion = runtime?.EnvDict?.RevitVersion;
-                if (string.IsNullOrEmpty(revitVersion))
-                    revitVersion = new EnvDictionary().RevitVersion;
-                if (string.IsNullOrEmpty(revitVersion))
-                    return null;
-
-                // path inputs are constant for the process lifetime; resolve once
+                // Resolve once per process: the runtime log must stay a single file even if the
+                // seeded Revit version string changes mid-session.
                 lock (DefaultLogPathLock) {
-                    if (_cachedDefaultLogPath != null
-                            && string.Equals(_cachedDefaultLogPathVersion, revitVersion, StringComparison.Ordinal))
+                    if (_cachedDefaultLogPath != null)
                         return _cachedDefaultLogPath;
+
+                    var revitVersion = runtime?.EnvDict?.RevitVersion;
+                    if (string.IsNullOrEmpty(revitVersion))
+                        revitVersion = new EnvDictionary().RevitVersion;
+                    if (string.IsNullOrEmpty(revitVersion))
+                        return null;
+
+                    // Normalize to the major version ("2025.4.10" -> "2025") so the log lands in
+                    // %APPDATA%\pyRevit\{major}\ — the canonical per-version appdata folder pyRevit
+                    // and the DevTools Logs viewer use (and which pyRevit's 4-digit file matching
+                    // expects), regardless of whether the seeded value is the subversion.
+                    var majorVersion = revitVersion.Split('.')[0];
 
                     var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                     var fileName = string.Format(
                         "{0}_{1}_{2}_runtime.log",
                         PyRevitLabsConsts.ProductName,
-                        revitVersion,
+                        majorVersion,
                         ProcessId);
-                    var path = Path.Combine(appData, PyRevitLabsConsts.AppdataDirName, revitVersion, fileName);
+                    var path = Path.Combine(appData, PyRevitLabsConsts.AppdataDirName, majorVersion, fileName);
 
                     _cachedDefaultLogPath = path;
-                    _cachedDefaultLogPathVersion = revitVersion;
                     return path;
                 }
             }

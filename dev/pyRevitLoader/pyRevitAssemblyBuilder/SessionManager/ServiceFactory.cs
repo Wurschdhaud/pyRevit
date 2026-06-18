@@ -213,7 +213,8 @@ namespace pyRevitAssemblyBuilder.SessionManager
             IStackBuilder stackBuilder,
             IComboBoxBuilder comboBoxBuilder,
             BuildContext buildContext,
-            IUIRibbonScanner? ribbonScanner = null)
+            IUIRibbonScanner? ribbonScanner = null,
+            SmartButtonScriptInitializer? smartButtonScriptInitializer = null)
         {
             return new UIManagerService(
                 uiApplication,
@@ -225,7 +226,8 @@ namespace pyRevitAssemblyBuilder.SessionManager
                 stackBuilder,
                 comboBoxBuilder,
                 buildContext,
-                ribbonScanner);
+                ribbonScanner,
+                smartButtonScriptInitializer);
         }
 
         /// <summary>
@@ -241,7 +243,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
             AssemblyBuildStrategy buildStrategy,
             UIApplication uiApplication)
         {
-            // Create logger first - it's used by all other services
+            // Create logger first - it's used by all other services.
             var logger = CreateLogger();
             ExtensionParser.SetLogger(new ExtensionParserLoggerAdapter(logger));
             
@@ -282,7 +284,8 @@ namespace pyRevitAssemblyBuilder.SessionManager
                 stackBuilder,
                 comboBoxBuilder,
                 buildContext,
-                ribbonScanner);
+                ribbonScanner,
+                smartButtonScriptInitializer);
 
             return new SessionManagerService(
                 assemblyBuilder,
