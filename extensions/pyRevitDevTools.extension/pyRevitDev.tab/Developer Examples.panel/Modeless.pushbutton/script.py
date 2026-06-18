@@ -86,6 +86,7 @@ class ExampleUI(forms.WPFWindow):
         """
 
         forms.WPFWindow.__init__(self, xaml_layout, literal_string=True)
+        self.output = script.get_output()
         self.selected_element = None
 
     def pick_element_clicked(self, sender, args):
@@ -151,9 +152,9 @@ class ExampleUI(forms.WPFWindow):
 
     def output_clicked(self, sender, args):
         """Example of using output."""
-        script.get_output().print_md("This is output from the modeless dialog!")
-        script.get_logger().info("This is a log message from the modeless dialog.")
-        script.get_logger().warning("This is a warning from the modeless dialog.")
+        self.output.print_md("This is output from the modeless dialog!")
+        self.output.log_info("This is a log message from the modeless dialog.")
+        self.output.log_warning("This is a warning from the modeless dialog.")
 
 
 if __name__ == "__main__":
