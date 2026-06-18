@@ -240,30 +240,6 @@ namespace pyRevitExtensionParser
             }
         }
 
-        /// <summary>
-        /// Gets or sets whether the C# loader writes a sidecar log file alongside the Python
-        /// logger. Parallel to <see cref="FileLogging"/>: when true, the sidecar lands in
-        /// <c>%APPDATA%\pyRevit\{revit_version}\</c> using the same per-process filename
-        /// convention as <c>runtime.log</c>. Defaults to false.
-        /// </summary>
-        /// <remarks>
-        /// Diagnostic instrumentation for the new C# loader. The Python <c>mlogger</c> bridge
-        /// silently drops debug-level lines emitted from C#, so this opt-in sidecar captures
-        /// the full <c>[PERF]</c> + button-creation stream to a flat file for analysis.
-        /// </remarks>
-        public bool CSharpFileLogging
-        {
-            get
-            {
-                var value = _ini.IniReadValue("core", "csharp_filelogging");
-                return bool.TryParse(value, out var result) && result;
-            }
-            set
-            {
-                _ini.IniWriteValue("core", "csharp_filelogging", value ? TrueString : FalseString);
-            }
-        }
-
         // ── Telemetry ────────────────────────────────────────────────────────────
 
         /// <summary>

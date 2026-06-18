@@ -21,15 +21,10 @@ namespace pyRevitAssemblyBuilder.SessionManager
         /// <summary>
         /// Creates a logger instance for the C# session manager.
         /// </summary>
-        /// <param name="pythonLogger">The Python logger instance.</param>
-        /// <param name="revitVersion">
-        /// Revit version (e.g. "2025") used to derive the default sidecar log path
-        /// when <see cref="PyRevitConfig.CSharpFileLogging"/> is enabled.
-        /// </param>
         /// <returns>An ILogger instance.</returns>
-        public static ILogger CreateLogger(object? pythonLogger, string? revitVersion = null)
+        public static ILogger CreateLogger()
         {
-            return new LoggingHelper(pythonLogger, revitVersion);
+            return new LoggingHelper();
         }
 
         /// <summary>
@@ -249,9 +244,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
             UIApplication uiApplication)
         {
             // Create logger first - it's used by all other services.
-            // Pass revitVersion so the optional [core] csharp_filelogging sidecar lands in
-            // %APPDATA%\pyRevit\{revitVersion}\ alongside runtime.log.
-            var logger = CreateLogger(pythonLogger, revitVersion);
+            var logger = CreateLogger();
             ExtensionParser.SetLogger(new ExtensionParserLoggerAdapter(logger));
             
             // Create core services
