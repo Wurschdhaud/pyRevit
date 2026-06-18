@@ -1,6 +1,5 @@
 #nullable enable
 using System;
-using System.Diagnostics;
 using Autodesk.Revit.UI;
 using pyRevitAssemblyBuilder.AssemblyMaker;
 using pyRevitAssemblyBuilder.SessionManager;
@@ -61,9 +60,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
             try
             {
                 var pbData = CreatePushButtonData(component, assemblyInfo);
-                var addItemSw = Stopwatch.StartNew();
-                var btn = parentPanel.AddItem(pbData) as PushButton;
-                ButtonPostProcessor.RecordAddItemMs(addItemSw.ElapsedMilliseconds);
+                var btn = TimedAddItem(() => parentPanel.AddItem(pbData) as PushButton);
                 if (btn != null)
                 {
                     ButtonPostProcessor.Process(btn, component);

@@ -1,7 +1,6 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using Autodesk.Revit.UI;
 using pyRevitAssemblyBuilder.AssemblyMaker;
@@ -176,9 +175,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
             if (!addToPanel)
                 return pdData;
 
-            var addItemSw = Stopwatch.StartNew();
-            var pdBtn = parentPanel.AddItem(pdData) as PulldownButton;
-            ButtonPostProcessor.RecordAddItemMs(addItemSw.ElapsedMilliseconds);
+            var pdBtn = TimedAddItem(() => parentPanel.AddItem(pdData) as PulldownButton);
             if (pdBtn == null)
             {
                 Logger.Warning($"Failed to add pulldown button '{pulldownText}' to panel.");
@@ -263,9 +260,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 sub.Type == CommandComponentType.InvokeButton ||
                 sub.Type == CommandComponentType.ContentButton)
             {
-                var addItemSw = Stopwatch.StartNew();
-                var subBtn = pdBtn.AddPushButton(CreatePushButtonData(sub, assemblyInfo!));
-                ButtonPostProcessor.RecordAddItemMs(addItemSw.ElapsedMilliseconds);
+                var subBtn = TimedAddItem(() => pdBtn.AddPushButton(CreatePushButtonData(sub, assemblyInfo!)));
                 if (subBtn != null)
                 {
                     ButtonPostProcessor.Process(subBtn, sub, component, GetCompactIconMode(sub));
@@ -275,9 +270,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
 
             if (sub.Type == CommandComponentType.SmartButton)
             {
-                var addItemSw = Stopwatch.StartNew();
-                var smartSubBtn = pdBtn.AddPushButton(CreatePushButtonData(sub, assemblyInfo!));
-                ButtonPostProcessor.RecordAddItemMs(addItemSw.ElapsedMilliseconds);
+                var smartSubBtn = TimedAddItem(() => pdBtn.AddPushButton(CreatePushButtonData(sub, assemblyInfo!)));
                 if (smartSubBtn != null)
                 {
                     ButtonPostProcessor.Process(smartSubBtn, sub, component, GetCompactIconMode(sub));
@@ -301,9 +294,7 @@ namespace pyRevitAssemblyBuilder.UIManager.Buttons
                 var linkData = _linkButtonBuilder.CreateLinkButtonData(sub);
                 if (linkData != null)
                 {
-                    var addItemSw = Stopwatch.StartNew();
-                    var linkSubBtn = pdBtn.AddPushButton(linkData);
-                    ButtonPostProcessor.RecordAddItemMs(addItemSw.ElapsedMilliseconds);
+                    var linkSubBtn = TimedAddItem(() => pdBtn.AddPushButton(linkData));
                     if (linkSubBtn != null)
                     {
                         ButtonPostProcessor.Process(linkSubBtn, sub, component, GetCompactIconMode(sub));

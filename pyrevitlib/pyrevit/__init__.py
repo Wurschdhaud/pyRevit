@@ -22,7 +22,8 @@ import re
 
 # Perf instrumentation must be the first pyrevit import so the first mark
 # below times as close to "pyrevit module load entry" as the import order
-# allows. No-op when csharp_filelogging is disabled in pyrevit_config.ini.
+# allows. Each mark is a no-op until the pyRevit logger is importable and
+# only surfaces when DEBUG logging is enabled.
 from pyrevit._perf import mark as _perfmark
 _perfmark("pyrevit.__init__:entry")
 

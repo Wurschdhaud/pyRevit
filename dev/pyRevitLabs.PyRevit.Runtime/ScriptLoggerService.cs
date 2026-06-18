@@ -101,6 +101,13 @@ namespace PyRevitLabs.PyRevit.Runtime {
         }
 
         public void Log(string loggerName, int level, string message) {
+            Log(loggerName, level, message, allowWindowCreation: true);
+        }
+
+        // Forwarded loader/NLog records pass allowWindowCreation: false so they still persist
+        // to disk and reach an already-open console, but never spawn a session window the user
+        // never opened. Direct script output keeps the default and creates windows as before.
+        public void Log(string loggerName, int level, string message, bool allowWindowCreation) {
             try {
                 var runtime = GetActiveRuntime();
                 if (_runtimeBound && runtime == null)
@@ -126,7 +133,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 }
 
                 if (visible && !(runtime?.ScriptRuntimeConfigs?.SuppressOutput ?? false))
-                    WriteOutput(runtime, normalizedLevel, normalizedName, normalizedMessage);
+                    WriteOutput(runtime, normalizedLevel, normalizedName, normalizedMessage,
+                        allowWindowCreation);
 
                 var hasFileSink = !string.IsNullOrWhiteSpace(explicitLogPath)
                     || !string.IsNullOrWhiteSpace(defaultLogPath);
@@ -194,8 +202,13 @@ namespace PyRevitLabs.PyRevit.Runtime {
             ScriptRuntime runtime,
             ScriptLogLevel level,
             string loggerName,
-            string message) {
+            string message,
+            bool allowWindowCreation) {
             var output = ScriptOutput.GetForRuntime(runtime);
+            // File persistence is handled by the caller; a forwarded record must not be the
+            // reason an output window appears, so drop it when none is already open.
+            if (!allowWindowCreation && !output.IsWindowReady)
+                return;
             var rendered = FormatVisibleEntry(level, loggerName, message);
             output.write_log_record(
                 rendered,

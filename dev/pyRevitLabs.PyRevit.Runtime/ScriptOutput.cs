@@ -264,6 +264,10 @@ namespace PyRevitLabs.PyRevit.Runtime {
 
         private bool IsWindowClosed => _window != null && _window.ClosedByUser;
 
+        // True only when a window already exists and the user hasn't closed it. Lets the
+        // logger reach an open console without lazily creating one via the `window` getter.
+        internal bool IsWindowReady => _window != null && !_window.ClosedByUser;
+
         public void mark_error() {
             _hasErrors = true;
         }
@@ -855,7 +859,8 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 ScriptLoggerService.GetDefault().Log(
                     logEvent.LoggerName,
                     MapLevel(logEvent.Level),
-                    logEvent.FormattedMessage);
+                    logEvent.FormattedMessage,
+                    allowWindowCreation: false);
             }
             catch { }
             finally {

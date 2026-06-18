@@ -44,6 +44,10 @@ namespace pyRevitAssemblyBuilder.SessionManager
         private const string KeyAutoUpdating         = "PYREVIT_AUTOUPDATE";
         private const string KeyOutputStyleSheet     = "PYREVIT_STYLESHEET";
 
+        // Must match DomainStorageKeys.EnvVarsDictKey in the Runtime (EnvVariables.cs).
+        // Kept as a literal because pyRevitAssemblyBuilder does not reference that assembly.
+        private const string KeyEnvVarsDict          = "PYREVITEnvVarsDict";
+
         /// <summary>
         /// Builds the session environment dictionary and stores it in the AppDomain via a reflection
         /// call to <c>EnvDictionary.Seed()</c> in the Runtime assembly.
@@ -116,10 +120,7 @@ namespace pyRevitAssemblyBuilder.SessionManager
         {
             try
             {
-                // Key names must match DomainStorageKeys.EnvVarsDictKey and
-                // EnvDictionaryKeys.RevitVersion in the Runtime (EnvVariables.cs).
-                const string envVarsDictKey = "PYREVITEnvVarsDict";
-                if (AppDomain.CurrentDomain.GetData(envVarsDictKey) is System.Collections.IDictionary dict
+                if (AppDomain.CurrentDomain.GetData(KeyEnvVarsDict) is System.Collections.IDictionary dict
                         && dict.Contains(KeyRevitVersion))
                     return dict[KeyRevitVersion] as string;
             }
