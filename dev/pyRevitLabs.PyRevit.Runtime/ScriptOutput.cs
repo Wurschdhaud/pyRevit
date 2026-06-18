@@ -122,15 +122,6 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 outWindow.AppVersion = _appVersion;
         }
 
-        internal static ScriptOutput GetDefaultIfWindowReady() {
-            lock (SyncRoot) {
-                if (_default == null || _default._window == null || _default.IsWindowClosed)
-                    return null;
-
-                return _default;
-            }
-        }
-
         /// <summary>
         /// Route NLog messages into the session output window. Call once at
         /// session setup; the logging level is resolved at that moment.
@@ -140,32 +131,18 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 if (_loggingConfigured)
                     return;
 
-                var minLevel = GetConfiguredMinLogLevel();
-
                 var target = new ScriptOutputTarget {
-                    Name = OutputTargetName,
-                    Layout = "${level:uppercase=true} [${logger}] ${message}"
+                    Name = OutputTargetName
                 };
 
+                // Forward everything to the target; ScriptLoggerService owns visibility
+                // (console min-level) and file persistence, so the NLog rule must not gate.
                 var config = LogManager.Configuration ?? new LoggingConfiguration();
                 config.AddTarget(OutputTargetName, target);
-                config.AddRule(minLevel, LogLevel.Fatal, target);
+                config.AddRule(LogLevel.Trace, LogLevel.Fatal, target);
                 LogManager.Configuration = config;
                 _loggingConfigured = true;
             }
-        }
-
-        private static LogLevel GetConfiguredMinLogLevel() {
-            try {
-                var configuredLevel = PyRevitConfigs.GetLoggingLevel();
-                if (configuredLevel == PyRevitLogLevels.Debug)
-                    return LogLevel.Trace;
-                if (configuredLevel == PyRevitLogLevels.Verbose)
-                    return LogLevel.Info;
-            }
-            catch { }
-
-            return LogLevel.Warn;
         }
 
         /// <summary>Apply a runtime's identity (title, id, version) to the session output window.</summary>
@@ -865,50 +842,37 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private static bool _emitting;
 
         protected override void Write(LogEventInfo logEvent) {
-            try {
-                var output = ScriptOutput.GetDefaultIfWindowReady();
-                if (output == null)
-                    return;
-
-                var dispatcher = output.WindowDispatcher;
-                if (dispatcher == null || dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished)
-                    return;
-
-                var rendered = Layout.Render(logEvent);
-                var markError = logEvent.Level >= LogLevel.Error;
-
-                if (dispatcher.CheckAccess()) {
-                    DoWrite(output, markError, rendered);
-                    return;
-                }
-
-                // NLog can emit from background work during startup; WPF output must
-                // only be touched on its dispatcher thread.
-                dispatcher.BeginInvoke(
-                    new Action(() => {
-                        try {
-                            DoWrite(ScriptOutput.GetDefaultIfWindowReady(), markError, rendered);
-                        }
-                        catch { }
-                    }),
-                    DispatcherPriority.Background);
-            }
-            catch { }
-        }
-
-        private static void DoWrite(ScriptOutput output, bool markError, string rendered) {
-            if (output == null || rendered == null || _emitting)
+            // Funnel loader/NLog records through the single logging chokepoint so they
+            // reach the console AND disk uniformly, instead of writing straight to the
+            // output window (which dropped records whenever the window wasn't ready and
+            // never persisted to the runtime log). The guard prevents recursion if the
+            // forwarding path emits its own NLog records on this thread.
+            if (_emitting)
                 return;
 
             _emitting = true;
             try {
-                if (markError)
-                    output.mark_error();
-                output.write_line(rendered);
+                ScriptLoggerService.GetDefault().Log(
+                    logEvent.LoggerName,
+                    MapLevel(logEvent.Level),
+                    logEvent.FormattedMessage);
             }
+            catch { }
             finally {
                 _emitting = false;
             }
+        }
+
+        private static int MapLevel(LogLevel level) {
+            if (level >= LogLevel.Fatal)
+                return (int)ScriptLogLevel.Critical;
+            if (level >= LogLevel.Error)
+                return (int)ScriptLogLevel.Error;
+            if (level >= LogLevel.Warn)
+                return (int)ScriptLogLevel.Warning;
+            if (level >= LogLevel.Info)
+                return (int)ScriptLogLevel.Info;
+            return (int)ScriptLogLevel.Debug;
         }
     }
 }
