@@ -84,21 +84,6 @@ def extract_build_from_exe(proc_path):
 if HOST_APP.is_older_than(2019):
     PyRevit.PyRevitBindings.ActivateResolver()
 
-# configure NLog
-#pylint: disable=W0201
-if PY2:
-    config = NLog.Config.LoggingConfiguration()
-    target = PyRevitOutputTarget()
-    target.Name = __name__
-    target.Layout = "${level:uppercase=true} [${logger}] ${message}"
-    config.AddTarget(__name__, target)
-    config.AddRuleForAllLevels(target)
-    NLog.LogManager.Configuration = config
+# NLog output is configured by PyRevitLabs.PyRevit.Runtime.ScriptOutput.
 
-    for rule in NLog.LogManager.Configuration.LoggingRules:
-        rule.EnableLoggingForLevel(NLog.LogLevel.Info)
-        rule.EnableLoggingForLevel(NLog.LogLevel.Debug)
-
-    nlog_mlogger = NLog.LogManager.GetLogger(__name__)
-
-_perfmark("pyrevit.labs:exit (NLog config done)")
+_perfmark("pyrevit.labs:exit")
