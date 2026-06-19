@@ -225,8 +225,8 @@ class ControlManager(object):
         Args:
             icon_path (str):
                 Absolute path to a BMP icon file (24-bit, recommended
-                32 x 32 or 64 x 64 px for consistent display). To achive
-                a "transparent" backgound color effect over the provided
+                32 x 32 or 64 x 64 px for consistent display). To achieve
+                a "transparent" background color effect over the provided
                 bitmap, the bitmap should use color RGB(0, 128, 128) as its
                 background and it will be cleared during rendering by Revit.
             position (DB.XYZ):
