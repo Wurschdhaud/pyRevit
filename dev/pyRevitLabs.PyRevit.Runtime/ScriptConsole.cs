@@ -2,11 +2,8 @@ using System;
 using System.Windows;
 using System.IO;
 using System.Linq;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text;
-using System.Threading;
 using System.Windows.Controls;
 using System.Windows.Markup;
 using System.Windows.Media;
@@ -200,9 +197,6 @@ namespace PyRevitLabs.PyRevit.Runtime {
         private int _inlineWaitIndex = -1;
         private string _initialStyleSheetPath;
         private string _outputHtmlPath;
-        private readonly ConcurrentDictionary<string, string> _registeredElementIds =
-            new ConcurrentDictionary<string, string>();
-        private int _elementIdTokenCounter;
 
         private List<ScriptConsoleDebugger> _supportedDebuggers =
             new List<ScriptConsoleDebugger> {
@@ -1151,24 +1145,9 @@ namespace PyRevitLabs.PyRevit.Runtime {
             e.Cancel = true;
         }
 
-        /// <summary>
-        /// Stores element ids that are too many to travel inside a <c>revit://</c> link and returns
-        /// the short token the link carries instead. Tokens are valid only for this window and
-        /// are released with it.
-        /// </summary>
-        /// <param name="commaSeparatedIds">Element id values joined by commas.</param>
-        /// <returns>Token to pass as the <c>elements</c> query parameter.</returns>
-        public string RegisterElementIds(string commaSeparatedIds) {
-            var token = Interlocked.Increment(ref _elementIdTokenCounter)
-                .ToString(CultureInfo.InvariantCulture);
-            _registeredElementIds[token] = commaSeparatedIds;
-            return token;
-        }
+        internal ElementIdRegistry ElementIds { get; set; }
 
-        internal string ResolveElementIds(string token) {
-            string ids;
-            return token != null && _registeredElementIds.TryGetValue(token, out ids) ? ids : null;
-        }
+        internal string ResolveElementIds(string token) => ElementIds?.Resolve(token);
 
         private static void OpenUrlExternally(string url) {
             try {
@@ -1347,6 +1326,7 @@ namespace PyRevitLabs.PyRevit.Runtime {
                 outputWindow._outputHtmlPath = null;
             }
 
+            outputWindow.ElementIds?.Clear();
             outputWindow.ClosedByUser = true;
         }
 
