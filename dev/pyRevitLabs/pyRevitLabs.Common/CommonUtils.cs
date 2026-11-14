@@ -194,7 +194,7 @@ namespace pyRevitLabs.Common {
             if (!CheckInternetConnection())
                 throw new pyRevitNoInternetConnectionException();
 
-            var partialPath = destPath + ".download";
+            var partialPath = destPath + "." + Guid.NewGuid().ToString("N") + ".download";
             try {
                 logger.Debug("Downloading \"{0}\"", url);
                 using (var cancellation = new CancellationTokenSource(DownloadTimeout))
@@ -206,8 +206,9 @@ namespace pyRevitLabs.Common {
                 }
 
                 if (File.Exists(destPath))
-                    File.Delete(destPath);
-                File.Move(partialPath, destPath);
+                    File.Replace(partialPath, destPath, null);
+                else
+                    File.Move(partialPath, destPath);
             }
             catch (Exception dlEx) {
                 logger.Debug("Error downloading file. | {0}", dlEx.Message);
