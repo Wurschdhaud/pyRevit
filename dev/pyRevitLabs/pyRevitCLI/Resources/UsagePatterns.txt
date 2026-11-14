@@ -61,8 +61,10 @@ Usage:
 	pyrevit releases <search_pattern> [--pre] [--notes]
 	pyrevit releases open latest [--pre]
 	pyrevit releases open <search_pattern> [--pre]
-	pyrevit releases download (installer | archive) latest [--dest=<dest_path>] [--pre] [--admin]
-	pyrevit releases download (installer | archive) <search_pattern> [--dest=<dest_path>] [--pre] [--admin]
+	pyrevit releases download installer latest [--dest=<dest_path>] [--pre] [--admin]
+	pyrevit releases download installer <search_pattern> [--dest=<dest_path>] [--pre] [--admin]
+	pyrevit releases download archive latest [--dest=<dest_path>] [--pre]
+	pyrevit releases download archive <search_pattern> [--dest=<dest_path>] [--pre]
 	pyrevit revits
 	pyrevit revits (-h | --help)
 	pyrevit revits [--installed] [--log=<log_file>]

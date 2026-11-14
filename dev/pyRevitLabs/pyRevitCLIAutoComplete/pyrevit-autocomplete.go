@@ -409,32 +409,18 @@ func main() {
 									"latest": complete.Command{
 										Sub: complete.Commands{},
 										Flags: complete.Flags{
-											"--admin": complete.PredictNothing,
-											"--dest":  complete.PredictNothing,
-											"--pre":   complete.PredictNothing,
+											"--dest": complete.PredictNothing,
+											"--pre":  complete.PredictNothing,
 										},
 									},
 								},
 								Flags: complete.Flags{
-									"--admin": complete.PredictNothing,
-									"--dest":  complete.PredictNothing,
-									"--pre":   complete.PredictNothing,
-								},
-							},
-							"latest": complete.Command{
-								Sub: complete.Commands{},
-								Flags: complete.Flags{
-									"--admin": complete.PredictNothing,
-									"--dest":  complete.PredictNothing,
-									"--pre":   complete.PredictNothing,
+									"--dest": complete.PredictNothing,
+									"--pre":  complete.PredictNothing,
 								},
 							},
 						},
-						Flags: complete.Flags{
-							"--admin": complete.PredictNothing,
-							"--dest":  complete.PredictNothing,
-							"--pre":   complete.PredictNothing,
-						},
+						Flags: complete.Flags{},
 					},
 				},
 				Flags: complete.Flags{
