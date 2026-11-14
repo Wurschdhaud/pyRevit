@@ -272,6 +272,7 @@ namespace pyRevitCLI {
                             { "<search_pattern>",       "Pattern to search releases" },
                             { "--dest=<dest_path>",     "Destination file or directory to download to" },
                             { "--pre",                  "Include pre-releases in the search" },
+                            { "--admin",                "Download the admin (all users) installer" },
                             { "--notes",                "Print release notes" }
                         });
                     break;

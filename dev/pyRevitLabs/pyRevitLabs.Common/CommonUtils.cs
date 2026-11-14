@@ -19,6 +19,8 @@ namespace pyRevitLabs.Common {
 
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
+        private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(30);
+
         private static readonly HttpClient HttpClient;
         private static readonly HttpClient ConnectivityClient;
 
@@ -194,9 +196,12 @@ namespace pyRevitLabs.Common {
 
             try {
                 logger.Debug("Downloading \"{0}\"", url);
-                using (var response = HttpClient.GetAsync(url).GetAwaiter().GetResult()) {
+                using (var cancellation = new CancellationTokenSource(DownloadTimeout))
+                using (var response = HttpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellation.Token).GetAwaiter().GetResult()) {
                     response.EnsureSuccessStatusCode();
-                    CopyHttpContentToFile(response.Content, destPath);
+                    using (var stream = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
+                    using (var fileStream = File.Create(destPath))
+                        stream.CopyToAsync(fileStream, 81920, cancellation.Token).GetAwaiter().GetResult();
                 }
             }
             catch (Exception dlEx) {
