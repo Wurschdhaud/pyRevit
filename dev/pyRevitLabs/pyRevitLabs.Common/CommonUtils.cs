@@ -194,18 +194,25 @@ namespace pyRevitLabs.Common {
             if (!CheckInternetConnection())
                 throw new pyRevitNoInternetConnectionException();
 
+            var partialPath = destPath + ".download";
             try {
                 logger.Debug("Downloading \"{0}\"", url);
                 using (var cancellation = new CancellationTokenSource(DownloadTimeout))
                 using (var response = HttpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellation.Token).GetAwaiter().GetResult()) {
                     response.EnsureSuccessStatusCode();
                     using (var stream = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
-                    using (var fileStream = File.Create(destPath))
+                    using (var fileStream = File.Create(partialPath))
                         stream.CopyToAsync(fileStream, 81920, cancellation.Token).GetAwaiter().GetResult();
                 }
+
+                if (File.Exists(destPath))
+                    File.Delete(destPath);
+                File.Move(partialPath, destPath);
             }
             catch (Exception dlEx) {
                 logger.Debug("Error downloading file. | {0}", dlEx.Message);
+                if (File.Exists(partialPath))
+                    File.Delete(partialPath);
                 throw;
             }
 
