@@ -388,23 +388,52 @@ func main() {
 					"download": complete.Command{
 						Sub: complete.Commands{
 							"installer": complete.Command{
-								Sub: complete.Commands{},
+								Sub: complete.Commands{
+									"latest": complete.Command{
+										Sub: complete.Commands{},
+										Flags: complete.Flags{
+											"--admin": complete.PredictNothing,
+											"--dest":  complete.PredictNothing,
+											"--pre":   complete.PredictNothing,
+										},
+									},
+								},
 								Flags: complete.Flags{
-									"--dest": complete.PredictNothing,
-									"--pre":  complete.PredictNothing,
+									"--admin": complete.PredictNothing,
+									"--dest":  complete.PredictNothing,
+									"--pre":   complete.PredictNothing,
 								},
 							},
 							"archive": complete.Command{
+								Sub: complete.Commands{
+									"latest": complete.Command{
+										Sub: complete.Commands{},
+										Flags: complete.Flags{
+											"--admin": complete.PredictNothing,
+											"--dest":  complete.PredictNothing,
+											"--pre":   complete.PredictNothing,
+										},
+									},
+								},
+								Flags: complete.Flags{
+									"--admin": complete.PredictNothing,
+									"--dest":  complete.PredictNothing,
+									"--pre":   complete.PredictNothing,
+								},
+							},
+							"latest": complete.Command{
 								Sub: complete.Commands{},
 								Flags: complete.Flags{
-									"--dest": complete.PredictNothing,
-									"--pre":  complete.PredictNothing,
+									"--admin": complete.PredictNothing,
+									"--dest":  complete.PredictNothing,
+									"--pre":   complete.PredictNothing,
 								},
 							},
 						},
 						Flags: complete.Flags{
-							"--dest": complete.PredictNothing,
-							"--pre":  complete.PredictNothing,
+							"--admin": complete.PredictNothing,
+							"--dest":  complete.PredictNothing,
+							"--pre":   complete.PredictNothing,
 						},
 					},
 				},
