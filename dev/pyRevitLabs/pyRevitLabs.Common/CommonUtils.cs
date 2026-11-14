@@ -19,6 +19,8 @@ namespace pyRevitLabs.Common {
 
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
+        private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(30);
+
         private static readonly HttpClient HttpClient;
         private static readonly HttpClient ConnectivityClient;
 
@@ -192,15 +194,29 @@ namespace pyRevitLabs.Common {
             if (!CheckInternetConnection())
                 throw new pyRevitNoInternetConnectionException();
 
+            var partialPath = destPath + "." + Guid.NewGuid().ToString("N") + ".download";
+            var partialCreated = false;
             try {
                 logger.Debug("Downloading \"{0}\"", url);
-                using (var response = HttpClient.GetAsync(url).GetAwaiter().GetResult()) {
+                using (var cancellation = new CancellationTokenSource(DownloadTimeout))
+                using (var response = HttpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellation.Token).GetAwaiter().GetResult()) {
                     response.EnsureSuccessStatusCode();
-                    CopyHttpContentToFile(response.Content, destPath);
+                    using (var stream = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
+                    using (var fileStream = new FileStream(partialPath, FileMode.CreateNew, FileAccess.Write)) {
+                        partialCreated = true;
+                        stream.CopyToAsync(fileStream, 81920, cancellation.Token).GetAwaiter().GetResult();
+                    }
                 }
+
+                if (File.Exists(destPath))
+                    File.Replace(partialPath, destPath, null);
+                else
+                    File.Move(partialPath, destPath);
             }
             catch (Exception dlEx) {
                 logger.Debug("Error downloading file. | {0}", dlEx.Message);
+                if (partialCreated && File.Exists(partialPath))
+                    File.Delete(partialPath);
                 throw;
             }
 

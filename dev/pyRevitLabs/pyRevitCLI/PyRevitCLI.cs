@@ -542,7 +542,8 @@ namespace pyRevitCLI {
                         destPath: TryGetValue("--dest"),
                         searchPattern: TryGetValue("<search_pattern>"),
                         latest: arguments["latest"].IsTrue,
-                        listPreReleases: arguments["--pre"].IsTrue
+                        listPreReleases: arguments["--pre"].IsTrue,
+                        admin: arguments["--admin"].IsTrue
                         );
 
                 else
