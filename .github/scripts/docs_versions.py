@@ -28,6 +28,7 @@ from pathlib import Path
 
 LATEST = "latest"
 DEV = "dev"
+DEV_TITLE = "develop"
 PREVIEW_ROOT = "pr-preview"
 KEPT_ROOT_FILES = {".git", PREVIEW_ROOT, "CNAME", "versions.json", ".nojekyll"}
 VERSION_PATTERN = re.compile(r"^(dev|\d+\.\d+)$")
@@ -84,7 +85,7 @@ def update_versions(pages_dir, version):
     entries = [
         {
             "version": v,
-            "title": v,
+            "title": DEV_TITLE if v == DEV else v,
             "aliases": [LATEST] if v == latest else [],
         }
         for v in sorted(versions, key=version_key)
